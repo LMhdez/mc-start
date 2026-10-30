@@ -1,17 +1,36 @@
 name: Ligar Servidor Minecraft
 
 on:
-  workflow_dispatch: # Permite disparar o servidor manualmente ou via link externo
+  workflow_dispatch:
+    inputs:
+      notificar:
+        description: 'Motivo ou utilizador a ligar'
+        required: false
+        default: 'Manual'
 
 jobs:
   start-azure-vm:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
       - name: Login na Azure
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Verificar Estado Atual da VM
+        run: |
+          echo "A verificar o estado atual da máquina virtual..."
+          az vm get-instance-view --resource-group MCServerFreeGroup --name MC-VM --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus" -o tsv
+
       - name: Ligar a Máquina Virtual
         run: |
-          az vm start --resource-group MCServerFreeGroup --name MC-VM
+          echo "A enviar comando para ligar a MC-VM..."
+          az vm start --resource-group MCServerFreeGroup --name MC-VM --no-wait
+          echo "Comando enviado com sucesso!"
+
+      - name: Confirmar Estado Final
+        run: |
+          echo "Servidor de Minecraft acionado com sucesso por: ${{ github.event.inputs.notificar }}"
