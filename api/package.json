@@ -1,0 +1,16 @@
+{
+  "name": "mc-server-control-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Private server-side bridge from the Minecraft control page to GitHub Actions.",
+  "main": "src/functions/*.js",
+  "scripts": {
+    "start": "func start"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.7.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
