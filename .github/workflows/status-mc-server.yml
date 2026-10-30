@@ -19,25 +19,25 @@ jobs:
       - name: Login na Azure
         uses: azure/login@v2
         with:
-          creds: \${{ secrets.AZURE_CREDENTIALS }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Recolher estado do servidor
         id: status
         shell: bash
         env:
-          AZURE_RESOURCE_GROUP: \${{ secrets.AZURE_RESOURCE_GROUP }}
-          AZURE_VM_NAME: \${{ secrets.AZURE_VM_NAME }}
+          AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
         run: |
           set -euo pipefail
-          RESOURCE_GROUP="\${AZURE_RESOURCE_GROUP:?Falta AZURE_RESOURCE_GROUP}"
-          VM_NAME="\${AZURE_VM_NAME:?Falta AZURE_VM_NAME}"
+          RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:?Falta AZURE_RESOURCE_GROUP}"
+          VM_NAME="${AZURE_VM_NAME:?Falta AZURE_VM_NAME}"
 
           VM_STATUS=$(az vm get-instance-view \
             --resource-group "$RESOURCE_GROUP" \
             --name "$VM_NAME" \
             --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus | [0]" \
             -o tsv)
-          VM_STATUS="\${VM_STATUS:-Unknown}"
+          VM_STATUS="${VM_STATUS:-Unknown}"
 
           IP=""
           PORT_OPEN="false"
@@ -50,7 +50,7 @@ jobs:
             IP=$(az vm list-ip-addresses \
               --resource-group "$RESOURCE_GROUP" \
               --name "$VM_NAME" \
-              --query "[0].virtualMachine.network.publicIpAddresses[0].ipAddress | [0]" \
+              --query "[0].virtualMachine.network.publicIpAddresses[0].ipAddress" \
               -o tsv 2>/dev/null || true)
             [ "$IP" = "None" ] && IP=""
 
@@ -83,15 +83,7 @@ jobs:
                 fi
 
                 export DOCKER_STATE CONTAINER_STATE PLAYER_COUNT PLAYER_NAMES
-                python3 - <<'"'"'PY'"'"'
-          import json, os
-          print("MC_STATUS_JSON:" + json.dumps({
-              "docker": os.environ["DOCKER_STATE"],
-              "container": os.environ["CONTAINER_STATE"],
-              "players": int(os.environ["PLAYER_COUNT"]),
-              "player_names": [n.strip() for n in os.environ["PLAYER_NAMES"].split(",") if n.strip()]
-          }, separators=(",", ":")))
-          PY
+                python3 -c "import json,os; print(\"MC_STATUS_JSON:\" + json.dumps({\"docker\":os.environ[\"DOCKER_STATE\"],\"container\":os.environ[\"CONTAINER_STATE\"],\"players\":int(os.environ[\"PLAYER_COUNT\"]),\"player_names\":[n.strip() for n in os.environ[\"PLAYER_NAMES\"].split(\",\") if n.strip()]},separators=(\",\",\":\")))"
               ' --output json)
 
             REMOTE_STATUS=$(printf '%s' "$RUN_RESULT" | python3 -c '
@@ -123,9 +115,9 @@ jobs:
 
       - name: Cifrar e enviar resultado temporário
         env:
-          ACCESS_PASSWORD: \${{ secrets.ACCESS_PASSWORD }}
-          REQUEST_ID: \${{ inputs.request_id }}
-          STATUS_JSON: \${{ steps.status.outputs.status_json }}
+          ACCESS_PASSWORD: ${{ secrets.ACCESS_PASSWORD }}
+          REQUEST_ID: ${{ inputs.request_id }}
+          STATUS_JSON: ${{ steps.status.outputs.status_json }}
           WORKER_URL: "https://mc-start-control.luismariohernandezsantos.workers.dev"
         shell: bash
         run: |
