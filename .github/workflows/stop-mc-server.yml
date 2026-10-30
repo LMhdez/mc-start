@@ -11,6 +11,9 @@ on:
   repository_dispatch:
     types: [stop-mc-server]
 
+permissions:
+  contents: read
+
 jobs:
   stop-azure-vm:
     runs-on: ubuntu-latest
