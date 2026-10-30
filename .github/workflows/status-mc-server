@@ -7,7 +7,7 @@ on:
 jobs:
   check-minecraft:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Login na Azure
@@ -31,15 +31,12 @@ jobs:
           echo "Estado da VM: $STATUS"
           echo "status=$STATUS" >> "$GITHUB_OUTPUT"
 
-      - name: Verificar Minecraft
+      - name: Verificar Porta Minecraft
         if: steps.vm.outputs.status == 'VM running'
         shell: bash
         run: |
           RESOURCE_GROUP="MCServerFreeGroup"
           VM_NAME="MC-VM"
-
-          echo "A VM está ligada."
-          echo "A verificar o serviço Minecraft..."
 
           IP=$(az vm list-ip-addresses \
             --resource-group "$RESOURCE_GROUP" \
@@ -49,17 +46,84 @@ jobs:
 
           echo "IP público: $IP"
 
-          if timeout 5 bash -c "echo > /dev/tcp/$IP/25565" 2>/dev/null; then
-            echo "SUCESSO: A porta 25565 está acessível."
-            echo "O servidor Minecraft está a aceitar ligações de rede."
+          if [ -z "$IP" ] || [ "$IP" = "None" ]; then
+            echo "AVISO: Não foi encontrado um IP público."
+          elif timeout 5 bash -c "echo > /dev/tcp/$IP/25565" 2>/dev/null; then
+            echo "SUCESSO: Porta 25565 acessível."
           else
-            echo "AVISO: Não foi possível aceder à porta 25565."
-            echo "O Minecraft pode ainda estar a iniciar ou não estar disponível."
+            echo "AVISO: Porta 25565 inacessível."
           fi
+
+      - name: Verificar Docker, Contentor e Jogadores
+        if: steps.vm.outputs.status == 'VM running'
+        shell: bash
+        run: |
+          echo "A executar verificações dentro da VM..."
+
+          az vm run-command invoke \
+            --resource-group MCServerFreeGroup \
+            --name MC-VM \
+            --command-id RunShellScript \
+            --scripts '
+              echo "=================================="
+              echo "       ESTADO DO DOCKER"
+              echo "=================================="
+
+              if systemctl is-active --quiet docker; then
+                echo "DOCKER: ATIVO"
+              else
+                echo "DOCKER: INATIVO"
+              fi
+
+              echo ""
+              echo "=================================="
+              echo "    ESTADO DO CONTENTOR"
+              echo "=================================="
+
+              if docker inspect mc-server >/dev/null 2>&1; then
+                CONTAINER_STATUS=$(docker inspect -f "{{.State.Status}}" mc-server)
+                echo "CONTENTOR: $CONTAINER_STATUS"
+
+                if [ "$CONTAINER_STATUS" = "running" ]; then
+                  echo ""
+                  echo "=================================="
+                  echo "       JOGADORES ONLINE"
+                  echo "=================================="
+
+                  if PLAYERS=$(timeout 10 docker exec mc-server rcon-cli list 2>&1); then
+                    echo "$PLAYERS"
+
+                    COUNT=$(echo "$PLAYERS" | sed -n "s/.*There are \([0-9]*\) of.*/\1/p")
+
+                    if [ -n "$COUNT" ]; then
+                      echo "NUMERO_JOGADORES: $COUNT"
+                    else
+                      echo "AVISO: Não foi possível identificar o número de jogadores."
+                    fi
+                  else
+                    echo "RCON: INDISPONÍVEL"
+                    echo "$PLAYERS"
+                  fi
+                else
+                  echo "AVISO: O contentor não está a correr."
+                fi
+              else
+                echo "CONTENTOR: NÃO ENCONTRADO"
+              fi
+
+              echo ""
+              echo "=================================="
+              echo "       FIM DA VERIFICAÇÃO"
+              echo "=================================="
+            ' \
+            --query "value[].message" \
+            -o tsv
 
       - name: VM Desligada
         if: steps.vm.outputs.status != 'VM running'
+        env:
+          VM_STATUS: ${{ steps.vm.outputs.status }}
         run: |
           echo "A VM não está ligada."
-          echo "Estado atual: ${{ steps.vm.outputs.status }}"
+          echo "Estado atual: $VM_STATUS"
           echo "Não foi efetuada qualquer alteração."
