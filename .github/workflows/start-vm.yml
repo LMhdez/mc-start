@@ -38,10 +38,10 @@ jobs:
           echo "Comando de arranque enviado com sucesso!"
 
       - name: Informar se Já Estava Ligada
-        if: !(contains(steps.get-status.outputs.vm_status, 'stopped') || contains(steps.get-status.outputs.vm_status, 'deallocated'))
+        if: ${{ !(contains(steps.get-status.outputs.vm_status, 'stopped') || contains(steps.get-status.outputs.vm_status, 'deallocated')) }}
         run: |
           echo "========================================="
-          echo "AVISO: A máquina virtual JÁ ESTÁ LIGADA! ($${{ steps.get-status.outputs.vm_status }})"
+          echo "AVISO: A máquina virtual JÁ ESTÁ LIGADA!"
           echo "Nenhum comando novo foi necessário."
           echo "========================================="
 
