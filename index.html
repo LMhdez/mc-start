@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101510">
-  <meta name="description" content="Painel de estado e controlo do servidor Minecraft.">
+  <meta name="description" content="Painel informativo do servidor Minecraft.">
   <title>Minecraft Server | Painel</title>
   <link rel="stylesheet" href="style.css">
   <script src="script.js" defer></script>
@@ -16,13 +16,13 @@
         <span class="brand-icon" aria-hidden="true">▦</span>
         <span>MC<span class="brand-accent"> SERVER</span></span>
       </a>
-      <span class="topbar-label"><span class="status-dot status-dot-muted"></span> PAINEL DE CONTROLO</span>
+      <span class="topbar-label"><span class="status-dot status-dot-muted"></span> PAINEL INFORMATIVO</span>
     </header>
 
     <section class="hero">
       <p class="eyebrow">O TEU MUNDO. À TUA MANEIRA.</p>
       <h1>O servidor está<br><span>à tua espera.</span></h1>
-      <p class="hero-copy">Consulta o estado do servidor e prepara-te para entrar no mundo com os teus amigos.</p>
+      <p class="hero-copy">Consulta as instruções para entrar no servidor e acompanha as informações disponíveis.</p>
     </section>
 
     <section class="server-card" aria-labelledby="server-title">
@@ -31,17 +31,17 @@
           <p class="card-kicker">ESTADO DO SERVIDOR</p>
           <h2 id="server-title">Minecraft Survival</h2>
         </div>
-        <span class="status-pill"><span class="status-dot status-dot-muted"></span> Integração em preparação</span>
+        <span class="status-pill"><span class="status-dot status-dot-muted"></span> Estado consultado no GitHub Actions</span>
       </div>
 
       <div class="server-info">
         <div class="info-block">
           <span class="info-label">ENDEREÇO DO SERVIDOR</span>
-          <strong id="server-address">A configurar</strong>
+          <strong id="server-address">Disponível após ligar o servidor</strong>
         </div>
         <div class="info-block">
           <span class="info-label">JOGADORES ONLINE</span>
-          <strong id="player-count">— <small>/ 20</small></strong>
+          <strong id="player-count">Consulta manual <small>via Actions</small></strong>
         </div>
       </div>
 
@@ -54,7 +54,7 @@
         </button>
       </div>
       <p id="feedback" class="feedback" role="status" aria-live="polite">
-        Estamos a preparar a ligação segura ao GitHub Actions. Os comandos ficarão disponíveis nesta página assim que o endpoint estiver configurado.
+        Os comandos são executados através do GitHub Actions. Esta página não guarda credenciais.
       </p>
     </section>
 
@@ -67,7 +67,7 @@
         <article class="step">
           <span class="step-number">01</span>
           <h3>Espera que o servidor ligue</h3>
-          <p>Quando o painel confirmar que está online, podes avançar.</p>
+          <p>Quando o servidor estiver online, podes avançar.</p>
         </article>
         <article class="step">
           <span class="step-number">02</span>
