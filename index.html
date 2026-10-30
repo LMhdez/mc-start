@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101510">
+  <meta name="description" content="Painel de estado e controlo do servidor Minecraft.">
+  <title>Minecraft Server | Painel</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="Minecraft Server - início">
+        <span class="brand-icon" aria-hidden="true">▦</span>
+        <span>MC<span class="brand-accent"> SERVER</span></span>
+      </a>
+      <span class="topbar-label"><span class="status-dot status-dot-muted"></span> PAINEL DE CONTROLO</span>
+    </header>
+
+    <section class="hero">
+      <p class="eyebrow">O TEU MUNDO. À TUA MANEIRA.</p>
+      <h1>O servidor está<br><span>à tua espera.</span></h1>
+      <p class="hero-copy">Consulta o estado do servidor e prepara-te para entrar no mundo com os teus amigos.</p>
+    </section>
+
+    <section class="server-card" aria-labelledby="server-title">
+      <div class="server-card-top">
+        <div>
+          <p class="card-kicker">ESTADO DO SERVIDOR</p>
+          <h2 id="server-title">Minecraft Survival</h2>
+        </div>
+        <span class="status-pill"><span class="status-dot status-dot-muted"></span> Integração em preparação</span>
+      </div>
+
+      <div class="server-info">
+        <div class="info-block">
+          <span class="info-label">ENDEREÇO DO SERVIDOR</span>
+          <strong id="server-address">A configurar</strong>
+        </div>
+        <div class="info-block">
+          <span class="info-label">JOGADORES ONLINE</span>
+          <strong id="player-count">— <small>/ 20</small></strong>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="start-button" class="button button-primary" type="button" disabled>
+          <span aria-hidden="true">▶</span> Ligar servidor
+        </button>
+        <button id="status-button" class="button button-secondary" type="button" disabled>
+          Consultar estado
+        </button>
+      </div>
+      <p id="feedback" class="feedback" role="status" aria-live="polite">
+        Estamos a preparar a ligação segura ao GitHub Actions. Os comandos ficarão disponíveis nesta página assim que o endpoint estiver configurado.
+      </p>
+    </section>
+
+    <section class="howto">
+      <div class="section-heading">
+        <p class="card-kicker">COMO ENTRAR</p>
+        <h2>Junta-te à aventura.</h2>
+      </div>
+      <div class="steps">
+        <article class="step">
+          <span class="step-number">01</span>
+          <h3>Espera que o servidor ligue</h3>
+          <p>Quando o painel confirmar que está online, podes avançar.</p>
+        </article>
+        <article class="step">
+          <span class="step-number">02</span>
+          <h3>Abre o Minecraft</h3>
+          <p>Escolhe Multijogador e adiciona o endereço do servidor.</p>
+        </article>
+        <article class="step">
+          <span class="step-number">03</span>
+          <h3>Entra e diverte-te</h3>
+          <p>Joga com os teus amigos. O servidor trata do resto.</p>
+        </article>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>MC SERVER</span>
+      <span>Feito para jogar com amigos.</span>
+    </footer>
+  </main>
+</body>
+</html>
