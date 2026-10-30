@@ -4,6 +4,9 @@ name: Verificar Servidor Minecraft
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   check-minecraft:
     runs-on: ubuntu-latest
@@ -43,8 +46,6 @@ jobs:
             --name "$VM_NAME" \
             --query "[0].virtualMachine.network.publicIpAddresses[0].ipAddress" \
             -o tsv)
-
-          echo "IP público: $IP"
 
           if [ -z "$IP" ] || [ "$IP" = "None" ]; then
             echo "AVISO: Não foi encontrado um IP público."
@@ -91,18 +92,15 @@ jobs:
                   echo "=================================="
 
                   if PLAYERS=$(timeout 10 docker exec mc-server rcon-cli list 2>&1); then
-                    echo "$PLAYERS"
-
                     COUNT=$(echo "$PLAYERS" | sed -n "s/.*There are \([0-9]*\) of.*/\1/p")
 
                     if [ -n "$COUNT" ]; then
-                      echo "NUMERO_JOGADORES: $COUNT"
+                      echo "JOGADORES ONLINE: $COUNT"
                     else
                       echo "AVISO: Não foi possível identificar o número de jogadores."
                     fi
                   else
                     echo "RCON: INDISPONÍVEL"
-                    echo "$PLAYERS"
                   fi
                 else
                   echo "AVISO: O contentor não está a correr."
