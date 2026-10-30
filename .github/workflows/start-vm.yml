@@ -56,8 +56,8 @@ jobs:
             echo "A VM já está em processo de arranque."
           elif [[ "$STATUS" == "VM stopping" ]]; then
             echo "A VM está a desligar. A aguardar..."
-            for i in {1..30}; do
-              sleep 30
+            for i in {1..90}; do
+              sleep 10
               STATUS=$(get_status)
               echo "Estado: $STATUS"
               if [[ "$STATUS" == "VM running" ]]; then
@@ -76,14 +76,14 @@ jobs:
           fi
 
           echo "A aguardar que a VM fique operacional..."
-          for i in {1..30}; do
+          for i in {1..90}; do
             STATUS=$(get_status)
             echo "Verificação $i/30: $STATUS"
             if [[ "$STATUS" == "VM running" ]]; then
               echo "SUCESSO: VM ligada e confirmada!"
               exit 0
             fi
-            sleep 30
+            sleep 10
           done
 
           echo "ERRO: A VM não ficou ligada dentro do tempo limite."
