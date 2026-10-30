@@ -28,11 +28,11 @@ const translations = {
     footer: "Feito para jogar com amigos.", emptyPassword: "Introduz a palavra-passe de acesso.",
     sending: "A enviar pedido...", startSent: "Pedido para ligar o servidor enviado.",
     stopSent: "Pedido para desligar o servidor enviado.", checkSent: "Pedido de verificação enviado.",
-    waiting: "O GitHub Actions pode demorar alguns minutos.", wrongPassword: "Palavra-passe incorreta.",
+    waiting: "A resposta costuma chegar em 15–25 segundos. O arranque da máquina virtual pode demorar mais.", wrongPassword: "Palavra-passe incorreta.",
     notAllowed: "Origem não autorizada.", incomplete: "Configuração do painel incompleta.",
     requestError: "O pedido não foi aceite. Tenta novamente mais tarde.",
     connectionError: "Erro de comunicação com o serviço.",
-    vmState: "Estado da VM", dockerState: "Docker", containerState: "Contentor", portState: "Porta 25565", playerNames: "Jogadores", checkedAt: "Verificado", noPlayers: "Ninguém online", statusReady: "Estado atualizado.", statusTimeout: "A verificação ainda não terminou. Tenta consultar novamente daqui a pouco.", portOpen: "Acessível", portClosed: "Inacessível"
+    vmState: "Estado da VM", vmDeallocated: "Servidor desligado", vmRunning: "Servidor online", vmStopped: "Servidor parado", vmStarting: "A iniciar", vmStopping: "A desligar", vmUnknown: "Estado desconhecido", notChecked: "Não verificado (VM desligada)", dockerActive: "Ativo", dockerInactive: "Inativo", containerRunning: "Em execução", containerExited: "Parado", containerNotFound: "Não encontrado", dockerState: "Docker", containerState: "Contentor", portState: "Porta 25565", playerNames: "Jogadores", checkedAt: "Verificado", noPlayers: "Ninguém online", statusReady: "Estado atualizado.", statusTimeout: "A verificação ainda não terminou. Tenta consultar novamente daqui a pouco.", portOpen: "Acessível", portClosed: "Inacessível"
   },
   es: {
     languageLabel: "IDIOMA", panelLabel: "PANEL INFORMATIVO",
@@ -51,11 +51,11 @@ const translations = {
     footer: "Hecho para jugar con amigos.", emptyPassword: "Introduce la contraseña de acceso.",
     sending: "Enviando solicitud...", startSent: "Se ha enviado la solicitud para iniciar el servidor.",
     stopSent: "Se ha enviado la solicitud para apagar el servidor.", checkSent: "Se ha enviado la solicitud de comprobación.",
-    waiting: "GitHub Actions puede tardar unos minutos.", wrongPassword: "Contraseña incorrecta.",
+    waiting: "La respuesta suele llegar en 15–25 segundos. El arranque de la máquina virtual puede tardar más.", wrongPassword: "Contraseña incorrecta.",
     notAllowed: "Origen no autorizado.", incomplete: "La configuración del panel está incompleta.",
     requestError: "No se ha aceptado la solicitud. Inténtalo de nuevo más tarde.",
     connectionError: "Error de comunicación con el servicio.",
-    vmState: "Estado de la VM", dockerState: "Docker", containerState: "Contenedor", portState: "Puerto 25565", playerNames: "Jugadores", checkedAt: "Comprobado", noPlayers: "Nadie conectado", statusReady: "Estado actualizado.", statusTimeout: "La comprobación aún no ha terminado. Vuelve a consultar dentro de un momento.", portOpen: "Accesible", portClosed: "Inaccesible"
+    vmState: "Estado de la VM", vmDeallocated: "Servidor apagado", vmRunning: "Servidor en línea", vmStopped: "Servidor detenido", vmStarting: "Iniciando", vmStopping: "Apagando", vmUnknown: "Estado desconocido", notChecked: "No comprobado (VM apagada)", dockerActive: "Activo", dockerInactive: "Inactivo", containerRunning: "En ejecución", containerExited: "Detenido", containerNotFound: "No encontrado", dockerState: "Docker", containerState: "Contenedor", portState: "Puerto 25565", playerNames: "Jugadores", checkedAt: "Comprobado", noPlayers: "Nadie conectado", statusReady: "Estado actualizado.", statusTimeout: "La comprobación aún no ha terminado. Vuelve a consultar dentro de un momento.", portOpen: "Accesible", portClosed: "Inaccesible"
   },
   en: {
     languageLabel: "LANGUAGE", panelLabel: "SERVER DASHBOARD",
@@ -74,11 +74,11 @@ const translations = {
     footer: "Made for playing with friends.", emptyPassword: "Enter the access password.",
     sending: "Sending request...", startSent: "The server start request has been sent.",
     stopSent: "The server stop request has been sent.", checkSent: "The status check request has been sent.",
-    waiting: "GitHub Actions may take a few minutes.", wrongPassword: "Incorrect password.",
+    waiting: "The response usually arrives in 15–25 seconds. Starting the virtual machine may take longer.", wrongPassword: "Incorrect password.",
     notAllowed: "Origin not authorized.", incomplete: "The dashboard is not fully configured.",
     requestError: "The request was not accepted. Please try again later.",
     connectionError: "Communication error with the service.",
-    vmState: "VM state", dockerState: "Docker", containerState: "Container", portState: "Port 25565", playerNames: "Players", checkedAt: "Checked", noPlayers: "Nobody online", statusReady: "Status updated.", statusTimeout: "The check has not finished yet. Please try checking again shortly.", portOpen: "Reachable", portClosed: "Unreachable"
+    vmState: "VM state", vmDeallocated: "Server offline", vmRunning: "Server online", vmStopped: "Server stopped", vmStarting: "Starting", vmStopping: "Stopping", vmUnknown: "Unknown state", notChecked: "Not checked (VM is off)", dockerActive: "Active", dockerInactive: "Inactive", containerRunning: "Running", containerExited: "Stopped", containerNotFound: "Not found", dockerState: "Docker", containerState: "Container", portState: "Port 25565", playerNames: "Players", checkedAt: "Checked", noPlayers: "Nobody online", statusReady: "Status updated.", statusTimeout: "The check has not finished yet. Please try checking again shortly.", portOpen: "Reachable", portClosed: "Unreachable"
   }
 };
 
@@ -129,17 +129,29 @@ function renderStatus(result) {
   const names = document.querySelector("#player-names");
   const details = document.querySelector("#status-details");
 
-  if (state) state.textContent = result.vm || "Unknown";
+  if (state) {
+    const vmStates = {
+      "VM deallocated": t.vmDeallocated, "VM running": t.vmRunning,
+      "VM stopped": t.vmStopped, "VM starting": t.vmStarting,
+      "VM stopping": t.vmStopping
+    };
+    state.textContent = vmStates[result.vm] || t.vmUnknown;
+  }
   if (address) address.textContent = result.ip ? result.ip + ":25565" : t.addressUnavailable;
   if (count) count.textContent = String(result.players ?? 0);
   if (names) names.textContent = result.player_names?.length ? result.player_names.join(", ") : t.noPlayers;
 
   if (details) {
     const values = [
-      [t.dockerState, result.docker || "unknown"],
-      [t.containerState, result.container || "unknown"],
+      [t.dockerState, result.docker === "unknown" && result.vm !== "VM running" ? t.notChecked :
+        result.docker === "active" ? t.dockerActive :
+        result.docker === "inactive" ? t.dockerInactive : (result.docker || t.vmUnknown)],
+      [t.containerState, result.container === "unknown" && result.vm !== "VM running" ? t.notChecked :
+        result.container === "running" ? t.containerRunning :
+        result.container === "exited" ? t.containerExited :
+        result.container === "not_found" ? t.containerNotFound : (result.container || t.vmUnknown)],
       [t.portState, result.port_open ? t.portOpen : t.portClosed],
-      [t.checkedAt, result.checked_at ? new Date(result.checked_at).toLocaleString() : "—"]
+      [t.checkedAt, result.checked_at ? new Date(result.checked_at).toLocaleString(currentLanguage === "pt" ? "pt-PT" : currentLanguage === "es" ? "es-ES" : "en-GB") : "—"]
     ];
     details.replaceChildren();
     values.forEach(([label, value]) => {
@@ -194,7 +206,7 @@ async function requestAction(action) {
 
     showFeedback("checkSent");
     for (let attempt = 0; attempt < 60; attempt++) {
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      if (attempt > 0) await new Promise(resolve => setTimeout(resolve, 2000));
       const statusResponse = await fetchWithTimeout(WORKER_URL.replace(/\/$/, "") + "/api/status/read", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
