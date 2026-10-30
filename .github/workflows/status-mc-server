@@ -1,0 +1,65 @@
+
+name: Verificar Servidor Minecraft
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-minecraft:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Login na Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Verificar Estado da VM
+        id: vm
+        shell: bash
+        run: |
+          RESOURCE_GROUP="MCServerFreeGroup"
+          VM_NAME="MC-VM"
+
+          STATUS=$(az vm get-instance-view \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$VM_NAME" \
+            --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus" \
+            -o tsv)
+
+          echo "Estado da VM: $STATUS"
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+
+      - name: Verificar Minecraft
+        if: steps.vm.outputs.status == 'VM running'
+        shell: bash
+        run: |
+          RESOURCE_GROUP="MCServerFreeGroup"
+          VM_NAME="MC-VM"
+
+          echo "A VM está ligada."
+          echo "A verificar o serviço Minecraft..."
+
+          IP=$(az vm list-ip-addresses \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$VM_NAME" \
+            --query "[0].virtualMachine.network.publicIpAddresses[0].ipAddress" \
+            -o tsv)
+
+          echo "IP público: $IP"
+
+          if timeout 5 bash -c "echo > /dev/tcp/$IP/25565" 2>/dev/null; then
+            echo "SUCESSO: A porta 25565 está acessível."
+            echo "O servidor Minecraft está a aceitar ligações de rede."
+          else
+            echo "AVISO: Não foi possível aceder à porta 25565."
+            echo "O Minecraft pode ainda estar a iniciar ou não estar disponível."
+          fi
+
+      - name: VM Desligada
+        if: steps.vm.outputs.status != 'VM running'
+        run: |
+          echo "A VM não está ligada."
+          echo "Estado atual: ${{ steps.vm.outputs.status }}"
+          echo "Não foi efetuada qualquer alteração."
