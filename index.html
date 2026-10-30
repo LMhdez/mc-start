@@ -4,95 +4,103 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101510">
-  <meta name="description" content="Painel informativo do servidor Minecraft.">
-  <title>Minecraft Server | Painel</title>
+  <meta name="description" content="Painel de controlo do servidor Minecraft.">
+  <title>Minecraft Server | Control Panel</title>
   <link rel="stylesheet" href="style.css">
   <script src="script.js" defer></script>
 </head>
 <body>
   <main class="page">
     <header class="topbar">
-      <a class="brand" href="./" aria-label="Minecraft Server - início">
+      <a class="brand" href="./" aria-label="Minecraft Server - home">
         <span class="brand-icon" aria-hidden="true">▦</span>
         <span>MC<span class="brand-accent"> SERVER</span></span>
       </a>
-      <span class="topbar-label"><span class="status-dot status-dot-muted"></span> PAINEL INFORMATIVO</span>
+      <div class="topbar-right">
+        <label class="language-label" for="language-select" data-i18n="languageLabel">IDIOMA</label>
+        <select id="language-select" aria-label="Select language">
+          <option value="pt">🇵🇹 PT</option>
+          <option value="es">🇻🇪 ES</option>
+          <option value="en">🇺🇸 EN</option>
+        </select>
+        <span class="topbar-label"><span class="status-dot status-dot-muted"></span> <span data-i18n="panelLabel">PAINEL INFORMATIVO</span></span>
+      </div>
     </header>
 
     <section class="hero">
-      <p class="eyebrow">O TEU MUNDO. À TUA MANEIRA.</p>
-      <h1>O servidor está<br><span>à tua espera.</span></h1>
-      <p class="hero-copy">Consulta as instruções para entrar no servidor e acompanha as informações disponíveis.</p>
+      <p class="eyebrow" data-i18n="eyebrow">O TEU MUNDO. À TUA MANEIRA.</p>
+      <h1><span data-i18n="heroLine1">O servidor está</span><br><span data-i18n="heroLine2">à tua espera.</span></h1>
+      <p class="hero-copy" data-i18n="heroCopy">Consulta as instruções para entrar no servidor e acompanha as informações disponíveis.</p>
     </section>
 
     <section class="server-card" aria-labelledby="server-title">
       <div class="server-card-top">
         <div>
-          <p class="card-kicker">ESTADO DO SERVIDOR</p>
+          <p class="card-kicker" data-i18n="serverStatus">ESTADO DO SERVIDOR</p>
           <h2 id="server-title">Minecraft Survival</h2>
         </div>
-        <span class="status-pill"><span class="status-dot status-dot-muted"></span> Estado consultado no GitHub Actions</span>
+        <span class="status-pill"><span class="status-dot status-dot-muted"></span> <span data-i18n="statusNote">Estado consultado no GitHub Actions</span></span>
       </div>
 
       <div class="server-info">
         <div class="info-block">
-          <span class="info-label">ENDEREÇO DO SERVIDOR</span>
-          <strong id="server-address">Disponível após ligar o servidor</strong>
+          <span class="info-label" data-i18n="serverAddress">ENDEREÇO DO SERVIDOR</span>
+          <strong id="server-address" data-i18n="addressUnavailable">Disponível após ligar o servidor</strong>
         </div>
         <div class="info-block">
-          <span class="info-label">JOGADORES ONLINE</span>
-          <strong id="player-count">Consulta manual <small>via Actions</small></strong>
+          <span class="info-label" data-i18n="playersOnline">JOGADORES ONLINE</span>
+          <strong id="player-count"><span data-i18n="manualCheck">Consulta manual</span> <small data-i18n="viaActions">via Actions</small></strong>
         </div>
       </div>
 
       <div class="access-panel">
-        <label class="info-label" for="access-password">PALAVRA-PASSE DE ACESSO</label>
+        <label class="info-label" for="access-password" data-i18n="passwordLabel">PALAVRA-PASSE DE ACESSO</label>
         <input id="access-password" type="password" autocomplete="current-password"
-          placeholder="Introduz a palavra-passe partilhada" required>
+          placeholder="Introduz a palavra-passe partilhada" data-i18n-placeholder="passwordPlaceholder" required>
       </div>
       <div class="actions">
         <button id="start-button" class="button button-primary" type="button">
-          <span aria-hidden="true">▶</span> Ligar servidor
+          <span aria-hidden="true">▶</span> <span data-i18n="start">Ligar servidor</span>
         </button>
-        <button id="stop-button" class="button button-secondary" type="button">
+        <button id="stop-button" class="button button-secondary" type="button" data-i18n="stop">
           Desligar servidor
         </button>
-        <button id="status-button" class="button button-secondary" type="button">
+        <button id="status-button" class="button button-secondary" type="button" data-i18n="check">
           Pedir verificação
         </button>
       </div>
-      <p id="feedback" class="feedback" role="status" aria-live="polite">
+      <p id="feedback" class="feedback" role="status" aria-live="polite" data-i18n="initialFeedback">
         Introduz a palavra-passe para controlar o servidor.
       </p>
     </section>
 
     <section class="howto">
       <div class="section-heading">
-        <p class="card-kicker">COMO ENTRAR</p>
-        <h2>Junta-te à aventura.</h2>
+        <p class="card-kicker" data-i18n="howTo">COMO ENTRAR</p>
+        <h2 data-i18n="joinAdventure">Junta-te à aventura.</h2>
       </div>
       <div class="steps">
         <article class="step">
           <span class="step-number">01</span>
-          <h3>Espera que o servidor ligue</h3>
-          <p>Quando o servidor estiver online, podes avançar.</p>
+          <h3 data-i18n="step1Title">Espera que o servidor ligue</h3>
+          <p data-i18n="step1Copy">Quando o servidor estiver online, podes avançar.</p>
         </article>
         <article class="step">
           <span class="step-number">02</span>
-          <h3>Abre o Minecraft</h3>
-          <p>Escolhe Multijogador e adiciona o endereço do servidor.</p>
+          <h3 data-i18n="step2Title">Abre o Minecraft</h3>
+          <p data-i18n="step2Copy">Escolhe Multijogador e adiciona o endereço do servidor.</p>
         </article>
         <article class="step">
           <span class="step-number">03</span>
-          <h3>Entra e diverte-te</h3>
-          <p>Joga com os teus amigos. O servidor trata do resto.</p>
+          <h3 data-i18n="step3Title">Entra e diverte-te</h3>
+          <p data-i18n="step3Copy">Joga com os teus amigos. O servidor trata do resto.</p>
         </article>
       </div>
     </section>
 
     <footer class="footer">
       <span>MC SERVER</span>
-      <span>Feito para jogar com amigos.</span>
+      <span data-i18n="footer">Feito para jogar com amigos.</span>
     </footer>
   </main>
 </body>
