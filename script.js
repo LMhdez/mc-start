@@ -162,3 +162,6 @@ if (!translations[savedLanguage]) {
   savedLanguage = translations[browserLanguage] ? browserLanguage : "pt";
 }
 setLanguage(savedLanguage);
+
+// Permite testar a funcao de idioma diretamente na consola do navegador.
+window.setLanguage = setLanguage;
