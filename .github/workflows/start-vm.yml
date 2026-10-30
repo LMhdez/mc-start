@@ -1,4 +1,3 @@
-
 name: Ligar Servidor Minecraft
 
 on:
@@ -27,11 +26,14 @@ jobs:
 
       - name: Ligar VM e Confirmar Arranque
         shell: bash
+        env:
+          AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
         run: |
           set -euo pipefail
 
-          RESOURCE_GROUP="MCServerFreeGroup"
-          VM_NAME="MC-VM"
+          RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:?Falta o secret AZURE_RESOURCE_GROUP}"
+          VM_NAME="${AZURE_VM_NAME:?Falta o secret AZURE_VM_NAME}"
 
           get_status() {
             az vm get-instance-view \
@@ -42,7 +44,6 @@ jobs:
           }
 
           echo "A verificar o estado atual da VM..."
-
           STATUS=$(get_status)
           echo "Estado atual: $STATUS"
 
@@ -50,55 +51,38 @@ jobs:
             echo "A VM já está ligada."
           elif [[ "$STATUS" == "VM deallocated" || "$STATUS" == "VM stopped" ]]; then
             echo "A iniciar a máquina virtual..."
-
-            az vm start \
-              --resource-group "$RESOURCE_GROUP" \
-              --name "$VM_NAME" \
-              --no-wait
-
+            az vm start --resource-group "$RESOURCE_GROUP" --name "$VM_NAME" --no-wait
           elif [[ "$STATUS" == "VM starting" ]]; then
             echo "A VM já está em processo de arranque."
-
           elif [[ "$STATUS" == "VM stopping" ]]; then
             echo "A VM está a desligar. A aguardar..."
-
             for i in {1..30}; do
               sleep 30
               STATUS=$(get_status)
               echo "Estado: $STATUS"
-
               if [[ "$STATUS" == "VM running" ]]; then
                 echo "A VM já está ligada."
                 break
               fi
-
               if [[ "$STATUS" == "VM deallocated" || "$STATUS" == "VM stopped" ]]; then
                 echo "A iniciar a VM..."
-                az vm start \
-                  --resource-group "$RESOURCE_GROUP" \
-                  --name "$VM_NAME" \
-                  --no-wait
+                az vm start --resource-group "$RESOURCE_GROUP" --name "$VM_NAME" --no-wait
                 break
               fi
             done
           else
-            echo "ERRO: Estado inesperado da VM: $STATUS"
+            echo "ERRO: Estado inesperado da VM."
             exit 1
           fi
 
           echo "A aguardar que a VM fique operacional..."
-
           for i in {1..30}; do
             STATUS=$(get_status)
             echo "Verificação $i/30: $STATUS"
-
             if [[ "$STATUS" == "VM running" ]]; then
-              echo "========================================="
               echo "SUCESSO: VM ligada e confirmada!"
-              echo "========================================="
               exit 0
             fi
-
             sleep 30
           done
 
@@ -112,13 +96,11 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
         run: |
           USER_TRIGGERED="$NOTIFICAR"
-
           if [ -z "$USER_TRIGGERED" ] || [ "$USER_TRIGGERED" = "Manual" ]; then
             if [ "$EVENT_NAME" = "repository_dispatch" ]; then
-              USER_TRIGGERED="Webhook Externo (Link Mágico)"
+              USER_TRIGGERED="Webhook Externo"
             else
               USER_TRIGGERED="Manual"
             fi
           fi
-
           echo "Ação concluída para: $USER_TRIGGERED"
