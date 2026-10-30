@@ -209,3 +209,13 @@ h2 { margin: 0; font-size: clamp(1.4rem, 3vw, 2rem); letter-spacing: -.04em; }
   font: inherit;
 }
 .access-panel input:focus { outline: 2px solid var(--green); outline-offset: 2px; }
+
+.topbar-right { display: flex; align-items: center; gap: 14px; }
+.language-label { color: var(--muted); font-size: .62rem; font-weight: 800; letter-spacing: .12em; }
+#language-select { min-height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-soft); color: var(--text); font: inherit; font-size: .82rem; cursor: pointer; }
+#language-select:focus { outline: 2px solid var(--green); outline-offset: 2px; }
+@media (max-width: 650px) {
+  .topbar-right { gap: 8px; }
+  .language-label { display: none; }
+  .topbar-label { display: none; }
+}
