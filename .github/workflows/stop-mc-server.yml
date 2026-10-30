@@ -14,6 +14,7 @@ on:
 jobs:
   stop-azure-vm:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout Repository
@@ -24,44 +25,91 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Verificar Estado Atual da VM
-        id: get-status
+      - name: Desligar VM e Confirmar Desalocação
+        shell: bash
         run: |
-          echo "A verificar o estado atual da máquina virtual..."
+          set -euo pipefail
 
-          STATUS=$(az vm get-instance-view \
-            --resource-group MCServerFreeGroup \
-            --name MC-VM \
-            --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus" \
-            -o tsv)
+          RESOURCE_GROUP="MCServerFreeGroup"
+          VM_NAME="MC-VM"
 
+          get_status() {
+            az vm get-instance-view \
+              --resource-group "$RESOURCE_GROUP" \
+              --name "$VM_NAME" \
+              --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus" \
+              -o tsv
+          }
+
+          echo "A verificar o estado atual da VM..."
+
+          STATUS=$(get_status)
           echo "Estado atual: $STATUS"
-          echo "vm_status=$STATUS" >> "$GITHUB_OUTPUT"
 
-      - name: Desalocar VM
-        if: contains(steps.get-status.outputs.vm_status, 'running')
+          # Esperar que uma operação em curso termine
+          if [[ "$STATUS" == "VM starting" || "$STATUS" == "VM stopping" ]]; then
+            echo "A VM tem uma operação em curso. A aguardar..."
+
+            for i in {1..30}; do
+              sleep 30
+              STATUS=$(get_status)
+              echo "Verificação $i/30: $STATUS"
+
+              if [[ "$STATUS" != "VM starting" && "$STATUS" != "VM stopping" ]]; then
+                break
+              fi
+            done
+          fi
+
+          if [[ "$STATUS" == "VM deallocated" ]]; then
+            echo "A VM já está desalocada."
+
+          elif [[ "$STATUS" == "VM running" || "$STATUS" == "VM stopped" ]]; then
+            echo "A enviar pedido de desalocação..."
+
+            az vm deallocate \
+              --resource-group "$RESOURCE_GROUP" \
+              --name "$VM_NAME" \
+              --no-wait
+
+          else
+            echo "ERRO: Estado inesperado da VM: $STATUS"
+            exit 1
+          fi
+
+          echo "A aguardar a desalocação completa..."
+
+          for i in {1..30}; do
+            STATUS=$(get_status)
+            echo "Verificação $i/30: $STATUS"
+
+            if [[ "$STATUS" == "VM deallocated" ]]; then
+              echo "========================================="
+              echo "SUCESSO: VM desalocada e confirmada!"
+              echo "========================================="
+              exit 0
+            fi
+
+            sleep 30
+          done
+
+          echo "ERRO: A VM não foi desalocada dentro do tempo limite."
+          exit 1
+
+      - name: Identificar Origem do Pedido
+        if: success()
+        env:
+          MOTIVO: ${{ github.event.inputs.motivo }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          echo "A enviar comando de desalocação..."
+          USER_TRIGGERED="$MOTIVO"
 
-          az vm deallocate \
-            --resource-group MCServerFreeGroup \
-            --name MC-VM \
-            --no-wait
+          if [ -z "$USER_TRIGGERED" ] || [ "$USER_TRIGGERED" = "Manual" ]; then
+            if [ "$EVENT_NAME" = "repository_dispatch" ]; then
+              USER_TRIGGERED="Webhook Externo"
+            else
+              USER_TRIGGERED="Manual"
+            fi
+          fi
 
-          echo "Comando de desalocação enviado."
-
-      - name: Informar se Já Estava Desligada
-        if: contains(steps.get-status.outputs.vm_status, 'deallocated') || contains(steps.get-status.outputs.vm_status, 'stopped')
-        run: |
-          echo "A VM já estava desligada."
-          echo "Nenhuma ação necessária."
-
-      - name: Confirmar Estado Final
-        run: |
-          echo "A consultar o estado final da VM..."
-
-          az vm get-instance-view \
-            --resource-group MCServerFreeGroup \
-            --name MC-VM \
-            --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus" \
-            -o tsv
+          echo "Desligamento concluído. Origem: $USER_TRIGGERED"
