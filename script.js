@@ -193,8 +193,8 @@ async function requestAction(action) {
     }
 
     showFeedback("checkSent");
-    for (let attempt = 0; attempt < 30; attempt++) {
-      await new Promise(resolve => setTimeout(resolve, 3000));
+    for (let attempt = 0; attempt < 60; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 5000));
       const statusResponse = await fetchWithTimeout(WORKER_URL.replace(/\/$/, "") + "/api/status/read", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
