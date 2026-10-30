@@ -6,7 +6,9 @@ Esta Azure Function recebe pedidos do painel e envia `repository_dispatch` para 
 
 - O token do GitHub existe apenas nas Application Settings da Function App.
 - O código de acesso dos amigos (`LAUNCHER_KEY`) também fica nas Application Settings.
-- A página envia o código num cabeçalho HTTPS; não existe token GitHub no JavaScript.
+- O link privado dos amigos transporta esse código no fragmento `#key=...`; o fragmento não é enviado ao servidor web. O JavaScript lê-o e envia-o num cabeçalho HTTPS para a Function.
+- Este código de acesso é uma chave partilhada: quem tiver o link completo consegue usar os comandos permitidos. Não é o token GitHub.
+- O token GitHub nunca é colocado no JavaScript, HTML, CSS ou URL.
 - A origem do site é validada com `ALLOWED_ORIGIN`.
 - Só são aceites as ações `start` e `stop`.
 - Não são registados cabeçalhos, códigos de acesso, tokens ou conteúdo das respostas do GitHub.
@@ -49,6 +51,12 @@ A rota será:
 `https://NOME-DA-FUNCTION.azurewebsites.net/api/control`
 
 O endpoint usa autenticação própria com `LAUNCHER_KEY`, por isso o HTTP trigger está configurado como `anonymous`. Não significa que o pedido seja aceite sem código.
+
+## Link privado para os amigos
+
+Depois de gerar um valor aleatório forte para `LAUNCHER_KEY`, partilha um link no formato `https://TEU-SITE/#key=VALOR_ALEATORIO`. Não publiques esse link no repositório nem num canal público. Quem receber o link pode pedir para ligar/desligar o servidor. Se o link for divulgado, gera uma nova chave e atualiza a configuração `LAUNCHER_KEY`.
+
+A validação de origem/CORS não substitui a chave: CORS é uma proteção do navegador e não impede chamadas diretas feitas por scripts. A segurança do pedido depende da chave aleatória mantida privada.
 
 ## Teste
 
