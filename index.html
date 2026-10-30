@@ -40,7 +40,7 @@
           <p class="card-kicker" data-i18n="serverStatus">ESTADO DO SERVIDOR</p>
           <h2 id="server-title">Minecraft Survival</h2>
         </div>
-        <span class="status-pill"><span class="status-dot status-dot-muted"></span> <span data-i18n="statusNote">Estado consultado no GitHub Actions</span></span>
+        <span class="status-pill"><span class="status-dot status-dot-muted"></span> <span id="server-state">—</span></span>
       </div>
 
       <div class="server-info">
@@ -50,9 +50,14 @@
         </div>
         <div class="info-block">
           <span class="info-label" data-i18n="playersOnline">JOGADORES ONLINE</span>
-          <strong id="player-count"><span data-i18n="manualCheck">Consulta manual</span> <small data-i18n="viaActions">via Actions</small></strong>
+          <strong id="player-count">—</strong>
+        </div>
+        <div class="info-block">
+          <span class="info-label data-i18n="playerNames">JOGADORES</span>
+          <strong id="player-names">—</strong>
         </div>
       </div>
+      <div id="status-details" class="status-details" aria-live="polite"></div>
 
       <div class="access-panel">
         <label class="info-label" for="access-password" data-i18n="passwordLabel">PALAVRA-PASSE DE ACESSO</label>
