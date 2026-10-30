@@ -2,6 +2,11 @@ name: Verificar Servidor Minecraft
 
 on:
   workflow_dispatch:
+    inputs:
+      request_id:
+        description: "Identificador do pedido do painel"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -9,110 +14,163 @@ permissions:
 jobs:
   check-minecraft:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
+    timeout-minutes: 10
     steps:
       - name: Login na Azure
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          creds: \${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Verificar Estado da VM
-        id: vm
+      - name: Recolher estado do servidor
+        id: status
         shell: bash
         env:
-          AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
-          AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
+          AZURE_RESOURCE_GROUP: \${{ secrets.AZURE_RESOURCE_GROUP }}
+          AZURE_VM_NAME: \${{ secrets.AZURE_VM_NAME }}
         run: |
           set -euo pipefail
-          RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:?Falta o secret AZURE_RESOURCE_GROUP}"
-          VM_NAME="${AZURE_VM_NAME:?Falta o secret AZURE_VM_NAME}"
+          RESOURCE_GROUP="\${AZURE_RESOURCE_GROUP:?Falta AZURE_RESOURCE_GROUP}"
+          VM_NAME="\${AZURE_VM_NAME:?Falta AZURE_VM_NAME}"
 
-          STATUS=$(az vm get-instance-view \
+          VM_STATUS=$(az vm get-instance-view \
             --resource-group "$RESOURCE_GROUP" \
             --name "$VM_NAME" \
-            --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus" \
+            --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus | [0]" \
             -o tsv)
+          VM_STATUS="\${VM_STATUS:-Unknown}"
 
-          echo "Estado da VM: $STATUS"
-          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          IP=""
+          PORT_OPEN="false"
+          DOCKER="unknown"
+          CONTAINER="unknown"
+          PLAYER_COUNT="0"
+          PLAYER_NAMES=""
 
-      - name: Verificar Porta Minecraft
-        if: steps.vm.outputs.status == 'VM running'
-        shell: bash
-        env:
-          AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
-          AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
-        run: |
-          set -euo pipefail
-          RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:?Falta o secret AZURE_RESOURCE_GROUP}"
-          VM_NAME="${AZURE_VM_NAME:?Falta o secret AZURE_VM_NAME}"
+          if [ "$VM_STATUS" = "VM running" ]; then
+            IP=$(az vm list-ip-addresses \
+              --resource-group "$RESOURCE_GROUP" \
+              --name "$VM_NAME" \
+              --query "[0].virtualMachine.network.publicIpAddresses[0].ipAddress | [0]" \
+              -o tsv 2>/dev/null || true)
+            [ "$IP" = "None" ] && IP=""
 
-          IP=$(az vm list-ip-addresses \
-            --resource-group "$RESOURCE_GROUP" \
-            --name "$VM_NAME" \
-            --query "[0].virtualMachine.network.publicIpAddresses[0].ipAddress" \
-            -o tsv)
+            if [ -n "$IP" ] && timeout 5 bash -c "echo > /dev/tcp/$IP/25565" 2>/dev/null; then
+              PORT_OPEN="true"
+            fi
 
-          if [ -z "$IP" ] || [ "$IP" = "None" ]; then
-            echo "AVISO: Não foi encontrado um IP público."
-          elif timeout 5 bash -c "echo > /dev/tcp/$IP/25565" 2>/dev/null; then
-            echo "SUCESSO: Porta 25565 acessível."
-          else
-            echo "AVISO: Porta 25565 inacessível."
-          fi
+            RUN_RESULT=$(az vm run-command invoke \
+              --resource-group "$RESOURCE_GROUP" \
+              --name "$VM_NAME" \
+              --command-id RunShellScript \
+              --scripts '
+                DOCKER_STATE="inactive"
+                CONTAINER_STATE="not_found"
+                PLAYER_COUNT="0"
+                PLAYER_NAMES=""
 
-      - name: Verificar Docker, Contentor e Jogadores
-        if: steps.vm.outputs.status == 'VM running'
-        shell: bash
-        env:
-          AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
-          AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
-        run: |
-          set -euo pipefail
-          RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:?Falta o secret AZURE_RESOURCE_GROUP}"
-          VM_NAME="${AZURE_VM_NAME:?Falta o secret AZURE_VM_NAME}"
+                if systemctl is-active --quiet docker; then
+                  DOCKER_STATE="active"
+                fi
 
-          echo "A executar verificações dentro da VM..."
-          az vm run-command invoke \
-            --resource-group "$RESOURCE_GROUP" \
-            --name "$VM_NAME" \
-            --command-id RunShellScript \
-            --scripts '
-              if systemctl is-active --quiet docker; then
-                echo "DOCKER: ATIVO"
-              else
-                echo "DOCKER: INATIVO"
-              fi
-
-              if docker inspect mc-server >/dev/null 2>&1; then
-                CONTAINER_STATUS=$(docker inspect -f "{{.State.Status}}" mc-server)
-                echo "CONTENTOR: $CONTAINER_STATUS"
-
-                if [ "$CONTAINER_STATUS" = "running" ]; then
-                  if PLAYERS=$(timeout 10 docker exec mc-server rcon-cli list 2>&1); then
-                    COUNT=$(echo "$PLAYERS" | sed -n "s/.*There are \\([0-9]*\\) of.*/\\1/p")
-                    if [ -n "$COUNT" ]; then
-                      echo "JOGADORES ONLINE: $COUNT"
-                    else
-                      echo "AVISO: Não foi possível identificar o número de jogadores."
-                    fi
-                  else
-                    echo "RCON: INDISPONÍVEL"
+                if docker inspect mc-server >/dev/null 2>&1; then
+                  CONTAINER_STATE=$(docker inspect -f "{{.State.Status}}" mc-server)
+                  if [ "$CONTAINER_STATE" = "running" ]; then
+                    PLAYERS=$(timeout 10 docker exec mc-server rcon-cli list 2>/dev/null || true)
+                    PLAYER_COUNT=$(printf "%s\n" "$PLAYERS" | sed -n "s/.*There are \([0-9][0-9]*\) of.*/\1/p" | head -n1)
+                    PLAYER_NAMES=$(printf "%s\n" "$PLAYERS" | sed -n "s/.*players online: *//p" | tail -n1)
+                    [ -z "$PLAYER_COUNT" ] && PLAYER_COUNT="0"
                   fi
                 fi
-              else
-                echo "CONTENTOR: NÃO ENCONTRADO"
-              fi
-            ' \
-            --query "value[].message" \
-            -o tsv
 
-      - name: VM Desligada
-        if: steps.vm.outputs.status != 'VM running'
+                export DOCKER_STATE CONTAINER_STATE PLAYER_COUNT PLAYER_NAMES
+                python3 - <<'"'"'PY'"'"'
+          import json, os
+          print("MC_STATUS_JSON:" + json.dumps({
+              "docker": os.environ["DOCKER_STATE"],
+              "container": os.environ["CONTAINER_STATE"],
+              "players": int(os.environ["PLAYER_COUNT"]),
+              "player_names": [n.strip() for n in os.environ["PLAYER_NAMES"].split(",") if n.strip()]
+          }, separators=(",", ":")))
+          PY
+              ' --output json)
+
+            REMOTE_STATUS=$(printf '%s' "$RUN_RESULT" | python3 -c '
+          import json,sys
+          data=json.load(sys.stdin)
+          messages="\n".join(x.get("message","") for x in data.get("value",[]))
+          marker="MC_STATUS_JSON:"
+          line=next((x for x in messages.splitlines() if marker in x), "")
+          print(line.split(marker,1)[1] if line else "{}")
+          ')
+            DOCKER=$(echo "$REMOTE_STATUS" | jq -r '.docker // "unknown"')
+            CONTAINER=$(echo "$REMOTE_STATUS" | jq -r '.container // "unknown"')
+            PLAYER_COUNT=$(echo "$REMOTE_STATUS" | jq -r '.players // 0')
+            PLAYER_NAMES=$(echo "$REMOTE_STATUS" | jq -c '.player_names // []')
+          fi
+
+          RESULT=$(jq -cn \
+            --arg vm "$VM_STATUS" \
+            --arg ip "$IP" \
+            --argjson port "$PORT_OPEN" \
+            --arg docker "$DOCKER" \
+            --arg container "$CONTAINER" \
+            --argjson players "$PLAYER_COUNT" \
+            --argjson names "$PLAYER_NAMES" \
+            --arg checked "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{vm:$vm,ip:$ip,port_open:$port,docker:$docker,container:$container,players:$players,player_names:$names,checked_at:$checked}')
+
+          echo "status_json=$RESULT" >> "$GITHUB_OUTPUT"
+
+      - name: Cifrar e enviar resultado temporário
         env:
-          VM_STATUS: ${{ steps.vm.outputs.status }}
+          ACCESS_PASSWORD: \${{ secrets.ACCESS_PASSWORD }}
+          REQUEST_ID: \${{ inputs.request_id }}
+          STATUS_JSON: \${{ steps.status.outputs.status_json }}
+          WORKER_URL: "https://mc-start-control.luismariohernandezsantos.workers.dev"
+        shell: bash
         run: |
-          echo "A VM não está ligada."
-          echo "Estado atual: $VM_STATUS"
-          echo "Não foi efetuada qualquer alteração."
+          set -euo pipefail
+          node <<'NODE'
+          const crypto = require("crypto");
+
+          (async () => {
+            const password = process.env.ACCESS_PASSWORD;
+            if (!password || password.length < 20) {
+              throw new Error("Falta configurar o secret ACCESS_PASSWORD no GitHub.");
+            }
+
+            const salt = crypto.randomBytes(16);
+            const iv = crypto.randomBytes(12);
+            const key = crypto.pbkdf2Sync(password, salt, 100000, 32, "sha256");
+            const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+            const encrypted = Buffer.concat([
+              cipher.update(process.env.STATUS_JSON, "utf8"),
+              cipher.final(),
+              cipher.getAuthTag()
+            ]);
+
+            const payload = {
+              request_id: process.env.REQUEST_ID,
+              password,
+              envelope: {
+                salt: salt.toString("base64"),
+                iv: iv.toString("base64"),
+                data: encrypted.toString("base64")
+              }
+            };
+
+            const response = await fetch(process.env.WORKER_URL + "/api/status-result", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+              throw new Error("O Worker recusou o resultado (" + response.status + ").");
+            }
+            console.log("Resultado enviado e guardado temporariamente.");
+          })().catch(error => {
+            console.error(error.message);
+            process.exitCode = 1;
+          });
+          NODE
