@@ -1,4 +1,3 @@
-
 name: Verificar Servidor Minecraft
 
 on:
@@ -21,9 +20,13 @@ jobs:
       - name: Verificar Estado da VM
         id: vm
         shell: bash
+        env:
+          AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
         run: |
-          RESOURCE_GROUP="MCServerFreeGroup"
-          VM_NAME="MC-VM"
+          set -euo pipefail
+          RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:?Falta o secret AZURE_RESOURCE_GROUP}"
+          VM_NAME="${AZURE_VM_NAME:?Falta o secret AZURE_VM_NAME}"
 
           STATUS=$(az vm get-instance-view \
             --resource-group "$RESOURCE_GROUP" \
@@ -37,9 +40,13 @@ jobs:
       - name: Verificar Porta Minecraft
         if: steps.vm.outputs.status == 'VM running'
         shell: bash
+        env:
+          AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
         run: |
-          RESOURCE_GROUP="MCServerFreeGroup"
-          VM_NAME="MC-VM"
+          set -euo pipefail
+          RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:?Falta o secret AZURE_RESOURCE_GROUP}"
+          VM_NAME="${AZURE_VM_NAME:?Falta o secret AZURE_VM_NAME}"
 
           IP=$(az vm list-ip-addresses \
             --resource-group "$RESOURCE_GROUP" \
@@ -58,42 +65,33 @@ jobs:
       - name: Verificar Docker, Contentor e Jogadores
         if: steps.vm.outputs.status == 'VM running'
         shell: bash
+        env:
+          AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
         run: |
-          echo "A executar verificações dentro da VM..."
+          set -euo pipefail
+          RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:?Falta o secret AZURE_RESOURCE_GROUP}"
+          VM_NAME="${AZURE_VM_NAME:?Falta o secret AZURE_VM_NAME}"
 
+          echo "A executar verificações dentro da VM..."
           az vm run-command invoke \
-            --resource-group MCServerFreeGroup \
-            --name MC-VM \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$VM_NAME" \
             --command-id RunShellScript \
             --scripts '
-              echo "=================================="
-              echo "       ESTADO DO DOCKER"
-              echo "=================================="
-
               if systemctl is-active --quiet docker; then
                 echo "DOCKER: ATIVO"
               else
                 echo "DOCKER: INATIVO"
               fi
 
-              echo ""
-              echo "=================================="
-              echo "    ESTADO DO CONTENTOR"
-              echo "=================================="
-
               if docker inspect mc-server >/dev/null 2>&1; then
                 CONTAINER_STATUS=$(docker inspect -f "{{.State.Status}}" mc-server)
                 echo "CONTENTOR: $CONTAINER_STATUS"
 
                 if [ "$CONTAINER_STATUS" = "running" ]; then
-                  echo ""
-                  echo "=================================="
-                  echo "       JOGADORES ONLINE"
-                  echo "=================================="
-
                   if PLAYERS=$(timeout 10 docker exec mc-server rcon-cli list 2>&1); then
-                    COUNT=$(echo "$PLAYERS" | sed -n "s/.*There are \([0-9]*\) of.*/\1/p")
-
+                    COUNT=$(echo "$PLAYERS" | sed -n "s/.*There are \\([0-9]*\\) of.*/\\1/p")
                     if [ -n "$COUNT" ]; then
                       echo "JOGADORES ONLINE: $COUNT"
                     else
@@ -102,17 +100,10 @@ jobs:
                   else
                     echo "RCON: INDISPONÍVEL"
                   fi
-                else
-                  echo "AVISO: O contentor não está a correr."
                 fi
               else
                 echo "CONTENTOR: NÃO ENCONTRADO"
               fi
-
-              echo ""
-              echo "=================================="
-              echo "       FIM DA VERIFICAÇÃO"
-              echo "=================================="
             ' \
             --query "value[].message" \
             -o tsv
