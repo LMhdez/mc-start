@@ -195,3 +195,17 @@ h2 { margin: 0; font-size: clamp(1.4rem, 3vw, 2rem); letter-spacing: -.04em; }
   .howto { padding: 54px 0 44px; }
   .footer { flex-direction: column; }
 }
+
+.access-panel { margin: 22px 0 16px; max-width: 420px; }
+.access-panel input {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 9px;
+  padding: 0 13px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(8, 13, 9, .35);
+  color: var(--text);
+  font: inherit;
+}
+.access-panel input:focus { outline: 2px solid var(--green); outline-offset: 2px; }
