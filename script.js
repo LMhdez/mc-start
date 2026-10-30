@@ -15,7 +15,7 @@ const translations = {
     languageLabel: "IDIOMA", panelLabel: "PAINEL INFORMATIVO",
     eyebrow: "O TEU MUNDO. À TUA MANEIRA.", heroLine1: "O servidor está", heroLine2: "à tua espera.",
     heroCopy: "Consulta as instruções para entrar no servidor e acompanha as informações disponíveis.",
-    serverStatus: "ESTADO DO SERVIDOR", statusNote: "Estado consultado no GitHub Actions",
+    serverStatus: "ESTADO DO SERVIDOR", statusNote: "Estado consultado pela Azure e GitHub Actions",
     serverAddress: "ENDEREÇO DO SERVIDOR", addressUnavailable: "Disponível após ligar o servidor",
     playersOnline: "JOGADORES ONLINE", manualCheck: "Consulta manual", viaActions: "via Actions",
     passwordLabel: "PALAVRA-PASSE DE ACESSO", passwordPlaceholder: "Introduz a palavra-passe partilhada",
@@ -38,7 +38,7 @@ const translations = {
     languageLabel: "IDIOMA", panelLabel: "PANEL INFORMATIVO",
     eyebrow: "TU MUNDO. A TU MANERA.", heroLine1: "El servidor está", heroLine2: "esperándote.",
     heroCopy: "Consulta las instrucciones para entrar al servidor y revisa la información disponible.",
-    serverStatus: "ESTADO DEL SERVIDOR", statusNote: "Estado consultado mediante GitHub Actions",
+    serverStatus: "ESTADO DEL SERVIDOR", statusNote: "Estado consultado mediante Azure y GitHub Actions",
     serverAddress: "DIRECCIÓN DEL SERVIDOR", addressUnavailable: "Disponible cuando se inicie el servidor",
     playersOnline: "JUGADORES EN LÍNEA", manualCheck: "Consulta manual", viaActions: "mediante Actions",
     passwordLabel: "CONTRASEÑA DE ACCESO", passwordPlaceholder: "Introduce la contraseña compartida",
@@ -61,7 +61,7 @@ const translations = {
     languageLabel: "LANGUAGE", panelLabel: "SERVER DASHBOARD",
     eyebrow: "YOUR WORLD. YOUR WAY.", heroLine1: "The server is", heroLine2: "waiting for you.",
     heroCopy: "Read the instructions to join the server and check the available information.",
-    serverStatus: "SERVER STATUS", statusNote: "Status checked through GitHub Actions",
+    serverStatus: "SERVER STATUS", statusNote: "Status checked through Azure and GitHub Actions",
     serverAddress: "SERVER ADDRESS", addressUnavailable: "Available after the server starts",
     playersOnline: "PLAYERS ONLINE", manualCheck: "Manual check", viaActions: "via Actions",
     passwordLabel: "ACCESS PASSWORD", passwordPlaceholder: "Enter the shared password",
@@ -201,6 +201,12 @@ async function requestAction(action) {
 
     if (action !== "status") {
       showFeedback(action === "start" ? "startSent" : "stopSent");
+      return;
+    }
+
+    if (result.immediate && result.result) {
+      renderStatus(result.result);
+      showFeedback("statusReady");
       return;
     }
 
