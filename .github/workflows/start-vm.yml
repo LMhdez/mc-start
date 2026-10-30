@@ -20,9 +20,6 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
       - name: Login na Azure
         uses: azure/login@v2
         with:
