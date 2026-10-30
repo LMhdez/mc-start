@@ -44,7 +44,7 @@ jobs:
           DOCKER="unknown"
           CONTAINER="unknown"
           PLAYER_COUNT="0"
-          PLAYER_NAMES=""
+          PLAYER_NAMES="[]"
 
           if [ "$VM_STATUS" = "VM running" ]; then
             IP=$(az vm list-ip-addresses \
