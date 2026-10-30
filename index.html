@@ -45,16 +45,24 @@
         </div>
       </div>
 
+      <div class="access-panel">
+        <label class="info-label" for="access-password">PALAVRA-PASSE DE ACESSO</label>
+        <input id="access-password" type="password" autocomplete="current-password"
+          placeholder="Introduz a palavra-passe partilhada" required>
+      </div>
       <div class="actions">
-        <button id="start-button" class="button button-primary" type="button" disabled>
+        <button id="start-button" class="button button-primary" type="button">
           <span aria-hidden="true">▶</span> Ligar servidor
         </button>
-        <button id="status-button" class="button button-secondary" type="button" disabled>
-          Consultar estado
+        <button id="stop-button" class="button button-secondary" type="button">
+          Desligar servidor
+        </button>
+        <button id="status-button" class="button button-secondary" type="button">
+          Pedir verificação
         </button>
       </div>
       <p id="feedback" class="feedback" role="status" aria-live="polite">
-        Os comandos são executados através do GitHub Actions. Esta página não guarda credenciais.
+        Introduz a palavra-passe para controlar o servidor.
       </p>
     </section>
 
