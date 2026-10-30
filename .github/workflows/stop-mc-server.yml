@@ -1,0 +1,67 @@
+
+name: Desligar Servidor Minecraft
+
+on:
+  workflow_dispatch:
+    inputs:
+      motivo:
+        description: 'Motivo do desligamento'
+        required: false
+        default: 'Manual'
+  repository_dispatch:
+    types: [stop-mc-server]
+
+jobs:
+  stop-azure-vm:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Login na Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Verificar Estado Atual da VM
+        id: get-status
+        run: |
+          echo "A verificar o estado atual da máquina virtual..."
+
+          STATUS=$(az vm get-instance-view \
+            --resource-group MCServerFreeGroup \
+            --name MC-VM \
+            --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus" \
+            -o tsv)
+
+          echo "Estado atual: $STATUS"
+          echo "vm_status=$STATUS" >> "$GITHUB_OUTPUT"
+
+      - name: Desalocar VM
+        if: contains(steps.get-status.outputs.vm_status, 'running')
+        run: |
+          echo "A enviar comando de desalocação..."
+
+          az vm deallocate \
+            --resource-group MCServerFreeGroup \
+            --name MC-VM \
+            --no-wait
+
+          echo "Comando de desalocação enviado."
+
+      - name: Informar se Já Estava Desligada
+        if: contains(steps.get-status.outputs.vm_status, 'deallocated') || contains(steps.get-status.outputs.vm_status, 'stopped')
+        run: |
+          echo "A VM já estava desligada."
+          echo "Nenhuma ação necessária."
+
+      - name: Confirmar Estado Final
+        run: |
+          echo "A consultar o estado final da VM..."
+
+          az vm get-instance-view \
+            --resource-group MCServerFreeGroup \
+            --name MC-VM \
+            --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus" \
+            -o tsv
