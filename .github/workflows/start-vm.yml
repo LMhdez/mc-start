@@ -7,6 +7,8 @@ on:
         description: 'Motivo ou utilizador a ligar'
         required: false
         default: 'Manual'
+  repository_dispatch:
+    types: [start-mc-server]
 
 jobs:
   start-azure-vm:
@@ -21,16 +23,36 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Verificar Estado Atual da VM
+        id: get-status
         run: |
           echo "A verificar o estado atual da máquina virtual..."
-          az vm get-instance-view --resource-group MCServerFreeGroup --name MC-VM --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus" -o tsv
+          STATUS=$(az vm get-instance-view --resource-group MCServerFreeGroup --name MC-VM --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus" -o tsv)
+          echo "Estado atual detetado: $STATUS"
+          echo "vm_status=$STATUS" >> $GITHUB_OUTPUT
 
-      - name: Ligar a Máquina Virtual
+      - name: Tomar Decisão e Ligar
+        if: contains(steps.get-status.outputs.vm_status, 'stopped') || contains(steps.get-status.outputs.vm_status, 'deallocated')
         run: |
-          echo "A enviar comando para ligar a MC-VM..."
+          echo "A máquina está desligada. A enviar comando para iniciar a MC-VM..."
           az vm start --resource-group MCServerFreeGroup --name MC-VM --no-wait
-          echo "Comando enviado com sucesso!"
+          echo "Comando de arranque enviado com sucesso!"
+
+      - name: Informar se Já Estava Ligada
+        if: !(contains(steps.get-status.outputs.vm_status, 'stopped') || contains(steps.get-status.outputs.vm_status, 'deallocated'))
+        run: |
+          echo "========================================="
+          echo "AVISO: A máquina virtual JÁ ESTÁ LIGADA! ($${{ steps.get-status.outputs.vm_status }})"
+          echo "Nenhum comando novo foi necessário."
+          echo "========================================="
 
       - name: Confirmar Estado Final
         run: |
-          echo "Servidor de Minecraft acionado com sucesso por: ${{ github.event.inputs.notificar }}"
+          USER_TRIGGERED="${{ github.event.inputs.notificar }}"
+          if [ -z "$USER_TRIGGERED" ] || [ "$USER_TRIGGERED" = "Manual" ]; then
+            if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+              USER_TRIGGERED="Webhook Externo (Link Mágico)"
+            else
+              USER_TRIGGERED="Manual"
+            fi
+          fi
+          echo "Ação processada para o utilizador/origem: $USER_TRIGGERED"
