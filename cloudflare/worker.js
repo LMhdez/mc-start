@@ -94,6 +94,55 @@ async function dispatchWorkflow(env, file, inputs) {
   );
 }
 
+async function getAzureVmPowerState(env) {
+  const required = ["AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID",
+    "AZURE_SUBSCRIPTION_ID", "AZURE_RESOURCE_GROUP", "AZURE_VM_NAME"];
+  if (required.some(name => !env[name])) return null;
+
+  const tokenResponse = await fetch(
+    "https://login.microsoftonline.com/" + encodeURIComponent(env.AZURE_TENANT_ID) + "/oauth2/v2.0/token",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: env.AZURE_CLIENT_ID,
+        client_secret: env.AZURE_CLIENT_SECRET,
+        grant_type: "client_credentials",
+        scope: "https://management.azure.com/.default"
+      })
+    }
+  );
+  if (!tokenResponse.ok) throw new Error("Azure token request failed");
+  const tokenData = await tokenResponse.json();
+  if (!tokenData.access_token) throw new Error("Azure token missing");
+
+  const resource = [
+    "subscriptions", encodeURIComponent(env.AZURE_SUBSCRIPTION_ID),
+    "resourceGroups", encodeURIComponent(env.AZURE_RESOURCE_GROUP),
+    "providers/Microsoft.Compute/virtualMachines", encodeURIComponent(env.AZURE_VM_NAME),
+    "instanceView"
+  ].join("/");
+  const vmResponse = await fetch(
+    "https://management.azure.com/" + resource + "?api-version=2024-07-01",
+    { headers: { "Authorization": "Bearer " + tokenData.access_token } }
+  );
+  if (!vmResponse.ok) throw new Error("Azure VM status request failed");
+  const vmData = await vmResponse.json();
+  const power = (vmData.statuses || []).find(item =>
+    typeof item.code === "string" && item.code.startsWith("PowerState/")
+  );
+  if (!power) return null;
+
+  const states = {
+    "PowerState/deallocated": "VM deallocated",
+    "PowerState/stopped": "VM stopped",
+    "PowerState/starting": "VM starting",
+    "PowerState/stopping": "VM stopping",
+    "PowerState/running": "VM running"
+  };
+  return states[power.code] || null;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -190,6 +239,25 @@ export default {
     if (body.action === "status") {
       if (!validRequestId(body.request_id)) return json({ ok: false, message: "Pedido invalido." }, 400, origin);
       await env.STATUS_KV.delete("status:" + body.request_id);
+
+      // A VM desligada ou em transicao nao precisa de iniciar GitHub Actions.
+      try {
+        const vmState = await getAzureVmPowerState(env);
+        if (vmState && vmState !== "VM running") {
+          return json({
+            ok: true,
+            immediate: true,
+            result: {
+              vm: vmState, ip: "", port_open: false, docker: "unknown",
+              container: "unknown", players: 0, player_names: [],
+              checked_at: new Date().toISOString()
+            }
+          }, 200, origin);
+        }
+      } catch (error) {
+        console.error("Consulta direta Azure falhou; a usar GitHub Actions:", error.message);
+      }
+
       file = "status-mc-server.yml";
       inputs = { request_id: body.request_id };
       message = "Pedido de verificacao do servidor enviado.";
