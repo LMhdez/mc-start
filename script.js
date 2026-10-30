@@ -31,7 +31,8 @@ const translations = {
     waiting: "O GitHub Actions pode demorar alguns minutos.", wrongPassword: "Palavra-passe incorreta.",
     notAllowed: "Origem não autorizada.", incomplete: "Configuração do painel incompleta.",
     requestError: "O pedido não foi aceite. Tenta novamente mais tarde.",
-    connectionError: "Erro de comunicação com o serviço."
+    connectionError: "Erro de comunicação com o serviço.",
+    vmState: "Estado da VM", dockerState: "Docker", containerState: "Contentor", portState: "Porta 25565", playerNames: "Jogadores", checkedAt: "Verificado", noPlayers: "Ninguém online", statusReady: "Estado atualizado.", statusTimeout: "A verificação ainda não terminou. Tenta consultar novamente daqui a pouco.", portOpen: "Acessível", portClosed: "Inacessível"
   },
   es: {
     languageLabel: "IDIOMA", panelLabel: "PANEL INFORMATIVO",
@@ -53,7 +54,8 @@ const translations = {
     waiting: "GitHub Actions puede tardar unos minutos.", wrongPassword: "Contraseña incorrecta.",
     notAllowed: "Origen no autorizado.", incomplete: "La configuración del panel está incompleta.",
     requestError: "No se ha aceptado la solicitud. Inténtalo de nuevo más tarde.",
-    connectionError: "Error de comunicación con el servicio."
+    connectionError: "Error de comunicación con el servicio.",
+    vmState: "Estado de la VM", dockerState: "Docker", containerState: "Contenedor", portState: "Puerto 25565", playerNames: "Jugadores", checkedAt: "Comprobado", noPlayers: "Nadie conectado", statusReady: "Estado actualizado.", statusTimeout: "La comprobación aún no ha terminado. Vuelve a consultar dentro de un momento.", portOpen: "Accesible", portClosed: "Inaccesible"
   },
   en: {
     languageLabel: "LANGUAGE", panelLabel: "SERVER DASHBOARD",
@@ -75,7 +77,8 @@ const translations = {
     waiting: "GitHub Actions may take a few minutes.", wrongPassword: "Incorrect password.",
     notAllowed: "Origin not authorized.", incomplete: "The dashboard is not fully configured.",
     requestError: "The request was not accepted. Please try again later.",
-    connectionError: "Communication error with the service."
+    connectionError: "Communication error with the service.",
+    vmState: "VM state", dockerState: "Docker", containerState: "Container", portState: "Port 25565", playerNames: "Players", checkedAt: "Checked", noPlayers: "Nobody online", statusReady: "Status updated.", statusTimeout: "The check has not finished yet. Please try checking again shortly.", portOpen: "Reachable", portClosed: "Unreachable"
   }
 };
 
@@ -108,9 +111,52 @@ function showFeedback(key) {
   if (feedback) feedback.textContent = translations[currentLanguage][key] || translations[currentLanguage].connectionError;
 }
 
+async function fetchWithTimeout(url, options = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function renderStatus(result) {
+  const t = translations[currentLanguage];
+  const state = document.querySelector("#server-state");
+  const address = document.querySelector("#server-address");
+  const count = document.querySelector("#player-count");
+  const names = document.querySelector("#player-names");
+  const details = document.querySelector("#status-details");
+
+  if (state) state.textContent = result.vm || "Unknown";
+  if (address) address.textContent = result.ip ? result.ip + ":25565" : t.addressUnavailable;
+  if (count) count.textContent = String(result.players ?? 0);
+  if (names) names.textContent = result.player_names?.length ? result.player_names.join(", ") : t.noPlayers;
+
+  if (details) {
+    const values = [
+      [t.dockerState, result.docker || "unknown"],
+      [t.containerState, result.container || "unknown"],
+      [t.portState, result.port_open ? t.portOpen : t.portClosed],
+      [t.checkedAt, result.checked_at ? new Date(result.checked_at).toLocaleString() : "—"]
+    ];
+    details.replaceChildren();
+    values.forEach(([label, value]) => {
+      const item = document.createElement("div");
+      item.className = "status-detail";
+      const labelElement = document.createElement("span");
+      const valueElement = document.createElement("strong");
+      labelElement.textContent = label;
+      valueElement.textContent = value;
+      item.append(labelElement, valueElement);
+      details.append(item);
+    });
+  }
+}
+
 async function requestAction(action) {
   const password = passwordInput?.value || "";
-  const t = translations[currentLanguage];
 
   if (!password) {
     showFeedback("emptyPassword");
@@ -118,16 +164,19 @@ async function requestAction(action) {
     return;
   }
 
+  const requestId = action === "status" ? crypto.randomUUID() : null;
   buttons.forEach(button => button.disabled = true);
   showFeedback("sending");
 
   try {
-    const response = await fetch(`${WORKER_URL.replace(/\/$/, "")}/api/action`, {
+    const payload = { action, password };
+    if (requestId) payload.request_id = requestId;
+
+    const response = await fetchWithTimeout(WORKER_URL.replace(/\/$/, "") + "/api/action", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, password })
+      body: JSON.stringify(payload)
     });
-
     const result = await response.json();
 
     if (!response.ok || !result.ok) {
@@ -138,16 +187,37 @@ async function requestAction(action) {
       return;
     }
 
-    const successKey = action === "start" ? "startSent" : action === "stop" ? "stopSent" : "checkSent";
-    showFeedback(successKey);
-    if (feedback) feedback.textContent += " " + t.waiting;
+    if (action !== "status") {
+      showFeedback(action === "start" ? "startSent" : "stopSent");
+      return;
+    }
+
+    showFeedback("checkSent");
+    for (let attempt = 0; attempt < 30; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      const statusResponse = await fetchWithTimeout(WORKER_URL.replace(/\/$/, "") + "/api/status/read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password, request_id: requestId })
+      });
+
+      if (statusResponse.status === 202) continue;
+      const statusResult = await statusResponse.json();
+      if (!statusResponse.ok || !statusResult.ok) {
+        showFeedback("requestError");
+        return;
+      }
+      renderStatus(statusResult.result);
+      showFeedback("statusReady");
+      return;
+    }
+    showFeedback("statusTimeout");
   } catch {
     showFeedback("connectionError");
   } finally {
     buttons.forEach(button => button.disabled = false);
   }
 }
-
 languageSelect?.addEventListener("change", event => setLanguage(event.target.value));
 document.querySelector("#start-button")?.addEventListener("click", () => requestAction("start"));
 document.querySelector("#stop-button")?.addEventListener("click", () => requestAction("stop"));
