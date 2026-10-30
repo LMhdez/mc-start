@@ -1,5 +1,5 @@
 // URL publica do Cloudflare Worker. Nao colocar tokens neste ficheiro.
-const WORKER_URL = "COLOCA_AQUI_O_URL_DO_WORKER";
+const WORKER_URL = "https://mc-start-control.luismariohernandezsantos.workers.dev";
 
 const passwordInput = document.querySelector("#access-password");
 const feedback = document.querySelector("#feedback");
