@@ -219,3 +219,30 @@ h2 { margin: 0; font-size: clamp(1.4rem, 3vw, 2rem); letter-spacing: -.04em; }
   .language-label { display: none; }
   .topbar-label { display: none; }
 }
+
+
+.status-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0 22px;
+}
+.status-detail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: .82rem;
+}
+.status-detail strong {
+  color: var(--text);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 650px) {
+  .status-details { grid-template-columns: 1fr; }
+}
