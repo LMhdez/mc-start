@@ -68,11 +68,11 @@ async function decryptStatus(envelope, password) {
   return JSON.parse(new TextDecoder().decode(clear));
 }
 
-async function checkRateLimit(env, request) {
+async function checkRateLimit(env, request, scope = "action", limit = RATE_LIMIT) {
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-  const key = "rate:" + ip;
+  const key = "rate:" + scope + ":" + ip;
   const current = Number(await env.STATUS_KV.get(key) || "0");
-  if (current >= RATE_LIMIT) return false;
+  if (current >= limit) return false;
   await env.STATUS_KV.put(key, String(current + 1), { expirationTtl: RATE_WINDOW });
   return true;
 }
@@ -159,7 +159,7 @@ export default {
       if (!env.STATUS_KV || !validRequestId(body.request_id)) {
         return json({ ok: false, message: "Pedido invalido." }, 400, origin);
       }
-      if (!(await checkRateLimit(env, request))) {
+      if (!(await checkRateLimit(env, request, "read", 45))) {
         return json({ ok: false, message: "Demasiados pedidos. Aguarda um minuto." }, 429, origin);
       }
       const key = "status:" + body.request_id;
