@@ -22,6 +22,40 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Conceder leitura minima da rede ao Worker
+        shell: bash
+        env:
+          AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
+          WORKER_AZURE_CLIENT_ID: "df3a8487-eb40-4dad-a1a7-15a457fa4077"
+        run: |
+          set -euo pipefail
+
+          # Obter os IDs dos recursos de rede associados a esta VM.
+          WORKER_OBJECT_ID="$(az ad sp show --id "$WORKER_AZURE_CLIENT_ID" --query id -o tsv)"
+          NIC_ID="$(az vm show --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME" --query 'networkProfile.networkInterfaces[0].id' -o tsv)"
+          if [ -z "$WORKER_OBJECT_ID" ] || [ -z "$NIC_ID" ]; then
+            echo "Nao foi possivel resolver a identidade ou a interface de rede."
+            exit 1
+          fi
+
+          PUBLIC_IP_ID="$(az network nic show --ids "$NIC_ID" --query 'ipConfigurations[?publicIPAddress!=null].publicIPAddress.id | [0]' -o tsv)"
+          if [ -z "$PUBLIC_IP_ID" ] || [ "$PUBLIC_IP_ID" = "None" ]; then
+            echo "Nao foi encontrado um recurso de IP publico associado."
+            exit 1
+          fi
+
+          # Network Reader concede apenas leitura de recursos Microsoft.Network.
+          for SCOPE in "$NIC_ID" "$PUBLIC_IP_ID"; do
+            az role assignment create \
+              --assignee-object-id "$WORKER_OBJECT_ID" \
+              --assignee-principal-type ServicePrincipal \
+              --role "Network Reader" \
+              --scope "$SCOPE" \
+              --only-show-errors >/dev/null
+          done
+
+          echo "Permissao Network Reader aplicada nos dois recursos de rede."
       - name: Obter IP publico da VM
         id: ip
         shell: bash
