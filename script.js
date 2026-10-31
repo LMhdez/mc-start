@@ -384,7 +384,9 @@ async function loadTechnicalSpecs() {
       ["🌐","Cloudflare Tunnel",services.cloudflared,"",descriptions.tunnel],
       ["🧱",t.techImage,d.container_image,"",descriptions.image],
       ["☕",t.techJava,d.java,"",descriptions.java],
-      ["🎮",t.techMinecraft,d.minecraft,"",descriptions.minecraft]
+      ["🎮",t.techMinecraft,d.minecraft,"",descriptions.minecraft],
+      ["🧵","Fabric Loader",d.fabric_loader,"",es?"Carregador de mods Fabric e respetiva versão.":en?"Fabric mod loader and its version.":"Carregador de mods Fabric e respetiva versão."],
+      ["🧩",t.techType,d.server_type,"",es?"Software que ejecuta el servidor de Minecraft.":en?"Software running the Minecraft server.":"Software que executa o servidor Minecraft."]
     ];
     target.replaceChildren();
     function addCard(icon,label,value,sub,description,modifier="") {
