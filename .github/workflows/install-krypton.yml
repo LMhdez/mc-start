@@ -97,8 +97,22 @@ jobs:
           mkdir -p /var/backups/minecraft
           BACKUP=$(mktemp -d "/var/backups/minecraft/mods-krypton-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX")
           CONTAINER_STOPPED=0
+          INSTALL_APPLIED=0
+          READY=0
+          FILENAME=""
           cleanup() {
-            if [ "$CONTAINER_STOPPED" = "1" ]; then
+            if [ "$INSTALL_APPLIED" = "1" ] && [ "$READY" -ne 1 ]; then
+              DATA_SOURCE=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Source}}{{end}}{{end}}' "$CONTAINER" 2>/dev/null || true)
+              if [ -n "$DATA_SOURCE" ] && [ "$DATA_SOURCE" != "/" ] && [ -d "$DATA_SOURCE/mods" ]; then
+                echo "O arranque falhou; a remover apenas o JAR acabado de instalar e a restaurar o servidor."
+                docker stop --time 30 "$CONTAINER" >/dev/null 2>&1 || true
+                rm -f "$DATA_SOURCE/mods/$FILENAME"
+                docker start "$CONTAINER" >/dev/null 2>&1 || true
+                echo "Rollback do Krypton executado. Backup preservado em $BACKUP."
+              else
+                echo "Não foi possível identificar com segurança o volume /data para rollback automático. Backup preservado em $BACKUP."
+              fi
+            elif [ "$CONTAINER_STOPPED" = "1" ]; then
               docker start "$CONTAINER" >/dev/null 2>&1 || true
             fi
             rm -rf "$WORKDIR"
@@ -188,6 +202,7 @@ jobs:
           docker stop --time 60 "$CONTAINER" >/dev/null
           CONTAINER_STOPPED=1
           docker cp "$WORKDIR/$FILENAME" "$CONTAINER:/data/mods/$FILENAME"
+          INSTALL_APPLIED=1
           STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           docker start "$CONTAINER" >/dev/null
           CONTAINER_STOPPED=0
