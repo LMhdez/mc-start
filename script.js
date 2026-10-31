@@ -10,8 +10,33 @@ const buttons = [
   document.querySelector("#status-button")
 ];
 
+let lastTechnicalData = null;
+
 const translations = {
   pt: {
+    hostedOnAzureLabel:"ALOJADO NA AZURE",
+    vmStatusLabel:"ESTADO DA MÁQUINA VIRTUAL",
+    pageCopy:"Estado da VM, ligação ao jogo e versões do software em execução.",
+    connectionSectionLabel:"LIGAÇÃO AO SERVIDOR", connectionTitleShort:"Endereços e plataformas",
+    javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Minecraft Bedrock via Geyser",
+    versionsHeading:"VERSÕES DETETADAS", versionsTitle:"Software e versões",
+    versionsIntro:"Versões lidas diretamente da VM e dos registos do último arranque.",
+    kernelLabelShort:"Kernel", dockerEngineLabel:"Engine", containerImageLabel:"Imagem",
+    fabricLabel:"Fabric Loader", agentRuntimeLabel:"Agente de monitorização",
+    tunnelStatusLabel:"Estado do túnel", activeStatus:"Ativo", inactiveStatus:"Inativo",
+    unknownStatus:"Desconhecido", unavailableValue:"Não disponível",
+    loadedModsTitle:"Mods carregados", loadedModsIntro:"Versões identificadas no último arranque do Fabric.",
+    modsLastStartup:"Último arranque conhecido", modDescUnavailable:"Descrição não disponível em português.",
+    modDescLithium:"Otimiza o desempenho do servidor sem alterar as mecânicas do jogo.",
+    modDescFabricApi:"Disponibiliza APIs e pontos de integração necessários a outros mods.",
+    modDescFloodgate:"Permite a ligação de jogadores Bedrock a servidores Java através do Geyser.",
+    modDescFerritecore:"Reduz o consumo de memória do servidor.",
+    modDescEssentialCommands:"Acrescenta comandos como teletransporte, casas, regresso e warps.",
+    modDescChunky:"Gera antecipadamente chunks para preparar áreas do mundo.",
+    modDescGeyser:"Permite que jogadores Bedrock entrem num servidor Minecraft Java.",
+    pluginsLabel:"Plugins", noModsDetected:"Não foram detetados mods carregados.", updatedAtLabel:"Atualizado",
+    techUnavailable:"Não foi possível obter as especificações técnicas."
+
     azureShort:"Máquina virtual · infraestrutura cloud", linuxShort:"Sistema operativo · APT · systemd", dockerShort:"Contentorização · mc-server", minecraftShort:"Servidor de jogo · RCON", pythonShort:"Agente privado de monitorização", tunnelShort:"Comunicação privada com o agente", internalAdmin:"Administração interna", remoteManagement:"Gestão remota", compatibility:"Compatibilidade",
     languageLabel: "IDIOMA", panelLabel: "PAINEL TÉCNICO",
     eyebrow: "INFRAESTRUTURA E MONITORIZAÇÃO", pageTitle: "Informação do servidor",
@@ -64,6 +89,29 @@ const translations = {
     vmState: "Estado da VM", vmDeallocated: "Servidor desligado", vmRunning: "Servidor online", vmStopped: "Servidor parado", vmStarting: "A iniciar", vmStopping: "A desligar", vmUnknown: "Estado desconhecido", notChecked: "Não verificado", dockerActive: "Ativo", dockerInactive: "Inativo", containerRunning: "Em execução", containerExited: "Parado", containerNotFound: "Não encontrado", dockerState: "Docker", containerState: "Contentor", portState: "Porta 25565", playerNames: "Jogadores", checkedAt: "Verificado", noPlayers: "Ninguém online", statusReady: "Estado atualizado.", statusTimeout: "A verificação ainda não terminou. Tenta consultar novamente daqui a pouco.", portOpen: "Acessível", portClosed: "Inacessível"
   },
   es: {
+    hostedOnAzureLabel:"ALOJADO EN AZURE",
+    vmStatusLabel:"ESTADO DE LA MÁQUINA VIRTUAL",
+    pageCopy:"Estado de la VM, conexión al juego y versiones del software en ejecución.",
+    connectionSectionLabel:"CONEXIÓN AL SERVIDOR", connectionTitleShort:"Direcciones y plataformas",
+    javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Minecraft Bedrock mediante Geyser",
+    versionsHeading:"VERSIONES DETECTADAS", versionsTitle:"Software y versiones",
+    versionsIntro:"Versiones obtenidas directamente de la VM y de los registros del último inicio.",
+    kernelLabelShort:"Kernel", dockerEngineLabel:"Engine", containerImageLabel:"Imagen",
+    fabricLabel:"Fabric Loader", agentRuntimeLabel:"Agente de monitorización",
+    tunnelStatusLabel:"Estado del túnel", activeStatus:"Activo", inactiveStatus:"Inactivo",
+    unknownStatus:"Desconocido", unavailableValue:"No disponible",
+    loadedModsTitle:"Mods cargados", loadedModsIntro:"Versiones identificadas en el último inicio de Fabric.",
+    modsLastStartup:"Último inicio conocido", modDescUnavailable:"Descripción no disponible en español.",
+    modDescLithium:"Mejora el rendimiento del servidor sin cambiar las mecánicas del juego.",
+    modDescFabricApi:"Proporciona las API y los puntos de integración que necesitan otros mods.",
+    modDescFloodgate:"Permite que jugadores de Bedrock se conecten a servidores Java mediante Geyser.",
+    modDescFerritecore:"Reduce el consumo de memoria del servidor.",
+    modDescEssentialCommands:"Añade comandos como teletransporte, casas, regreso y warps.",
+    modDescChunky:"Genera chunks por adelantado para preparar zonas del mundo.",
+    modDescGeyser:"Permite que jugadores de Bedrock entren en un servidor Minecraft Java.",
+    pluginsLabel:"Plugins", noModsDetected:"No se detectaron mods cargados.", updatedAtLabel:"Actualizado",
+    techUnavailable:"No se pudieron obtener las especificaciones técnicas."
+
     azureShort:"Máquina virtual · infraestructura cloud", linuxShort:"Sistema operativo · APT · systemd", dockerShort:"Contenedores · mc-server", minecraftShort:"Servidor de juego · RCON", pythonShort:"Agente privado de monitorización", tunnelShort:"Comunicación privada con el agente", internalAdmin:"Administración interna", remoteManagement:"Gestión remota", compatibility:"Compatibilidad",
     languageLabel: "IDIOMA", panelLabel: "PANEL TÉCNICO",
     eyebrow: "INFRAESTRUCTURA Y MONITORIZACIÓN", pageTitle: "Información del servidor",
@@ -116,6 +164,29 @@ const translations = {
     vmState: "Estado de la VM", vmDeallocated: "Servidor apagado", vmRunning: "Servidor en línea", vmStopped: "Servidor detenido", vmStarting: "Iniciando", vmStopping: "Apagando", vmUnknown: "Estado desconocido", notChecked: "No comprobado", dockerActive: "Activo", dockerInactive: "Inactivo", containerRunning: "En ejecución", containerExited: "Detenido", containerNotFound: "No encontrado", dockerState: "Docker", containerState: "Contenedor", portState: "Puerto 25565", playerNames: "Jugadores", checkedAt: "Comprobado", noPlayers: "Nadie conectado", statusReady: "Estado actualizado.", statusTimeout: "La comprobación aún no ha terminado. Vuelve a consultar dentro de un momento.", portOpen: "Accesible", portClosed: "Inaccesible"
   },
   en: {
+    hostedOnAzureLabel:"HOSTED ON AZURE",
+    vmStatusLabel:"VIRTUAL MACHINE STATUS",
+    pageCopy:"VM status, game connection details and versions of the running software.",
+    connectionSectionLabel:"SERVER CONNECTION", connectionTitleShort:"Addresses and platforms",
+    javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Minecraft Bedrock via Geyser",
+    versionsHeading:"DETECTED VERSIONS", versionsTitle:"Software and versions",
+    versionsIntro:"Versions read directly from the VM and the latest startup logs.",
+    kernelLabelShort:"Kernel", dockerEngineLabel:"Engine", containerImageLabel:"Image",
+    fabricLabel:"Fabric Loader", agentRuntimeLabel:"Monitoring agent",
+    tunnelStatusLabel:"Tunnel status", activeStatus:"Active", inactiveStatus:"Inactive",
+    unknownStatus:"Unknown", unavailableValue:"Unavailable",
+    loadedModsTitle:"Loaded mods", loadedModsIntro:"Versions identified during the latest Fabric startup.",
+    modsLastStartup:"Last known startup", modDescUnavailable:"Description unavailable.",
+    modDescLithium:"Improves server performance without changing gameplay mechanics.",
+    modDescFabricApi:"Provides APIs and integration hooks required by other mods.",
+    modDescFloodgate:"Allows Bedrock players to join Java servers through Geyser.",
+    modDescFerritecore:"Reduces the server's memory usage.",
+    modDescEssentialCommands:"Adds commands such as teleport, homes, back and warps.",
+    modDescChunky:"Pre-generates chunks to prepare areas of the world.",
+    modDescGeyser:"Allows Bedrock players to join a Minecraft Java server.",
+    pluginsLabel:"Plugins", noModsDetected:"No loaded mods were detected.", updatedAtLabel:"Updated",
+    techUnavailable:"Unable to retrieve technical specifications."
+
     azureShort:"Virtual machine · cloud infrastructure", linuxShort:"Operating system · APT · systemd", dockerShort:"Containerization · mc-server", minecraftShort:"Game server · RCON", pythonShort:"Private monitoring agent", tunnelShort:"Private connection to the agent", internalAdmin:"Internal administration", remoteManagement:"Remote management", compatibility:"Compatibility",
     languageLabel: "LANGUAGE", panelLabel: "TECHNICAL DASHBOARD",
     eyebrow: "INFRASTRUCTURE AND MONITORING", pageTitle: "Server information",
@@ -192,6 +263,7 @@ function setLanguage(language) {
   });
 
   if (lastStatusResult) renderStatus(lastStatusResult);
+  if (lastTechnicalData) renderTechnicalSpecs(lastTechnicalData);
   if (feedback) {
     feedback.textContent = dictionary[lastFeedbackKey] || dictionary.initialFeedback;
     feedback.classList.toggle("is-loading", lastFeedbackLoading);
@@ -263,14 +335,7 @@ function renderStatus(result) {
 
   if (details) {
     const values = [
-      [t.dockerState, result.docker === "unknown" && result.vm !== "VM running" ? t.notChecked :
-        result.docker === "active" ? t.dockerActive :
-        result.docker === "inactive" ? t.dockerInactive : (result.docker || t.vmUnknown)],
       [t.portState, result.port_open ? t.portOpen : t.portClosed],
-      [t.containerState, result.container === "unknown" && result.vm !== "VM running" ? t.notChecked :
-        result.container === "running" ? t.containerRunning :
-        result.container === "exited" ? t.containerExited :
-        result.container === "not_found" ? t.containerNotFound : (result.container || t.vmUnknown)],
       [t.checkedAt, result.checked_at ? new Date(result.checked_at).toLocaleString(currentLanguage === "pt" ? "pt-PT" : currentLanguage === "es" ? "es-ES" : "en-GB") : "—"]
     ];
     details.replaceChildren();
@@ -352,93 +417,141 @@ async function waitForVmAction(action) {
   return false;
 }
 
-async function loadTechnicalSpecs() {
+function renderTechnicalSpecs(d) {
   const target = document.querySelector("#technical-specs");
   if (!target) return;
   const t = translations[currentLanguage];
+  const services = d.services || {};
+  const unknown = t.unavailableValue;
+
+  function versionOnly(value) {
+    if (!value) return "";
+    const match = String(value).match(/(?:version\\s+)?v?(\\d+(?:\\.\\d+)+(?:[-+][\\w.-]+)?)/i);
+    return match ? match[1] : String(value);
+  }
+  function safe(value) {
+    return value && !/^não identificado|^not identified|^no identificado|^unavailable$/i.test(String(value))
+      ? String(value) : unknown;
+  }
+  function addCard(label, value, detail) {
+    const card = document.createElement("article");
+    card.className = "detected-card";
+    const top = document.createElement("div");
+    top.className = "detected-top";
+    const name = document.createElement("span");
+    name.className = "detected-label";
+    name.textContent = label;
+    top.append(name);
+    const strong = document.createElement("strong");
+    strong.className = "detected-value";
+    strong.textContent = value || unknown;
+    card.append(top, strong);
+    if (detail) {
+      const small = document.createElement("small");
+      small.className = "detected-sub";
+      small.textContent = detail;
+      card.append(small);
+    }
+    target.append(card);
+  }
+
+  target.replaceChildren();
+  const dockerCli = versionOnly(d.docker);
+  const dockerEngine = versionOnly(d.docker_server);
+  const kernel = d.kernel ? t.kernelLabelShort + " " + d.kernel : "";
+  const dockerDetails = [];
+  if (dockerEngine) dockerDetails.push(t.dockerEngineLabel + " " + dockerEngine);
+  if (d.container_image) dockerDetails.push(t.containerImageLabel + " " + d.container_image);
+  const minecraftDetails = [];
+  if (d.server_type && d.server_type !== "Não identificado") minecraftDetails.push(d.server_type);
+  if (d.fabric_loader && d.fabric_loader !== "Não identificado") minecraftDetails.push(t.fabricLabel + " " + d.fabric_loader);
+  const tunnelState = services.cloudflared === "active" ? t.activeStatus :
+    services.cloudflared === "inactive" ? t.inactiveStatus : t.unknownStatus;
+
+  addCard(t.techOS, safe(d.os), [d.architecture, kernel].filter(Boolean).join(" · "));
+  addCard(t.techDocker, dockerCli || dockerEngine, dockerDetails.join(" · "));
+  addCard(t.techJava, versionOnly(d.java));
+  addCard("Python", versionOnly(d.python), t.agentRuntimeLabel);
+  addCard("cloudflared", versionOnly(d.cloudflared), t.tunnelStatusLabel + ": " + tunnelState);
+  addCard(t.techMinecraft, safe(d.minecraft), minecraftDetails.join(" · "));
+
+  const mods = Array.isArray(d.mods) ? d.mods : [];
+  const plugins = Array.isArray(d.plugins) ? d.plugins : [];
+  const section = document.createElement("section");
+  section.className = "mods-panel";
+  const heading = document.createElement("div");
+  heading.className = "mods-heading";
+  const title = document.createElement("h3");
+  title.textContent = t.loadedModsTitle + " · " + (d.mod_count ?? mods.length);
+  const intro = document.createElement("p");
+  intro.textContent = t.loadedModsIntro +
+    (d.mods_status === "last_loaded" ? " · " + t.modsLastStartup : "");
+  heading.append(title, intro);
+  section.append(heading);
+
+  if (mods.length) {
+    const list = document.createElement("div");
+    list.className = "mods-list";
+    const descriptions = {
+      lithium: t.modDescLithium,
+      fabric_api: t.modDescFabricApi,
+      floodgate: t.modDescFloodgate,
+      ferritecore: t.modDescFerritecore,
+      essential_commands: t.modDescEssentialCommands,
+      chunky: t.modDescChunky,
+      "geyser-fabric": t.modDescGeyser
+    };
+    mods.forEach(mod => {
+      const item = document.createElement("article");
+      item.className = "mod-item";
+      const name = document.createElement("strong");
+      name.textContent = mod.name || mod.id || mod.file || "Mod";
+      const version = document.createElement("span");
+      version.className = "mod-version";
+      version.textContent = mod.version ? "v" + mod.version : unknown;
+      const desc = document.createElement("p");
+      desc.textContent = descriptions[String(mod.id || "").toLowerCase()] || t.modDescUnavailable;
+      item.append(name, version, desc);
+      list.append(item);
+    });
+    section.append(list);
+  } else {
+    const empty = document.createElement("p");
+    empty.className = "mods-empty";
+    empty.textContent = t.noModsDetected;
+    section.append(empty);
+  }
+
+  if (plugins.length) {
+    const pluginSummary = document.createElement("p");
+    pluginSummary.className = "mods-plugin-summary";
+    pluginSummary.textContent = t.pluginsLabel + ": " +
+      plugins.map(plugin => plugin.name || plugin.file).join(", ");
+    section.append(pluginSummary);
+  }
+  target.append(section);
+
+  const checked = document.createElement("p");
+  checked.className = "section-copy";
+  checked.style.gridColumn = "1 / -1";
+  checked.textContent = t.updatedAtLabel + ": " +
+    (d.checked_at ? new Date(d.checked_at).toLocaleString(
+      currentLanguage === "pt" ? "pt-PT" : currentLanguage === "es" ? "es-ES" : "en-GB"
+    ) : unknown);
+  target.append(checked);
+}
+
+async function loadTechnicalSpecs() {
+  const target = document.querySelector("#technical-specs");
+  if (!target) return;
   try {
     const response = await fetchWithTimeout(WORKER_URL + "/api/technical");
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error("Technical data unavailable");
-    const d = data.result || {};
-    const services = d.services || {};
-    const es = currentLanguage === "es", en = currentLanguage === "en";
-    const unknown = es ? "No disponible" : en ? "Unavailable" : "Indisponível";
-    const descriptions = es ? {
-      os:"Sistema operativo de la máquina virtual.", architecture:"Arquitectura del procesador y versión del kernel.", python:"Ejecuta el agente que recoge datos técnicos del servidor.", apt:"Instala y actualiza paquetes de Ubuntu.", systemd:"Inicia y supervisa servicios en segundo plano.", docker:"Ejecuta el servidor Minecraft en un contenedor aislado.", cloudflared:"Mantiene el túnel privado hacia el agente.", dockerService:"Servicio que mantiene Docker disponible.", agent:"Proceso que consulta el estado y los componentes de la VM.", tunnel:"Servicio local que mantiene la conexión con Cloudflare.", image:"Plantilla usada para crear el contenedor del servidor.", java:"Entorno necesario para ejecutar Minecraft Java.", minecraft:"Versión del juego detectada en los registros.", mods:"Modificaciones instaladas que añaden o cambian contenido y mecánicas del juego.", plugins:"Extensiones del servidor que añaden funciones administrativas o de juego."
-    } : en ? {
-      os:"Operating system running the virtual machine.", architecture:"Processor architecture and Linux kernel version.", python:"Runs the agent that collects server diagnostics.", apt:"Installs and updates Ubuntu packages.", systemd:"Starts and supervises background services.", docker:"Runs Minecraft inside an isolated container.", cloudflared:"Maintains the private tunnel to the agent.", dockerService:"Service that keeps Docker available.", agent:"Process that reads VM status and installed components.", tunnel:"Local service that maintains the Cloudflare connection.", image:"Template used to create the Minecraft server container.", java:"Runtime required to run Minecraft Java.", minecraft:"Game version detected in the server logs.", mods:"Installed modifications that add or change game content and mechanics.", plugins:"Server extensions that add administrative or gameplay features."
-    } : {
-      os:"Sistema operativo onde funciona a máquina virtual.", architecture:"Arquitetura do processador e versão do kernel Linux.", python:"Executa o agente que recolhe informação técnica do servidor.", apt:"Instala e atualiza programas no Ubuntu.", systemd:"Inicia e monitoriza serviços em segundo plano.", docker:"Executa o Minecraft num contentor isolado.", cloudflared:"Mantém o túnel privado até ao agente.", dockerService:"Serviço que mantém o Docker disponível.", agent:"Processo que consulta o estado e os componentes da VM.", tunnel:"Serviço local que mantém a ligação à Cloudflare.", image:"Imagem usada para criar o contentor do servidor Minecraft.", java:"Ambiente necessário para executar o Minecraft Java.", minecraft:"Versão do jogo detetada nos registos do servidor.", mods:"Modificações instaladas que acrescentam ou alteram conteúdo e mecânicas do jogo.", plugins:"Extensões do servidor que acrescentam funções administrativas ou de jogo."
-    };
-    const entries = [
-      ["🐧",t.techOS,d.os,d.os_version,descriptions.os],
-      ["⌘",es?"Arquitectura":en?"Architecture":"Arquitetura",d.architecture,d.kernel?"Kernel "+d.kernel:"",descriptions.architecture],
-      ["🐍","Python",d.python,"",descriptions.python],
-      ["📦","APT",d.apt,"",descriptions.apt],
-      ["⚙","systemd",d.systemd,"",descriptions.systemd],
-      ["🐳","Docker",d.docker,d.docker_server?"Engine "+d.docker_server:"",descriptions.docker],
-      ["☁","cloudflared",d.cloudflared,"",descriptions.cloudflared],
-      ["🟢",es?"Servicio Docker":en?"Docker service":"Serviço Docker",services.docker,"",descriptions.dockerService],
-      ["🔒",es?"Agente privado":en?"Private agent":"Agente privado",services.mc_private_agent,"",descriptions.agent],
-      ["🌐","Cloudflare Tunnel",services.cloudflared,"",descriptions.tunnel],
-      ["🧱",t.techImage,d.container_image,"",descriptions.image],
-      ["☕",t.techJava,d.java,"",descriptions.java],
-      ["🎮",t.techMinecraft,d.minecraft,"",descriptions.minecraft],
-      ["🧵","Fabric Loader",d.fabric_loader,"",es?"Carregador de mods Fabric e respetiva versão.":en?"Fabric mod loader and its version.":"Carregador de mods Fabric e respetiva versão."],
-      ["🧩",t.techType,d.server_type,"",es?"Software que ejecuta el servidor de Minecraft.":en?"Software running the Minecraft server.":"Software que executa o servidor Minecraft."]
-    ];
-    target.replaceChildren();
-    function addCard(icon,label,value,sub,description,modifier="") {
-      const card=document.createElement("article");card.className="detected-card "+modifier;
-      const top=document.createElement("div");top.className="detected-top";
-      const symbol=document.createElement("span");symbol.className="detected-icon";symbol.textContent=icon;
-      const name=document.createElement("span");name.className="detected-label";name.textContent=label;
-      top.append(symbol,name);
-      const strong=document.createElement("strong");strong.className="detected-value";strong.textContent=value||unknown;
-      const copy=document.createElement("p");copy.className="detected-description";copy.textContent=description||"";
-      card.append(top,strong,copy);
-      if(sub){const small=document.createElement("small");small.className="detected-sub";small.textContent=sub;card.append(small);}
-      target.append(card);
-    }
-    entries.forEach(([icon,label,value,sub,description]) => {
-      const stateField=/serviço|service|agente|agent|tunnel/i.test(label);
-      const stateClass=stateField&&String(value).toLowerCase()==="active"?"is-ok":stateField?"is-bad":"";
-      addCard(icon,label,value&&value!=="Não identificado"&&value!=="Não identificada"&&value!=="Não identificado nos logs"?value:"",sub,description,stateClass);
-    });
-    const mods=Array.isArray(d.mods)?d.mods:[];
-    const plugins=Array.isArray(d.plugins)?d.plugins:[];
-    const modTitle=es?"Mods cargados":en?"Loaded mods":"Mods carregados";
-    const modIntro=es?"Lista basada en el último arranque de Fabric; las versiones proceden del registro. Las descripciones se leen de los archivos cuando están disponibles.":en?"List based on the latest Fabric startup; versions come from the runtime log. Descriptions are read from files when available.":"Lista baseada no último arranque do Fabric; as versões vêm do registo de execução. As descrições são lidas dos ficheiros quando disponíveis.";
-    const section=document.createElement("section");section.className="mods-panel";
-    const heading=document.createElement("div");heading.className="mods-heading";
-    const title=document.createElement("h3");title.textContent=modTitle+" · "+(d.mod_count??mods.length);
-    const intro=document.createElement("p");
-    const totalNote=d.fabric_total? (es?"Fabric informa "+d.fabric_total+" módulos, incluidas dependencias internas.":en?"Fabric reports "+d.fabric_total+" modules, including internal dependencies.":"O Fabric reporta "+d.fabric_total+" módulos, incluindo dependências internas.") : "";
-    const lastLoaded=d.mods_status==="last_loaded"?(es?" (último arranque)":en?" (last startup)":" (último arranque)"):"";
-    intro.textContent=modIntro+totalNote+lastLoaded;
-    heading.append(title,intro);section.append(heading);
-    if(mods.length){
-      const list=document.createElement("div");list.className="mods-list";
-      mods.forEach(mod=>{
-        const item=document.createElement("article");item.className="mod-item";
-        const name=document.createElement("strong");name.textContent=mod.name||mod.file||"Mod";
-        const version=document.createElement("span");version.className="mod-version";version.textContent=mod.version? "v"+mod.version : (mod.file||"");
-        const desc=document.createElement("p");desc.textContent=mod.description||(es?"El archivo no incluye una descripción legible.":en?"The file does not include a readable description.":"O ficheiro não inclui uma descrição legível.");
-        item.append(name,version,desc);list.append(item);
-      });
-      section.append(list);
-    } else {
-      const empty=document.createElement("p");empty.className="mods-empty";empty.textContent=es?"No se han detectado mods en /data/mods.":en?"No mods detected in /data/mods.":"Não foram detetados mods em /data/mods.";section.append(empty);
-    }
-    const pluginSummary=document.createElement("p");pluginSummary.className="mods-plugin-summary";
-    pluginSummary.textContent=(es?"Plugins del servidor: ":en?"Server plugins: ":"Plugins do servidor: ")+(d.plugin_count??plugins.length)+(plugins.length?" · "+plugins.map(x=>x.name||x.file).join(", "):"");
-    section.append(pluginSummary);target.append(section);
-    const checked=document.createElement("p");checked.className="section-copy";checked.style.gridColumn="1 / -1";
-    checked.textContent=(es?"Última lectura: ":en?"Last read: ":"Última leitura: ")+(d.checked_at?new Date(d.checked_at).toLocaleString(es?"es-ES":en?"en-GB":"pt-PT"):unknown);
-    target.append(checked);
+    lastTechnicalData = data.result || {};
+    renderTechnicalSpecs(lastTechnicalData);
   } catch {
-    target.textContent = t.techUnavailable || "Especificações dinâmicas indisponíveis.";
+    target.textContent = translations[currentLanguage].techUnavailable;
   }
 }
 async function requestAction(action) {
