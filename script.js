@@ -45,8 +45,18 @@ const translations = {
     step2Title: "Abre o Minecraft", step2Copy: "Escolhe Multijogador e adiciona o endereço do servidor.",
     step3Title: "Entra e diverte-te", step3Copy: "Joga com os teus amigos. O servidor trata do resto.",
     footer: "Dados técnicos baseados na configuração disponível no repositório.", emptyPassword: "Introduz a palavra-passe de acesso.",
-    sending: "A enviar pedido...", startSent: "Pedido para ligar o servidor enviado.",
-    stopSent: "Pedido para desligar o servidor enviado.", checkSent: "Pedido de verificação enviado.",
+    sending: "A enviar pedido...", startSent: "Pedido para ligar o servidor aceite.",
+    stopSent: "Pedido para desligar o servidor aceite.", checkSent: "Pedido de verificação enviado.",
+    starting: "A iniciar a máquina virtual na Azure...",
+    serverStarting: "A VM já está ligada. A aguardar que o Minecraft arranque e abra a porta 25565...",
+    stopping: "A parar o Minecraft e a desligar a máquina virtual...",
+    vmStopping: "O Minecraft está a parar. A aguardar que a Azure desligue a VM...",
+    searchingPublic: "A procurar o estado atual do servidor...",
+    searchingPrivate: "A consultar o estado privado do servidor através do Cloudflare Tunnel...",
+    checkingPrivate: "Pedido enviado. A aguardar pelo resultado da verificação...",
+    startComplete: "Servidor online! Minecraft em execução e porta 25565 acessível.",
+    stopComplete: "Servidor desligado. A VM foi desalocada na Azure.",
+    operationTimeout: "O pedido foi aceite, mas a operação ainda não terminou. O estado mais recente está apresentado acima. Consulta novamente daqui a pouco.",
     waiting: "A resposta costuma chegar em 15–25 segundos. O arranque da máquina virtual pode demorar mais.", wrongPassword: "Palavra-passe incorreta.",
     notAllowed: "Origem não autorizada.", incomplete: "Configuração do painel incompleta.",
     requestError: "O pedido não foi aceite. Tenta novamente mais tarde.",
@@ -87,8 +97,18 @@ const translations = {
     step2Title: "Abre Minecraft", step2Copy: "Elige Multijugador y añade la dirección del servidor.",
     step3Title: "Entra y diviértete", step3Copy: "Juega con tus amigos. El servidor se encarga del resto.",
     footer: "Datos técnicos basados en la configuración disponible en el repositorio.", emptyPassword: "Introduce la contraseña de acceso.",
-    sending: "Enviando solicitud...", startSent: "Se ha enviado la solicitud para iniciar el servidor.",
-    stopSent: "Se ha enviado la solicitud para apagar el servidor.", checkSent: "Se ha enviado la solicitud de comprobación.",
+    sending: "Enviando solicitud...", startSent: "Solicitud de inicio aceptada.",
+    stopSent: "Solicitud de apagado aceptada.", checkSent: "Se ha enviado la solicitud de comprobación.",
+    starting: "Iniciando la máquina virtual en Azure...",
+    serverStarting: "La VM ya está encendida. Esperando a que Minecraft arranque y abra el puerto 25565...",
+    stopping: "Deteniendo Minecraft y apagando la máquina virtual...",
+    vmStopping: "Minecraft se está deteniendo. Esperando a que Azure apague la VM...",
+    searchingPublic: "Buscando el estado actual del servidor...",
+    searchingPrivate: "Consultando el estado privado del servidor a través de Cloudflare Tunnel...",
+    checkingPrivate: "Solicitud enviada. Esperando el resultado de la comprobación...",
+    startComplete: "¡Servidor en línea! Minecraft está ejecutándose y el puerto 25565 está accesible.",
+    stopComplete: "Servidor apagado. La VM se ha desasignado en Azure.",
+    operationTimeout: "La solicitud fue aceptada, pero la operación aún no ha terminado. El último estado aparece arriba. Vuelve a consultar dentro de un momento.",
     waiting: "La respuesta suele llegar en 15–25 segundos. El arranque de la máquina virtual puede tardar más.", wrongPassword: "Contraseña incorrecta.",
     notAllowed: "Origen no autorizado.", incomplete: "La configuración del panel está incompleta.",
     requestError: "No se ha aceptado la solicitud. Inténtalo de nuevo más tarde.",
@@ -129,8 +149,18 @@ const translations = {
     step2Title: "Open Minecraft", step2Copy: "Choose Multiplayer and add the server address.",
     step3Title: "Join and have fun", step3Copy: "Play with your friends. The server takes care of the rest.",
     footer: "Technical information based on the configuration available in the repository.", emptyPassword: "Enter the access password.",
-    sending: "Sending request...", startSent: "The server start request has been sent.",
-    stopSent: "The server stop request has been sent.", checkSent: "The status check request has been sent.",
+    sending: "Sending request...", startSent: "Start request accepted.",
+    stopSent: "Stop request accepted.", checkSent: "The status check request has been sent.",
+    starting: "Starting the Azure virtual machine...",
+    serverStarting: "The VM is running. Waiting for Minecraft to start and port 25565 to open...",
+    stopping: "Stopping Minecraft and shutting down the virtual machine...",
+    vmStopping: "Minecraft is stopping. Waiting for Azure to deallocate the VM...",
+    searchingPublic: "Checking the current server status...",
+    searchingPrivate: "Checking the private server status through Cloudflare Tunnel...",
+    checkingPrivate: "Request sent. Waiting for the status result...",
+    startComplete: "Server online! Minecraft is running and port 25565 is reachable.",
+    stopComplete: "Server stopped. The VM has been deallocated in Azure.",
+    operationTimeout: "The request was accepted, but the operation has not finished yet. The latest status is shown above. Check again shortly.",
     waiting: "The response usually arrives in 15–25 seconds. Starting the virtual machine may take longer.", wrongPassword: "Incorrect password.",
     notAllowed: "Origin not authorized.", incomplete: "The dashboard is not fully configured.",
     requestError: "The request was not accepted. Please try again later.",
@@ -143,6 +173,9 @@ let currentLanguage = "pt";
 let lastFeedbackKey = "initialFeedback";
 let lastStatusResult = null;
 let lastPrivateIp = "";
+let lastFeedbackLoading = false;
+let actionInProgress = false;
+let publicStatusInFlight = false;
 
 function setLanguage(language) {
   currentLanguage = translations[language] ? language : "pt";
@@ -159,16 +192,25 @@ function setLanguage(language) {
   });
 
   if (lastStatusResult) renderStatus(lastStatusResult);
-  if (feedback) feedback.textContent = dictionary[lastFeedbackKey] || dictionary.initialFeedback;
+  if (feedback) {
+    feedback.textContent = dictionary[lastFeedbackKey] || dictionary.initialFeedback;
+    feedback.classList.toggle("is-loading", lastFeedbackLoading);
+    feedback.setAttribute("aria-busy", String(lastFeedbackLoading));
+  }
   if (languageSelect) languageSelect.value = currentLanguage;
   document.title = currentLanguage === "pt" ? "Minecraft Server | Painel" :
     currentLanguage === "es" ? "Minecraft Server | Panel" : "Minecraft Server | Dashboard";
   try { localStorage.setItem("mc-server-language", currentLanguage); } catch {}
 }
 
-function showFeedback(key) {
+function showFeedback(key, loading = false) {
   lastFeedbackKey = key;
-  if (feedback) feedback.textContent = translations[currentLanguage][key] || translations[currentLanguage].connectionError;
+  lastFeedbackLoading = loading;
+  if (feedback) {
+    feedback.textContent = translations[currentLanguage][key] || translations[currentLanguage].connectionError;
+    feedback.classList.toggle("is-loading", loading);
+    feedback.setAttribute("aria-busy", String(loading));
+  }
 }
 
 async function fetchWithTimeout(url, options = {}) {
@@ -245,20 +287,69 @@ function renderStatus(result) {
   }
 }
 
-async function requestPublicStatus() {
+async function requestPublicStatus(showProgress = false) {
+  if (actionInProgress || publicStatusInFlight) return;
+  publicStatusInFlight = true;
   const button = document.querySelector("#status-button");
   if (button) button.disabled = true;
+  if (showProgress) showFeedback("searchingPublic", true);
+
   try {
     const response = await fetchWithTimeout(WORKER_URL + "/api/public/status");
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error("Public status unavailable");
     renderStatus(data.result);
-    showFeedback("statusReady");
+    if (showProgress) showFeedback("statusReady");
   } catch {
-    showFeedback("connectionError");
+    if (showProgress) showFeedback("connectionError");
   } finally {
+    publicStatusInFlight = false;
     if (button) button.disabled = false;
   }
+}
+
+async function waitForVmAction(action) {
+  const isStarting = action === "start";
+  const maxAttempts = isStarting ? 48 : 36;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const response = await fetchWithTimeout(WORKER_URL + "/api/public/status");
+    const data = await response.json();
+    if (!response.ok || !data.ok || !data.result) {
+      throw new Error("Could not read VM state while waiting for the operation");
+    }
+
+    const status = data.result;
+    renderStatus(status);
+
+    if (isStarting) {
+      const ready = status.vm === "VM running" &&
+        status.docker === "active" &&
+        status.container === "running" &&
+        status.port_open === true;
+
+      if (ready) {
+        showFeedback("startComplete");
+        return true;
+      }
+
+      showFeedback(status.vm === "VM running" ? "serverStarting" : "starting", true);
+    } else {
+      if (status.vm === "VM deallocated" || status.vm === "VM stopped") {
+        showFeedback("stopComplete");
+        return true;
+      }
+
+      showFeedback(status.vm === "VM stopping" ? "vmStopping" : "stopping", true);
+    }
+
+    if (attempt < maxAttempts - 1) {
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+  }
+
+  showFeedback("operationTimeout");
+  return false;
 }
 
 async function loadTechnicalSpecs() {
@@ -321,9 +412,14 @@ async function requestAction(action) {
     return;
   }
 
+  if (actionInProgress) return;
+  actionInProgress = true;
   const requestId = action === "status" ? crypto.randomUUID() : null;
   buttons.forEach(button => button.disabled = true);
-  showFeedback("sending");
+
+  if (action === "start") showFeedback("starting", true);
+  else if (action === "stop") showFeedback("stopping", true);
+  else showFeedback("searchingPrivate", true);
 
   try {
     const payload = { action, password };
@@ -345,7 +441,7 @@ async function requestAction(action) {
     }
 
     if (action !== "status") {
-      showFeedback(action === "start" ? "startSent" : "stopSent");
+      await waitForVmAction(action);
       return;
     }
 
@@ -355,7 +451,7 @@ async function requestAction(action) {
       return;
     }
 
-    showFeedback("checkSent");
+    showFeedback("checkingPrivate", true);
     // O Workers KV pode demorar algum tempo a propagar uma escrita.
     // Consultamos de 5 em 5 segundos para não esgotar o limite do Worker.
     for (let attempt = 0; attempt < 36; attempt++) {
@@ -382,13 +478,14 @@ async function requestAction(action) {
   } catch {
     showFeedback("connectionError");
   } finally {
+    actionInProgress = false;
     buttons.forEach(button => button.disabled = false);
   }
 }
 languageSelect?.addEventListener("change", event => setLanguage(event.target.value));
 document.querySelector("#start-button")?.addEventListener("click", () => requestAction("start"));
 document.querySelector("#stop-button")?.addEventListener("click", () => requestAction("stop"));
-document.querySelector("#status-button")?.addEventListener("click", requestPublicStatus);
+document.querySelector("#status-button")?.addEventListener("click", () => requestPublicStatus(true));
 document.querySelector("#private-status-button")?.addEventListener("click", () => requestAction("status"));
 
 let savedLanguage = "pt";
