@@ -20,7 +20,7 @@ concurrency:
 jobs:
   start-azure-vm:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
 
     steps:
       - name: Login na Azure
@@ -76,6 +76,11 @@ jobs:
             done
           else
             echo "ERRO: Estado inesperado da VM."
+            exit 1
+          fi
+
+          if [[ "$STATUS" == "VM stopping" ]]; then
+            echo "ERRO: A VM continuou em processo de desligamento após o tempo limite."
             exit 1
           fi
 
