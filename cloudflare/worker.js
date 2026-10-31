@@ -215,12 +215,66 @@ export default {
       return json({ ok: false, message: "Origem nao autorizada." }, 403);
     }
 
+    // Endpoints publicos: nunca devolvem IP, nomes de jogadores ou dados de acesso.
+    if (url.pathname === "/api/public/status" && request.method === "GET") {
+      try {
+        const vm = await getAzureVmPowerState(env);
+        let result = {
+          vm: vm || "Unknown",
+          players: 0,
+          docker: "unknown",
+          container: "unknown",
+          port_open: false,
+          checked_at: new Date().toISOString()
+        };
+        if (vm === "VM running") {
+          try {
+            const agent = await callPrivateAgent(env, "/status");
+            const live = agent.result || {};
+            result = {
+              vm: "VM running",
+              players: Number.isFinite(Number(live.players)) ? Number(live.players) : 0,
+              docker: live.docker || "unknown",
+              container: live.container || "unknown",
+              port_open: Boolean(live.port_open),
+              checked_at: live.checked_at || result.checked_at
+            };
+          } catch (error) {
+            console.error("Estado publico: agente indisponivel:", error.message);
+          }
+        }
+        return json({ ok: true, result }, 200, origin);
+      } catch (error) {
+        console.error("Consulta publica falhou:", error.message);
+        return json({ ok: false, message: "Nao foi possivel consultar o estado." }, 503, origin);
+      }
+    }
+
+    if (url.pathname === "/api/technical" && request.method === "GET") {
+      if (!env.STATUS_KV) return json({ ok: false, message: "Cache indisponivel." }, 503, origin);
+      const cacheKey = "technical:public";
+      const cached = await env.STATUS_KV.get(cacheKey);
+      if (cached) {
+        try { return json({ ok: true, result: JSON.parse(cached), cached: true }, 200, origin); }
+        catch { await env.STATUS_KV.delete(cacheKey); }
+      }
+      try {
+        const agent = await callPrivateAgent(env, "/technical");
+        const technical = agent.result || {};
+        await env.STATUS_KV.put(cacheKey, JSON.stringify(technical), { expirationTtl: 600 });
+        return json({ ok: true, result: technical, cached: false }, 200, origin);
+      } catch (error) {
+        console.error("Consulta tecnica indisponivel:", error.message);
+        return json({ ok: false, message: "Dados tecnicos dinamicos indisponiveis." }, 503, origin);
+      }
+    }
+
     if (request.method === "OPTIONS") {
       return new Response(null, {
         status: 204,
         headers: {
           "Access-Control-Allow-Origin": origin,
-          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
           "Access-Control-Allow-Headers": "Content-Type",
           "Access-Control-Max-Age": "86400",
           "Vary": "Origin"
