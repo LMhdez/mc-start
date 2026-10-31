@@ -13,14 +13,18 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: mc-server-vm-operations
+  cancel-in-progress: false
+
 jobs:
   stop-azure-vm:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
 
     steps:
       - name: Login na Azure
-        uses: azure/login@v2
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
@@ -51,11 +55,39 @@ jobs:
             for i in {1..90}; do
               sleep 10
               STATUS=$(get_status)
-              echo "Verificação $i/30: $STATUS"
+              echo "Verificação $i/90: $STATUS"
               if [[ "$STATUS" != "VM starting" && "$STATUS" != "VM stopping" ]]; then
                 break
               fi
             done
+          fi
+
+          if [[ "$STATUS" == "VM running" ]]; then
+            echo "A parar o contentor Minecraft de forma graciosa..."
+            STOP_RESULT=$(az vm run-command invoke \
+              --resource-group "$RESOURCE_GROUP" \
+              --name "$VM_NAME" \
+              --command-id RunShellScript \
+              --scripts '
+                set -eu
+                if ! command -v docker >/dev/null 2>&1; then
+                  echo "Docker nao esta disponivel na VM."
+                  exit 1
+                fi
+                if systemctl is-active --quiet docker && docker inspect mc-server >/dev/null 2>&1; then
+                  CONTAINER_STATE=$(docker inspect -f "{{.State.Status}}" mc-server)
+                  if [ "$CONTAINER_STATE" = "running" ]; then
+                    docker stop --time 30 mc-server
+                  fi
+                fi
+                echo MC_STOP_OK
+              ' \
+              --query "value[].message" -o tsv)
+            printf '%s\n' "$STOP_RESULT"
+            if ! grep -q "MC_STOP_OK" <<< "$STOP_RESULT"; then
+              echo "A VM nao confirmou a paragem graciosa do Minecraft; a desalocacao foi cancelada."
+              exit 1
+            fi
           fi
 
           if [[ "$STATUS" == "VM deallocated" ]]; then
@@ -71,7 +103,7 @@ jobs:
           echo "A aguardar a desalocação completa..."
           for i in {1..90}; do
             STATUS=$(get_status)
-            echo "Verificação $i/30: $STATUS"
+            echo "Verificação $i/90: $STATUS"
             if [[ "$STATUS" == "VM deallocated" ]]; then
               echo "SUCESSO: VM desalocada e confirmada!"
               exit 0

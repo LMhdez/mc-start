@@ -1,0 +1,42 @@
+name: Validate project
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check script.js
+          node --check cloudflare/worker.js
+
+      - name: Check Python syntax
+        run: python3 -m py_compile vm/mc-agent.py
+
+      - name: Check workflow YAML and shell syntax
+        run: |
+          ruby -ryaml -e '
+          Dir.glob(".github/workflows/*.yml").each do |path|
+            workflow = YAML.load_file(path, aliases: true)
+            (workflow["jobs"] || {}).each_value do |job|
+              (job["steps"] || []).each_with_index do |step, index|
+                next unless step["run"]
+                File.write("/tmp/mc-server-step.sh", step["run"])
+                unless system("bash", "-n", "/tmp/mc-server-step.sh")
+                  abort "Shell syntax error in #{path}, step #{index + 1}"
+                end
+              end
+            end
+            puts "Validated #{path}"
+          end
+          '

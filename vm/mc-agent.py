@@ -11,7 +11,7 @@ import tempfile
 import zipfile
 import base64
 from datetime import datetime, timezone
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HOST = "127.0.0.1"
 PORT = 8765
@@ -81,26 +81,30 @@ def read_status():
             container_state = state.stdout.strip() or "unknown"
 
         if container_state == "running":
+            players = None
+            player_names = None
             result = run_command(
                 ["docker", "exec", CONTAINER, "rcon-cli", "list"],
                 timeout=10,
             )
-            output = result.stdout + "\n" + result.stderr
-            count_match = re.search(r"There are (\d+) of", output, re.IGNORECASE)
-            if count_match:
-                players = int(count_match.group(1))
-
-            names_match = re.search(
-                r"players online:\s*(.*)",
-                output,
-                re.IGNORECASE,
-            )
-            if names_match and names_match.group(1).strip():
-                player_names = [
-                    name.strip()
-                    for name in names_match.group(1).split(",")
-                    if name.strip()
-                ]
+            if result.returncode == 0:
+                output = result.stdout + "\n" + result.stderr
+                count_match = re.search(r"There are (\d+) of", output, re.IGNORECASE)
+                if count_match:
+                    players = int(count_match.group(1))
+                    names_match = re.search(
+                        r"players online:\s*(.*)",
+                        output,
+                        re.IGNORECASE,
+                    )
+                    if names_match:
+                        player_names = [
+                            name.strip()
+                            for name in names_match.group(1).split(",")
+                            if name.strip()
+                        ]
+                    elif players == 0:
+                        player_names = []
 
     try:
         with socket.create_connection(("127.0.0.1", 25565), timeout=1):
@@ -163,78 +167,6 @@ def read_technical():
     mods = []
     plugins = []
     mods_inventory_available = False
-
-    modrinth_icon_cache = {}
-
-    def modrinth_icon(item):
-        """Procura o icone oficial do projeto no Modrinth quando o JAR nao inclui um."""
-        mod_id = str(item.get("id") or "").strip()
-        mod_name = str(item.get("name") or "").strip()
-        query = mod_name or mod_id
-        if not query:
-            return ""
-
-        cache_key = (mod_id.lower(), query.lower())
-        if cache_key in modrinth_icon_cache:
-            return modrinth_icon_cache[cache_key]
-
-        try:
-            search_url = "https://api.modrinth.com/v2/search?" + urllib.parse.urlencode({
-                "query": query,
-                "facets": json.dumps([["project_type:mod"]]),
-                "limit": 8,
-            })
-            request = urllib.request.Request(
-                search_url,
-                headers={"User-Agent": "LMhdez/mc-start/1.0 (Minecraft server dashboard)"},
-            )
-            with urllib.request.urlopen(request, timeout=5) as response:
-                results = json.loads(response.read(512 * 1024).decode("utf-8"))
-
-            def normalise(value):
-                return re.sub(r"[^a-z0-9]", "", str(value or "").lower())
-
-            wanted_name = normalise(mod_name)
-            wanted_id = normalise(mod_id)
-            selected = None
-            for hit in results.get("hits", []):
-                title_match = wanted_name and normalise(hit.get("title")) == wanted_name
-                slug_match = wanted_id and normalise(hit.get("slug")) == wanted_id
-                if title_match or slug_match:
-                    selected = hit
-                    break
-
-            icon_url = (selected or {}).get("icon_url") or ""
-            if not icon_url.startswith("https://cdn.modrinth.com/"):
-                modrinth_icon_cache[cache_key] = ""
-                return ""
-
-            image_request = urllib.request.Request(
-                icon_url,
-                headers={"User-Agent": "LMhdez/mc-start/1.0"},
-            )
-            with urllib.request.urlopen(image_request, timeout=5) as response:
-                image_bytes = response.read(131073)
-                content_type = response.headers.get_content_type()
-
-            mime_types = {
-                "image/png": "png",
-                "image/jpeg": "jpg",
-                "image/webp": "webp",
-                "image/gif": "gif",
-            }
-            extension = mime_types.get(content_type)
-            if not extension or not image_bytes or len(image_bytes) > 131072:
-                modrinth_icon_cache[cache_key] = ""
-                return ""
-
-            encoded = "data:" + content_type + ";base64," + base64.b64encode(image_bytes).decode("ascii")
-            modrinth_icon_cache[cache_key] = encoded
-            return encoded
-        except Exception:
-            # A consulta externa e opcional: nunca deve impedir o inventario dos mods.
-            modrinth_icon_cache[cache_key] = ""
-            return ""
 
     def inspect_jars(folder, kind, limit=40):  # Read metadata and optional artwork from installed JARs
         """Lê metadados públicos dos JARs sem executar os mods/plugins."""
@@ -302,10 +234,8 @@ def read_technical():
                             mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif"}.get(extension)
                             if mime and icon_path in names:
                                 image_bytes = archive.read(icon_path)
-                                if 0 < len(image_bytes) <= 131072:
+                                if 0 < len(image_bytes) <= 32768:
                                     item["icon"] = "data:" + mime + ";base64," + base64.b64encode(image_bytes).decode("ascii")
-                    if kind == "mod" and not item.get("icon"):
-                        item["icon"] = modrinth_icon(item)
                 except Exception:
                     pass
                 item["description"] = item["description"][:400]
@@ -478,4 +408,4 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    HTTPServer((HOST, PORT), Handler).serve_forever()
+    ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()

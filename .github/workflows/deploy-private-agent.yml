@@ -2,14 +2,13 @@ name: Atualizar agente privado MC
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - "vm/mc-agent.py"
 
 permissions:
   contents: read
+
+concurrency:
+  group: mc-server-vm-operations
+  cancel-in-progress: false
 
 jobs:
   deploy-agent:
@@ -17,10 +16,10 @@ jobs:
     timeout-minutes: 8
     steps:
       - name: Obter codigo
-        uses: actions/checkout@v4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Login na Azure
-        uses: azure/login@v2
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
@@ -39,8 +38,8 @@ jobs:
             -o tsv)
 
           if [[ "$VM_STATUS" != "VM running" ]]; then
-            echo "VM desligada; agente sera atualizado automaticamente no proximo arranque."
-            exit 0
+            echo "A VM tem de estar ligada para atualizar o agente (estado: $VM_STATUS). Nenhuma alteração foi aplicada."
+            exit 1
           fi
 
           AGENT_B64="$(base64 -w0 vm/mc-agent.py)"

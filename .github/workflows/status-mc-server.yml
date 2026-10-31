@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: Login na Azure
-        uses: azure/login@v2
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
@@ -115,14 +115,19 @@ jobs:
                 sed -n 's/.*players online: *//p' |
                 tail -n1)
 
-              [ -z "$PLAYER_COUNT" ] && PLAYER_COUNT="0"
+              if [ -z "$PLAYER_COUNT" ]; then
+                PLAYER_COUNT="null"
+                PLAYER_NAMES="null"
+              elif [ "$PLAYER_COUNT" -gt 0 ] && [ -z "$PLAYER_NAMES" ]; then
+                PLAYER_NAMES="null"
+              fi
 
             fi
           fi
 
           export DOCKER_STATE CONTAINER_STATE PLAYER_COUNT PLAYER_NAMES
 
-          python3 -c 'import json,os; print("MC_STATUS_JSON:" + json.dumps({"docker":os.environ["DOCKER_STATE"],"container":os.environ["CONTAINER_STATE"],"players":int(os.environ["PLAYER_COUNT"]),"player_names":[n.strip() for n in os.environ["PLAYER_NAMES"].split(",") if n.strip()]},separators=(",",":")))'
+          python3 -c 'import json,os; print("MC_STATUS_JSON:" + json.dumps({"docker":os.environ["DOCKER_STATE"],"container":os.environ["CONTAINER_STATE"],"players":(int(os.environ["PLAYER_COUNT"]) if os.environ["PLAYER_COUNT"].isdigit() else None),"player_names":(None if os.environ["PLAYER_NAMES"] == "null" else [n.strip() for n in os.environ["PLAYER_NAMES"].split(",") if n.strip()])},separators=(",",":")))'
 
           REMOTE
               )
@@ -166,13 +171,18 @@ jobs:
                         sed -n "s/.*players online: *//p" |
                         tail -n1)
 
-                      [ -z "$PLAYER_COUNT" ] && PLAYER_COUNT="0"
+                      if [ -z "$PLAYER_COUNT" ]; then
+                PLAYER_COUNT="null"
+                PLAYER_NAMES="null"
+              elif [ "$PLAYER_COUNT" -gt 0 ] && [ -z "$PLAYER_NAMES" ]; then
+                PLAYER_NAMES="null"
+              fi
                     fi
                   fi
 
                   export DOCKER_STATE CONTAINER_STATE PLAYER_COUNT PLAYER_NAMES
 
-                  python3 -c "import json,os; print(\"MC_STATUS_JSON:\" + json.dumps({\"docker\":os.environ[\"DOCKER_STATE\"],\"container\":os.environ[\"CONTAINER_STATE\"],\"players\":int(os.environ[\"PLAYER_COUNT\"]),\"player_names\":[n.strip() for n in os.environ[\"PLAYER_NAMES\"].split(\",\") if n.strip()]},separators=(\",\",\":\")))"
+                  python3 -c "import json,os; print(\"MC_STATUS_JSON:\" + json.dumps({\"docker\":os.environ[\"DOCKER_STATE\"],\"container\":os.environ[\"CONTAINER_STATE\"],\"players\":(int(os.environ[\"PLAYER_COUNT\"]) if os.environ[\"PLAYER_COUNT\"].isdigit() else None),\"player_names\":(None if os.environ[\"PLAYER_NAMES\"] == \"null\" else [n.strip() for n in os.environ[\"PLAYER_NAMES\"].split(\",\") if n.strip()])},separators=(\",\",\":\")))"
                 ' --output json)
 
               ACCESS_METHOD="azure_run_command"
@@ -195,8 +205,8 @@ jobs:
             # Ler os dados JSON
             DOCKER=$(echo "$REMOTE_STATUS" | jq -r '.docker // "unknown"')
             CONTAINER=$(echo "$REMOTE_STATUS" | jq -r '.container // "unknown"')
-            PLAYER_COUNT=$(echo "$REMOTE_STATUS" | jq -r '.players // 0')
-            PLAYER_NAMES=$(echo "$REMOTE_STATUS" | jq -c '.player_names // []')
+            PLAYER_COUNT=$(echo "$REMOTE_STATUS" | jq -r '.players // "null"')
+            PLAYER_NAMES=$(echo "$REMOTE_STATUS" | jq -c '.player_names // null')
           fi
 
           RESULT=$(jq -cn \

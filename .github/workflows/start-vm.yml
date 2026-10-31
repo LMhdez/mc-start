@@ -13,14 +13,18 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: mc-server-vm-operations
+  cancel-in-progress: false
+
 jobs:
   start-azure-vm:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
 
     steps:
       - name: Login na Azure
-        uses: azure/login@v2
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
@@ -75,10 +79,15 @@ jobs:
             exit 1
           fi
 
+          if [[ "$STATUS" == "VM stopping" ]]; then
+            echo "ERRO: A VM continuou em processo de desligamento após o tempo limite."
+            exit 1
+          fi
+
           echo "A aguardar que a VM fique operacional..."
           for i in {1..90}; do
             STATUS=$(get_status)
-            echo "Verificação $i/30: $STATUS"
+            echo "Verificação $i/90: $STATUS"
             if [[ "$STATUS" == "VM running" ]]; then
               echo "SUCESSO: VM ligada e confirmada!"
               exit 0

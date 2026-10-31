@@ -6,6 +6,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: mc-server-vm-operations
+  cancel-in-progress: false
+
 jobs:
   install-private-agent:
     runs-on: ubuntu-latest
@@ -13,10 +17,10 @@ jobs:
 
     steps:
       - name: Obter codigo
-        uses: actions/checkout@v4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Login na Azure
-        uses: azure/login@v2
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
@@ -33,6 +37,7 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
+          trap 'rm -f "$HOME/.ssh/id_rsa" "$RUNNER_TEMP/cloudflare-tunnel-token"' EXIT
 
       - name: Instalar o agente e reparar o Cloudflare Tunnel
         shell: bash
@@ -48,6 +53,16 @@ jobs:
             exit 1
           fi
 
+          VM_STATUS=$(az vm get-instance-view \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_VM_NAME" \
+            --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus | [0]" \
+            -o tsv)
+          if [[ "$VM_STATUS" != "VM running" ]]; then
+            echo "A VM tem de estar ligada para instalar o agente privado (estado: $VM_STATUS)."
+            exit 1
+          fi
+
           IP=$(az vm list-ip-addresses \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --name "$AZURE_VM_NAME" \
@@ -59,10 +74,28 @@ jobs:
             exit 1
           fi
 
+          EXPECTED_HOST_FP=$(az vm run-command invoke \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_VM_NAME" \
+            --command-id RunShellScript \
+            --scripts 'ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256' \
+            --query "value[].message" -o tsv | grep -oE 'SHA256:[A-Za-z0-9+/=]+' | tail -n1)
+          if [ -z "$EXPECTED_HOST_FP" ]; then
+            echo "Não foi possível obter a fingerprint SSH autenticada pela Azure."
+            exit 1
+          fi
+
+          ssh-keyscan -T 10 -t ed25519 "$IP" > "$RUNNER_TEMP/known_hosts" 2>/dev/null
+          ACTUAL_HOST_FP=$(ssh-keygen -lf "$RUNNER_TEMP/known_hosts" -E sha256 | awk '{print $2}')
+          if [ "$ACTUAL_HOST_FP" != "$EXPECTED_HOST_FP" ]; then
+            echo "A fingerprint SSH da VM não corresponde à obtida pela Azure. Ligação cancelada."
+            exit 1
+          fi
+
           printf '%s' "$CLOUDFLARE_TUNNEL_TOKEN" > "$RUNNER_TEMP/cloudflare-tunnel-token"
           chmod 600 "$RUNNER_TEMP/cloudflare-tunnel-token"
 
-          SSH_OPTS="-i $HOME/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10"
+          SSH_OPTS="-i $HOME/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$RUNNER_TEMP/known_hosts -o ConnectTimeout=10"
 
           scp $SSH_OPTS vm/mc-agent.py "azureuser@$IP:/tmp/mc-agent.py"
           scp $SSH_OPTS "$RUNNER_TEMP/cloudflare-tunnel-token" "azureuser@$IP:/tmp/mc-tunnel-token"
@@ -70,6 +103,7 @@ jobs:
           ssh $SSH_OPTS "azureuser@$IP" 'sudo bash -s' <<'REMOTE'
           set -euo pipefail
           export DEBIAN_FRONTEND=noninteractive
+          trap 'rm -f /tmp/mc-tunnel-token /tmp/mc-agent.py' EXIT
 
           chmod 0600 /tmp/mc-tunnel-token
           apt-get update
@@ -116,19 +150,31 @@ jobs:
             exit 1
           fi
 
-          # Se ainda não existir serviço, instala-o com o token do Tunnel.
-          # O instalador cria o unit file com --token-file.
-          if [ ! -f /etc/systemd/system/cloudflared.service ]; then
-            TOKEN=$(cat /tmp/mc-tunnel-token)
-            cloudflared service install "$TOKEN"
-            unset TOKEN
-          fi
-
-          # cloudflared 2026 pode deixar o unit file criado sem o token.
-          # Recria explicitamente o ficheiro esperado pelo serviço, sem o imprimir.
+          # O token fica num ficheiro root-only; nunca é passado na linha de comandos.
           install -d -o root -g root -m 0700 /etc/cloudflared
           install -o root -g root -m 0600 /tmp/mc-tunnel-token /etc/cloudflared/token
           rm -f /tmp/mc-tunnel-token
+
+          # Recriar sempre o unit file garante que uma rotação do token é aplicada.
+          cat > /etc/systemd/system/cloudflared.service <<'SERVICE'
+          [Unit]
+          Description=Cloudflare Tunnel
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=simple
+          ExecStart=/usr/bin/cloudflared tunnel --no-autoupdate run --token-file /etc/cloudflared/token
+          Restart=on-failure
+          RestartSec=5s
+          NoNewPrivileges=true
+          ProtectSystem=full
+          ProtectHome=true
+          PrivateTmp=true
+
+          [Install]
+          WantedBy=multi-user.target
+          SERVICE
 
           systemctl daemon-reload
           systemctl enable mc-private-agent.service cloudflared.service

@@ -7,7 +7,8 @@ const languageSelect = document.querySelector("#language-select");
 const buttons = [
   document.querySelector("#start-button"),
   document.querySelector("#stop-button"),
-  document.querySelector("#status-button")
+  document.querySelector("#status-button"),
+  document.querySelector("#private-status-button")
 ];
 
 let lastTechnicalData = null;
@@ -17,7 +18,7 @@ const translations = {
     hostedOnAzureLabel:"ALOJADO NA AZURE",
     vmStatusLabel:"ESTADO DA MÁQUINA VIRTUAL",
     connectionSectionLabel:"LIGAÇÃO AO SERVIDOR", connectionTitleShort:"Endereços e plataformas",
-    javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Minecraft Bedrock via Geyser",
+    javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Bedrock · Geyser necessário; UDP não verificado",
     versionsHeading:"VERSÕES DETETADAS", versionsTitle:"Software e versões",
     versionsIntro:"Versões lidas diretamente da VM e dos registos do último arranque.",
     kernelLabelShort:"Kernel", dockerEngineLabel:"Motor", containerImageLabel:"Imagem",
@@ -38,6 +39,11 @@ const translations = {
     azureShort:"Máquina virtual · infraestrutura cloud", linuxShort:"Sistema operativo · APT · systemd", dockerShort:"Contentorização · mc-server", minecraftShort:"Servidor de jogo · RCON", pythonShort:"Agente privado de monitorização", tunnelShort:"Comunicação privada com o agente", internalAdmin:"Administração interna", remoteManagement:"Gestão remota", compatibility:"Compatibilidade",
     languageLabel: "IDIOMA", panelLabel: "PAINEL TÉCNICO",
     eyebrow: "INFRAESTRUTURA E MONITORIZAÇÃO", pageTitle: "Informação do servidor",
+    architectureLabel: "ARQUITETURA", architectureTitle: "Como o servidor funciona",
+    architectureAzure: "Azure VM", architectureAzureCopy: "Máquina virtual e recursos cloud",
+    architectureHost: "Linux + Docker", architectureHostCopy: "Sistema operativo e contentor do jogo",
+    architectureGame: "Minecraft", architectureGameCopy: "Servidor Java e gestão através de RCON",
+    architectureControl: "Cloudflare Tunnel", architectureControlCopy: "Ligação privada ao agente de monitorização",
     pageCopy: "Estado operacional, componentes identificados e detalhes de compatibilidade. Os dados não confirmados são assinalados como tal.",
     serverStatus: "ESTADO EM TEMPO REAL",
     verifiedHeading: "COMPONENTES IDENTIFICADOS NO PROJETO", stackTitle: "Infraestrutura do servidor",
@@ -84,13 +90,13 @@ const translations = {
     notAllowed: "Origem não autorizada.", incomplete: "Configuração do painel incompleta.",
     requestError: "O pedido não foi aceite. Tenta novamente mais tarde.",
     connectionError: "Erro de comunicação com o serviço.",
-    vmState: "Estado da VM", vmDeallocated: "Servidor desligado", vmRunning: "Servidor online", vmStopped: "Servidor parado", vmStarting: "A iniciar", vmStopping: "A desligar", vmUnknown: "Estado desconhecido", notChecked: "Não verificado", dockerActive: "Ativo", dockerInactive: "Inativo", containerRunning: "Em execução", containerExited: "Parado", containerNotFound: "Não encontrado", dockerState: "Docker", containerState: "Contentor", portState: "Ligação Java", playerNames: "Jogadores", checkedAt: "Verificado", noPlayers: "Ninguém online", statusReady: "Estado atualizado.", statusTimeout: "A verificação ainda não terminou. Tenta consultar novamente daqui a pouco.", portOpen: "Acessível", portClosed: "Inacessível"
+    vmState: "Estado da VM", vmDeallocated: "Servidor desligado", vmRunning: "VM ligada", serverOnline: "Servidor online", vmStopped: "Servidor parado", vmStarting: "A iniciar", vmStopping: "A desligar", vmUnknown: "Estado desconhecido", notChecked: "Não verificado", dockerActive: "Ativo", dockerInactive: "Inativo", containerRunning: "Em execução", containerExited: "Parado", containerNotFound: "Não encontrado", dockerState: "Docker", containerState: "Contentor", portState: "Ligação Java", playerNames: "Jogadores", checkedAt: "Verificado", noPlayers: "Ninguém online", statusReady: "Estado atualizado.", statusTimeout: "A verificação ainda não terminou. Tenta consultar novamente daqui a pouco.", portOpen: "Acessível", portClosed: "Inacessível"
   },
   es: {
     hostedOnAzureLabel:"ALOJADO EN AZURE",
     vmStatusLabel:"ESTADO DE LA MÁQUINA VIRTUAL",
     connectionSectionLabel:"CONEXIÓN AL SERVIDOR", connectionTitleShort:"Direcciones y plataformas",
-    javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Minecraft Bedrock mediante Geyser",
+    javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Bedrock · requiere Geyser; UDP no verificado",
     versionsHeading:"VERSIONES DETECTADAS", versionsTitle:"Software y versiones",
     versionsIntro:"Versiones obtenidas directamente de la VM y de los registros del último inicio.",
     kernelLabelShort:"Kernel", dockerEngineLabel:"Motor", containerImageLabel:"Imagen",
@@ -111,6 +117,11 @@ const translations = {
     azureShort:"Máquina virtual · infraestructura cloud", linuxShort:"Sistema operativo · APT · systemd", dockerShort:"Contenedores · mc-server", minecraftShort:"Servidor de juego · RCON", pythonShort:"Agente privado de monitorización", tunnelShort:"Comunicación privada con el agente", internalAdmin:"Administración interna", remoteManagement:"Gestión remota", compatibility:"Compatibilidad",
     languageLabel: "IDIOMA", panelLabel: "PANEL TÉCNICO",
     eyebrow: "INFRAESTRUCTURA Y MONITORIZACIÓN", pageTitle: "Información del servidor",
+    architectureLabel: "ARQUITECTURA", architectureTitle: "Cómo funciona el servidor",
+    architectureAzure: "Azure VM", architectureAzureCopy: "Máquina virtual e infraestructura cloud",
+    architectureHost: "Linux + Docker", architectureHostCopy: "Sistema operativo y contenedor del juego",
+    architectureGame: "Minecraft", architectureGameCopy: "Servidor Java y administración mediante RCON",
+    architectureControl: "Cloudflare Tunnel", architectureControlCopy: "Conexión privada al agente de monitorización",
     pageCopy: "Estado de la VM, conexión al juego y versiones del software en ejecución.",
     serverStatus: "ESTADO EN TIEMPO REAL",
     verifiedHeading: "COMPONENTES IDENTIFICADOS EN EL PROYECTO", stackTitle: "Infraestructura del servidor",
@@ -157,13 +168,13 @@ const translations = {
     notAllowed: "Origen no autorizado.", incomplete: "La configuración del panel está incompleta.",
     requestError: "No se ha aceptado la solicitud. Inténtalo de nuevo más tarde.",
     connectionError: "Error de comunicación con el servicio.",
-    vmState: "Estado de la VM", vmDeallocated: "Servidor apagado", vmRunning: "Servidor en línea", vmStopped: "Servidor detenido", vmStarting: "Iniciando", vmStopping: "Apagando", vmUnknown: "Estado desconocido", notChecked: "No comprobado", dockerActive: "Activo", dockerInactive: "Inactivo", containerRunning: "En ejecución", containerExited: "Detenido", containerNotFound: "No encontrado", dockerState: "Docker", containerState: "Contenedor", portState: "Conexión Java", playerNames: "Jugadores", checkedAt: "Comprobado", noPlayers: "Nadie conectado", statusReady: "Estado actualizado.", statusTimeout: "La comprobación aún no ha terminado. Vuelve a consultar dentro de un momento.", portOpen: "Accesible", portClosed: "Inaccesible"
+    vmState: "Estado de la VM", vmDeallocated: "Servidor apagado", vmRunning: "VM encendida", serverOnline: "Servidor en línea", vmStopped: "Servidor detenido", vmStarting: "Iniciando", vmStopping: "Apagando", vmUnknown: "Estado desconocido", notChecked: "No comprobado", dockerActive: "Activo", dockerInactive: "Inactivo", containerRunning: "En ejecución", containerExited: "Detenido", containerNotFound: "No encontrado", dockerState: "Docker", containerState: "Contenedor", portState: "Conexión Java", playerNames: "Jugadores", checkedAt: "Comprobado", noPlayers: "Nadie conectado", statusReady: "Estado actualizado.", statusTimeout: "La comprobación aún no ha terminado. Vuelve a consultar dentro de un momento.", portOpen: "Accesible", portClosed: "Inaccesible"
   },
   en: {
     hostedOnAzureLabel:"HOSTED ON AZURE",
     vmStatusLabel:"VIRTUAL MACHINE STATUS",
     connectionSectionLabel:"SERVER CONNECTION", connectionTitleShort:"Addresses and platforms",
-    javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Minecraft Bedrock via Geyser",
+    javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Bedrock · requires Geyser; UDP unverified",
     versionsHeading:"DETECTED VERSIONS", versionsTitle:"Software and versions",
     versionsIntro:"Versions read directly from the VM and the latest startup logs.",
     kernelLabelShort:"Kernel", dockerEngineLabel:"Engine", containerImageLabel:"Image",
@@ -184,6 +195,11 @@ const translations = {
     azureShort:"Virtual machine · cloud infrastructure", linuxShort:"Operating system · APT · systemd", dockerShort:"Containerization · mc-server", minecraftShort:"Game server · RCON", pythonShort:"Private monitoring agent", tunnelShort:"Private connection to the agent", internalAdmin:"Internal administration", remoteManagement:"Remote management", compatibility:"Compatibility",
     languageLabel: "LANGUAGE", panelLabel: "TECHNICAL DASHBOARD",
     eyebrow: "INFRASTRUCTURE AND MONITORING", pageTitle: "Server information",
+    architectureLabel: "ARCHITECTURE", architectureTitle: "How the server works",
+    architectureAzure: "Azure VM", architectureAzureCopy: "Virtual machine and cloud resources",
+    architectureHost: "Linux + Docker", architectureHostCopy: "Operating system and game container",
+    architectureGame: "Minecraft", architectureGameCopy: "Java server managed through RCON",
+    architectureControl: "Cloudflare Tunnel", architectureControlCopy: "Private connection to the monitoring agent",
     pageCopy: "VM status, game connection details and versions of the running software.",
     serverStatus: "LIVE STATUS",
     verifiedHeading: "COMPONENTS IDENTIFIED IN THE PROJECT", stackTitle: "Server infrastructure",
@@ -230,7 +246,7 @@ const translations = {
     notAllowed: "Origin not authorized.", incomplete: "The dashboard is not fully configured.",
     requestError: "The request was not accepted. Please try again later.",
     connectionError: "Communication error with the service.",
-    vmState: "VM state", vmDeallocated: "Server offline", vmRunning: "Server online", vmStopped: "Server stopped", vmStarting: "Starting", vmStopping: "Stopping", vmUnknown: "Unknown state", notChecked: "Not checked", dockerActive: "Active", dockerInactive: "Inactive", containerRunning: "Running", containerExited: "Stopped", containerNotFound: "Not found", dockerState: "Docker", containerState: "Container", portState: "Java connection", playerNames: "Players", checkedAt: "Checked", noPlayers: "Nobody online", statusReady: "Status updated.", statusTimeout: "The check has not finished yet. Please try checking again shortly.", portOpen: "Reachable", portClosed: "Unreachable"
+    vmState: "VM state", vmDeallocated: "Server offline", vmRunning: "VM running", serverOnline: "Server online", vmStopped: "Server stopped", vmStarting: "Starting", vmStopping: "Stopping", vmUnknown: "Unknown state", notChecked: "Not checked", dockerActive: "Active", dockerInactive: "Inactive", containerRunning: "Running", containerExited: "Stopped", containerNotFound: "Not found", dockerState: "Docker", containerState: "Container", portState: "Java connection", playerNames: "Players", checkedAt: "Checked", noPlayers: "Nobody online", statusReady: "Status updated.", statusTimeout: "The check has not finished yet. Please try checking again shortly.", portOpen: "Reachable", portClosed: "Unreachable"
   }
 };
 
@@ -270,6 +286,8 @@ function setLanguage(language) {
   if (languageSelect) languageSelect.value = currentLanguage;
   document.title = currentLanguage === "pt" ? "Minecraft Server | Painel" :
     currentLanguage === "es" ? "Minecraft Server | Panel" : "Minecraft Server | Dashboard";
+  const metaDescription = document.querySelector('meta[name="description"]');
+  if (metaDescription) metaDescription.content = dictionary.pageCopy;
   try { localStorage.setItem("mc-server-language", currentLanguage); } catch {}
 }
 
@@ -308,7 +326,16 @@ function renderStatus(result) {
       "VM stopped": t.vmStopped, "VM starting": t.vmStarting,
       "VM stopping": t.vmStopping
     };
-    state.textContent = vmStates[result.vm] || t.vmUnknown;
+    const serverReady = result.vm === "VM running" && result.docker === "active" &&
+      result.container === "running" && result.port_open === true;
+    state.textContent = serverReady ? t.serverOnline : (vmStates[result.vm] || t.vmUnknown);
+    const dot = state.closest(".status-pill")?.querySelector(".status-dot");
+    if (dot) {
+      const pending = result.vm === "VM starting" || result.vm === "VM stopping" ||
+        (result.vm === "VM running" && result.container === "running" && result.port_open === false);
+      dot.classList.toggle("status-dot-muted", !serverReady && !pending);
+      dot.classList.toggle("status-dot-pending", pending);
+    }
   }
   if (address) {
     if (result.private && result.ip) lastPrivateIp = result.ip;
@@ -328,12 +355,19 @@ function renderStatus(result) {
       address.textContent = t.addressProtected;
     }
   }
-  if (count) count.textContent = String(result.players ?? 0);
-  if (names) names.textContent = result.player_names?.length ? result.player_names.join(", ") : t.noPlayers;
+  const playersKnown = result.players != null && (
+    result.vm !== "VM running" ||
+    result.docker === "inactive" ||
+    (result.docker === "active" && result.container !== "unknown")
+  );
+  if (count) count.textContent = playersKnown ? String(result.players) : "—";
+  if (names) names.textContent = Array.isArray(result.player_names)
+    ? (result.player_names.length ? result.player_names.join(", ") : t.noPlayers)
+    : (playersKnown && result.players === 0 ? t.noPlayers : t.unknownStatus);
 
   if (details) {
     const values = [
-      [t.portState, result.port_open ? t.portOpen : t.portClosed],
+      [t.portState, result.port_open == null ? t.unknownStatus : result.port_open ? t.portOpen : t.portClosed],
       [t.checkedAt, result.checked_at ? new Date(result.checked_at).toLocaleString(currentLanguage === "pt" ? "pt-PT" : currentLanguage === "es" ? "es-ES" : "en-GB") : "—"]
     ];
     details.replaceChildren();
@@ -654,6 +688,12 @@ async function requestAction(action) {
     buttons.forEach(button => button.disabled = false);
   }
 }
+passwordInput?.addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    requestAction("status");
+  }
+});
 languageSelect?.addEventListener("change", event => setLanguage(event.target.value));
 document.querySelector("#start-button")?.addEventListener("click", () => requestAction("start"));
 document.querySelector("#stop-button")?.addEventListener("click", () => requestAction("stop"));
