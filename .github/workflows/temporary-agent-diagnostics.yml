@@ -65,13 +65,14 @@ jobs:
           REPORT=$(az vm run-command invoke -g "$RG" -n "$VM" --command-id RunShellScript --scripts "$SCRIPT" --query "value[0].message" -o tsv)
           {
             echo 'report<<EOF'
-            printf '%s\\n' "$REPORT"
+            printf 'report=%s\n' "$(printf '%s' "$REPORT" | base64 -w0)"
             echo EOF
           } >> "$GITHUB_OUTPUT"
       - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
         env:
-          REPORT: ${{ steps.diag.outputs.report }}
+          REPORT_B64: ${{ steps.diag.outputs.report }}
         with:
           script: |
-            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:context.issue.number,body:'## Agent service diagnostics\n\n```text\n'+(process.env.REPORT||'No report')+'\n```'});
+            const report=Buffer.from(process.env.REPORT_B64||'','base64').toString('utf8');
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:context.issue.number,body:'## Agent service diagnostics\\n\\n```text\\n'+(report||'No report')+'\\n```'});
             await github.rest.issues.update({owner:context.repo.owner,repo:context.repo.repo,issue_number:context.issue.number,state:'closed'});
