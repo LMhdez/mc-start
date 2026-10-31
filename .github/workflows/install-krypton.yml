@@ -1,0 +1,148 @@
+name: Instalar Krypton no servidor Minecraft
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/install-krypton.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  install-krypton:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Login na Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Verificar VM e instalar Krypton com backup
+        shell: bash
+        env:
+          AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
+        run: |
+          set -euo pipefail
+
+          STATUS=$(az vm get-instance-view \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_VM_NAME" \
+            --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus | [0]" \
+            -o tsv)
+
+          if [[ "$STATUS" != "VM running" ]]; then
+            echo "Instalação cancelada: a VM não está ligada (estado: $STATUS). Não foi iniciada automaticamente para evitar custos inesperados."
+            exit 1
+          fi
+
+          SCRIPT=$(cat <<'REMOTE'
+          set -euo pipefail
+          CONTAINER="mc-server"
+          VERSION_ID="UugdIYJw"
+          WORKDIR=$(mktemp -d /tmp/mc-krypton.XXXXXX)
+          BACKUP="/var/backups/minecraft/mods-krypton-$(date -u +%Y%m%dT%H%M%SZ)"
+          cleanup() { rm -rf "$WORKDIR"; }
+          trap cleanup EXIT
+
+          docker inspect "$CONTAINER" >/dev/null
+          STATE=$(docker inspect -f '{{.State.Status}}' "$CONTAINER")
+          if [[ "$STATE" != "running" ]]; then
+            echo "Container Minecraft não está em execução: $STATE"
+            exit 1
+          fi
+
+          PLAYERS=$(docker exec "$CONTAINER" rcon-cli list 2>/dev/null || true)
+          COUNT=$(printf '%s' "$PLAYERS" | sed -nE 's/.*There are ([0-9]+) of.*/\1/p' | head -n1)
+          COUNT=${COUNT:-0}
+          if [[ "$COUNT" =~ ^[0-9]+$ ]] && (( COUNT > 0 )); then
+            echo "Instalação adiada: existem $COUNT jogador(es) online. Nenhum jogador foi desligado."
+            exit 2
+          fi
+
+          mkdir -p "$BACKUP"
+          docker cp "$CONTAINER:/data/mods" "$BACKUP/mods"
+          echo "Backup criado: $BACKUP"
+
+          curl --fail --silent --show-error \
+            -H "User-Agent: LMhdez/mc-start/1.0" \
+            "https://api.modrinth.com/v2/version/$VERSION_ID" \
+            -o "$WORKDIR/version.json"
+
+          python3 - "$WORKDIR/version.json" "$WORKDIR/download-url" "$WORKDIR/filename" <<'PY'
+          import json, sys
+          data = json.load(open(sys.argv[1], encoding="utf-8"))
+          if data.get("version_number") != "0.3.2" or "26.3" not in data.get("game_versions", []) or "fabric" not in data.get("loaders", []):
+              raise SystemExit("A versão Modrinth não corresponde a Krypton 0.3.2 / Minecraft 26.3 / Fabric.")
+          files = data.get("files", [])
+          primary = next((f for f in files if f.get("primary")), files[0] if files else None)
+          if not primary or not primary.get("url", "").startswith("https://cdn.modrinth.com/"):
+              raise SystemExit("Ficheiro oficial do Krypton não encontrado.")
+          open(sys.argv[2], "w").write(primary["url"])
+          open(sys.argv[3], "w").write(primary["filename"])
+          PY
+
+          URL=$(cat "$WORKDIR/download-url")
+          FILENAME=$(cat "$WORKDIR/filename")
+          curl --fail --location --silent --show-error "$URL" -o "$WORKDIR/$FILENAME"
+
+          if find /data -maxdepth 1 -type d -name mods >/dev/null 2>&1; then :; fi
+          EXISTING=$(docker exec "$CONTAINER" sh -lc "find /data/mods -maxdepth 1 -type f -iname '*krypton*.jar' -print -quit" 2>/dev/null || true)
+          if [[ -n "$EXISTING" ]]; then
+            echo "Krypton já existe em /data/mods; não será criada uma cópia duplicada."
+            exit 0
+          fi
+
+          docker exec "$CONTAINER" rcon-cli save-all flush
+          docker stop --time 60 "$CONTAINER" >/dev/null
+          docker cp "$WORKDIR/$FILENAME" "$CONTAINER:/data/mods/$FILENAME"
+          docker start "$CONTAINER" >/dev/null
+
+          READY=0
+          for i in $(seq 1 90); do
+            STATE=$(docker inspect -f '{{.State.Status}}' "$CONTAINER" 2>/dev/null || true)
+            if [[ "$STATE" == "running" ]]; then
+              LOGS=$(docker logs --tail 250 "$CONTAINER" 2>&1 || true)
+              if grep -qE 'Done \(' <<< "$LOGS"; then
+                READY=1
+                break
+              fi
+              if grep -qiE 'Incompatible mods found|Failed to load|Mod resolution encountered an incompatible mod set|Exception in server' <<< "$LOGS"; then
+                echo "O servidor apresentou um erro de arranque após a instalação. Backup preservado em $BACKUP."
+                echo "$LOGS" | tail -n 80
+                exit 1
+              fi
+            elif [[ "$STATE" == "exited" ]]; then
+              echo "O container terminou durante o arranque. Backup preservado em $BACKUP."
+              docker logs --tail 100 "$CONTAINER" 2>&1 || true
+              exit 1
+            fi
+            sleep 2
+          done
+
+          if (( READY != 1 )); then
+            echo "O servidor não confirmou o arranque dentro do tempo limite. Backup preservado em $BACKUP."
+            docker logs --tail 100 "$CONTAINER" 2>&1 || true
+            exit 1
+          fi
+
+          echo "KRYPTON_INSTALL_OK"
+          echo "Versão: Krypton 0.3.2 (Fabric / Minecraft 26.3)"
+          echo "Ficheiro: $FILENAME"
+          echo "Backup: $BACKUP"
+          REMOTE
+          )
+
+          RESULT=$(az vm run-command invoke \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_VM_NAME" \
+            --command-id RunShellScript \
+            --scripts "$SCRIPT" \
+            --query "value[].message" \
+            -o tsv)
+
+          printf '%s\n' "$RESULT"
+          grep -q "KRYPTON_INSTALL_OK" <<< "$RESULT"
