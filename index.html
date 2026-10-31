@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101510">
-  <meta name="description" content="Painel de controlo do servidor Minecraft.">
-  <title>Minecraft Server | Control Panel</title>
+  <meta name="description" content="Estado real, componentes e compatibilidade da infraestrutura do servidor Minecraft.">
+  <title>Minecraft Server | Painel técnico</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
   <link rel="stylesheet" href="style.css">
   <script src="script.js" defer></script>
@@ -13,7 +13,7 @@
 <body>
   <main class="page">
     <header class="topbar">
-      <a class="brand" href="./" aria-label="Minecraft Server - home">
+      <a class="brand" href="./" aria-label="Minecraft Server">
         <span class="brand-icon" aria-hidden="true">▦</span>
         <span>MC<span class="brand-accent"> SERVER</span></span>
       </a>
@@ -24,89 +24,127 @@
           <option value="es">🇻🇪 ES</option>
           <option value="en">🇺🇸 EN</option>
         </select>
-        <span class="topbar-label"><span class="status-dot status-dot-muted"></span> <span data-i18n="panelLabel">PAINEL INFORMATIVO</span></span>
+        <span class="topbar-label" data-i18n="panelLabel">PAINEL TÉCNICO</span>
       </div>
     </header>
 
-    <section class="hero">
-      <p class="eyebrow" data-i18n="eyebrow">O TEU MUNDO. À TUA MANEIRA.</p>
-      <h1><span data-i18n="heroLine1">O servidor está</span><br><span data-i18n="heroLine2">à tua espera.</span></h1>
-      <p class="hero-copy" data-i18n="heroCopy">Consulta as instruções para entrar no servidor e acompanha as informações disponíveis.</p>
+    <section class="page-intro">
+      <p class="eyebrow" data-i18n="eyebrow">INFRAESTRUTURA E MONITORIZAÇÃO</p>
+      <h1 data-i18n="pageTitle">Informação do servidor</h1>
+      <p class="intro-copy" data-i18n="pageCopy">Estado operacional, componentes identificados e detalhes de compatibilidade. Os dados não confirmados são assinalados como tal.</p>
     </section>
 
     <section class="server-card" aria-labelledby="server-title">
       <div class="server-card-top">
         <div>
-          <p class="card-kicker" data-i18n="serverStatus">ESTADO DO SERVIDOR</p>
-          <h2 id="server-title">Minecraft Survival</h2>
+          <p class="card-kicker" data-i18n="serverStatus">ESTADO EM TEMPO REAL</p>
+          <h2 id="server-title">Minecraft Server</h2>
         </div>
         <span class="status-pill"><span class="status-dot status-dot-muted"></span> <span id="server-state">—</span></span>
       </div>
 
       <div class="server-info">
         <div class="info-block">
-          <span class="info-label" data-i18n="serverAddress">ENDEREÇO DO SERVIDOR</span>
-          <strong id="server-address" data-i18n="addressUnavailable">Disponível após ligar o servidor</strong>
+          <span class="info-label" data-i18n="serverAddress">IP PÚBLICO</span>
+          <strong id="server-address" data-i18n="addressUnavailable">Indisponível enquanto a VM está desligada</strong>
         </div>
         <div class="info-block">
           <span class="info-label" data-i18n="playersOnline">JOGADORES ONLINE</span>
           <strong id="player-count">—</strong>
         </div>
         <div class="info-block">
-          <span class="info-label" data-i18n="playerNames">JOGADORES</span>
+          <span class="info-label" data-i18n="playerNames">JOGADORES LIGADOS</span>
           <strong id="player-names">—</strong>
         </div>
       </div>
       <div id="status-details" class="status-details" aria-live="polite"></div>
 
       <div class="access-panel">
-        <label class="info-label" for="access-password" data-i18n="passwordLabel">PALAVRA-PASSE DE ACESSO</label>
+        <label class="info-label" for="access-password" data-i18n="passwordLabel">PALAVRA-PASSE DE ACESSO AO PAINEL</label>
         <input id="access-password" type="password" autocomplete="current-password"
-          placeholder="Introduz a palavra-passe partilhada" data-i18n-placeholder="passwordPlaceholder" required>
+          placeholder="Palavra-passe partilhada" data-i18n-placeholder="passwordPlaceholder" required>
       </div>
       <div class="actions">
-        <button id="start-button" class="button button-primary" type="button">
-          <span aria-hidden="true">▶</span> <span data-i18n="start">Ligar servidor</span>
-        </button>
-        <button id="stop-button" class="button button-secondary" type="button" data-i18n="stop">
-          Desligar servidor
-        </button>
-        <button id="status-button" class="button button-secondary" type="button" data-i18n="check">
-          Pedir verificação
-        </button>
+        <button id="start-button" class="button button-primary" type="button"><span aria-hidden="true">▶</span> <span data-i18n="start">Ligar VM</span></button>
+        <button id="stop-button" class="button button-secondary" type="button" data-i18n="stop">Desligar VM</button>
+        <button id="status-button" class="button button-secondary" type="button" data-i18n="check">Atualizar estado</button>
       </div>
-      <p id="feedback" class="feedback" role="status" aria-live="polite" data-i18n="initialFeedback">
-        Introduz a palavra-passe para controlar o servidor.
-      </p>
+      <p id="feedback" class="feedback" role="status" aria-live="polite" data-i18n="initialFeedback">Introduz a palavra-passe para gerir a infraestrutura.</p>
     </section>
 
-    <section class="howto">
+    <section class="technical-section">
       <div class="section-heading">
-        <p class="card-kicker" data-i18n="howTo">COMO ENTRAR</p>
-        <h2 data-i18n="joinAdventure">Junta-te à aventura.</h2>
+        <p class="card-kicker" data-i18n="verifiedHeading">COMPONENTES IDENTIFICADOS NO PROJETO</p>
+        <h2 data-i18n="stackTitle">Infraestrutura e software</h2>
+        <p class="section-copy" data-i18n="verifiedNote">Informação confirmada pela configuração e pelos scripts existentes no repositório. Não representa uma leitura automática de versões instaladas.</p>
       </div>
-      <div class="steps">
-        <article class="step">
-          <span class="step-number">01</span>
-          <h3 data-i18n="step1Title">Espera que o servidor ligue</h3>
-          <p data-i18n="step1Copy">Quando o servidor estiver online, podes avançar.</p>
+
+      <div class="tech-grid">
+        <article class="tech-card">
+          <span class="tech-category" data-i18n="cloudCategory">INFRAESTRUTURA</span>
+          <h3>Microsoft Azure VM</h3>
+          <p data-i18n="azureDescription">Máquina virtual gerida pela Azure. O painel consulta o estado de energia através do Azure Resource Manager.</p>
         </article>
-        <article class="step">
-          <span class="step-number">02</span>
-          <h3 data-i18n="step2Title">Abre o Minecraft</h3>
-          <p data-i18n="step2Copy">Escolhe Multijogador e adiciona o endereço do servidor.</p>
+        <article class="tech-card">
+          <span class="tech-category" data-i18n="systemCategory">SISTEMA</span>
+          <h3>Linux · APT · systemd</h3>
+          <p data-i18n="linuxDescription">Os scripts usam apt-get e systemd. A distribuição e a versão exatas do sistema operativo não estão identificadas no painel.</p>
         </article>
-        <article class="step">
-          <span class="step-number">03</span>
-          <h3 data-i18n="step3Title">Entra e diverte-te</h3>
-          <p data-i18n="step3Copy">Joga com os teus amigos. O servidor trata do resto.</p>
+        <article class="tech-card">
+          <span class="tech-category" data-i18n="containerCategory">CONTENTORIZAÇÃO</span>
+          <h3>Docker</h3>
+          <p data-i18n="dockerDescription">O serviço Docker é verificado e o contentor do jogo é identificado pelo nome <code>mc-server</code>.</p>
+        </article>
+        <article class="tech-card">
+          <span class="tech-category" data-i18n="gameCategory">SERVIDOR DE JOGO</span>
+          <h3>Minecraft</h3>
+          <p data-i18n="minecraftDescription">O contentor é consultado através de <code>rcon-cli</code>. A versão, a imagem Docker, o tipo de servidor e os mods/plugins não são publicados pelo estado atual.</p>
+        </article>
+        <article class="tech-card">
+          <span class="tech-category" data-i18n="remoteCategory">GESTÃO REMOTA</span>
+          <h3>SSH · Azure Run Command</h3>
+          <p data-i18n="remoteDescription">A verificação tenta primeiro SSH e usa Azure Run Command como alternativa para consultar Docker e jogadores.</p>
+        </article>
+        <article class="tech-card">
+          <span class="tech-category" data-i18n="agentCategory">AGENTE PRIVADO</span>
+          <h3>Python 3 · Cloudflare Tunnel</h3>
+          <p data-i18n="agentDescription">O repositório inclui um agente Python local na porta 8765 e um workflow para instalar cloudflared. A instalação ativa não é confirmada pelo painel.</p>
         </article>
       </div>
+    </section>
+
+    <section class="technical-section">
+      <div class="section-heading">
+        <p class="card-kicker" data-i18n="networkHeading">REDE E ACESSO</p>
+        <h2 data-i18n="connectionTitle">Parâmetros de ligação</h2>
+      </div>
+      <div class="spec-list">
+        <div class="spec-row"><span data-i18n="gamePort">Porta do jogo</span><strong>TCP 25565</strong></div>
+        <div class="spec-row"><span data-i18n="rconAccess">Administração do jogo</span><strong>RCON · rcon-cli</strong></div>
+        <div class="spec-row"><span data-i18n="agentPort">Agente privado (configuração)</span><strong>127.0.0.1:8765</strong></div>
+        <div class="spec-row"><span data-i18n="publicIp">Endereço público</span><strong data-i18n="dynamicIp">Obtido dinamicamente na Azure</strong></div>
+      </div>
+      <p class="section-copy compatibility-note" data-i18n="networkNote">A porta 25565 é testada durante a verificação. A acessibilidade depende de a VM, o contentor e as regras de rede estarem ativos.</p>
+    </section>
+
+    <section class="technical-section">
+      <div class="section-heading">
+        <p class="card-kicker" data-i18n="compatHeading">COMPATIBILIDADE E VERSÕES</p>
+        <h2 data-i18n="compatTitle">O que está confirmado</h2>
+      </div>
+      <div class="spec-list">
+        <div class="spec-row"><span data-i18n="clientPlatforms">Sistemas dos jogadores</span><strong data-i18n="platformsValue">Windows · macOS · Linux (cliente Java, se confirmado)</strong></div>
+        <div class="spec-row"><span data-i18n="minecraftVersion">Versão Minecraft</span><strong data-i18n="notPublished">Não identificada no repositório</strong></div>
+        <div class="spec-row"><span data-i18n="javaVersion">Versão Java</span><strong data-i18n="notPublished">Não identificada no repositório</strong></div>
+        <div class="spec-row"><span data-i18n="serverType">Software do servidor</span><strong data-i18n="notPublished">Não identificado (Vanilla/Paper/etc.)</strong></div>
+        <div class="spec-row"><span data-i18n="bedrockSupport">Minecraft Bedrock</span><strong data-i18n="notConfirmed">Não confirmado; requer compatibilidade própria</strong></div>
+      </div>
+      <p class="section-copy compatibility-note" data-i18n="compatNote">Não apresentamos números de versão nem compatibilidade Bedrock sem confirmação técnica. Para clientes Java, Windows, macOS e Linux são plataformas suportadas pelo próprio jogo; a versão exata tem de corresponder à do servidor.</p>
     </section>
 
     <footer class="footer">
       <span>MC SERVER</span>
-      <span data-i18n="footer">Feito para jogar com amigos.</span>
+      <span data-i18n="footer">Dados técnicos baseados na configuração disponível no repositório.</span>
     </footer>
   </main>
 </body>
