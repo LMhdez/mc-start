@@ -26,7 +26,7 @@ def run_command(args, timeout=10):
 
 
 def get_public_ip():
-    # O IMDS desta VM nao disponibiliza o IP publico; o Worker consulta o Azure ARM.
+    # O IP publico e resolvido no Worker atraves do Azure ARM; aqui o agente foca-se no estado do Minecraft.
     # O Worker consulta o IP associado a NIC diretamente na API do Azure.
     return ""
 
