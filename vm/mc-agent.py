@@ -61,6 +61,7 @@ def get_public_ip():
         return _PUBLIC_IP_CACHE
 
 
+# Confirma o protocolo RakNet, em vez de assumir que uma porta UDP aberta está funcional.
 def probe_bedrock_udp(host="127.0.0.1", port=19132, timeout=1):
     """Confirma uma resposta RakNet/Geyser UDP no próprio host."""
     magic = bytes.fromhex("00ffff00fefefefefdfdfdfd12345678")
