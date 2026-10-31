@@ -41,7 +41,7 @@ const translations = {
     pluginsLabel:"Plugins", noModsDetected:"Não foram encontrados mods instalados na pasta do servidor.", updatedAtLabel:"Atualizado",
 
     azureShort:"Máquina virtual · infraestrutura cloud", linuxShort:"Sistema operativo · APT · systemd", dockerShort:"Contentorização · mc-server", minecraftShort:"Servidor de jogo · RCON", pythonShort:"Agente privado de monitorização", tunnelShort:"Comunicação privada com o agente", internalAdmin:"Administração interna", remoteManagement:"Gestão remota", compatibility:"Compatibilidade",
-    languageLabel: "IDIOMA", panelLabel: "PAINEL TÉCNICO",
+    languageLabel: "Idioma", adminEyebrow: "ADMINISTRAÇÃO", adminTitle: "Controlos do servidor", adminCopy: "Ações de gestão protegidas por palavra-passe. Estes controlos não são necessários para jogar.", panelLabel: "PAINEL TÉCNICO",
     eyebrow: "INFRAESTRUTURA E MONITORIZAÇÃO", pageTitle: "Informação do servidor",
     architectureLabel: "ARQUITETURA", architectureTitle: "Como o servidor funciona",
     architectureAzure: "Azure VM", architectureAzureCopy: "Máquina virtual e recursos cloud",
@@ -90,11 +90,11 @@ const translations = {
     searchingPrivate: "A consultar o estado privado do servidor através do Cloudflare Tunnel...",
     checkingPrivate: "Pedido enviado. A aguardar pelo resultado da verificação...",
     serverInitializing: "A preparar as ligações Java e Bedrock…",
-    bedrockStateLabel: "Ligação Bedrock · Geyser",
-    bedrockReady: "Pronta",
+    bedrockStateLabel: "Bedrock · estado do Geyser",
+    bedrockReady: "Geyser ativo · UDP não testado",
     bedrockInitializing: "A preparar",
     bedrockUnavailable: "Não confirmada",
-    startComplete: "Servidor online! Minecraft e ligações Java/Bedrock estão prontas.",
+    startComplete: "Servidor online. O serviço Minecraft está pronto; a ligação Bedrock externa não foi testada.",
     stopComplete: "Servidor desligado. A VM foi desalocada na Azure.",
     operationTimeout: "O pedido foi aceite, mas a operação ainda não terminou. O estado mais recente está apresentado acima. Consulta novamente daqui a pouco.",
     waiting: "A resposta costuma chegar em 15–25 segundos. O arranque da máquina virtual pode demorar mais.", wrongPassword: "Palavra-passe incorreta.",
@@ -130,7 +130,7 @@ const translations = {
     pluginsLabel:"Plugins", noModsDetected:"No se encontraron mods instalados en la carpeta del servidor.", updatedAtLabel:"Actualizado",
 
     azureShort:"Máquina virtual · infraestructura cloud", linuxShort:"Sistema operativo · APT · systemd", dockerShort:"Contenedores · mc-server", minecraftShort:"Servidor de juego · RCON", pythonShort:"Agente privado de monitorización", tunnelShort:"Comunicación privada con el agente", internalAdmin:"Administración interna", remoteManagement:"Gestión remota", compatibility:"Compatibilidad",
-    languageLabel: "IDIOMA", panelLabel: "PANEL TÉCNICO",
+    languageLabel: "Idioma", adminEyebrow: "ADMINISTRACIÓN", adminTitle: "Controles del servidor", adminCopy: "Acciones de gestión protegidas por contraseña. No necesitas estos controles para jugar.", panelLabel: "PANEL TÉCNICO",
     eyebrow: "INFRAESTRUCTURA Y MONITORIZACIÓN", pageTitle: "Información del servidor",
     architectureLabel: "ARQUITECTURA", architectureTitle: "Cómo funciona el servidor",
     architectureAzure: "Azure VM", architectureAzureCopy: "Máquina virtual e infraestructura cloud",
@@ -179,11 +179,11 @@ const translations = {
     searchingPrivate: "Consultando el estado privado del servidor a través de Cloudflare Tunnel...",
     checkingPrivate: "Solicitud enviada. Esperando el resultado de la comprobación...",
     serverInitializing: "Preparando las conexiones Java y Bedrock…",
-    bedrockStateLabel: "Conexión Bedrock · Geyser",
-    bedrockReady: "Lista",
+    bedrockStateLabel: "Bedrock · estado de Geyser",
+    bedrockReady: "Geyser activo · UDP no probado",
     bedrockInitializing: "Preparando",
     bedrockUnavailable: "No confirmada",
-    startComplete: "¡Servidor en línea! Minecraft y las conexiones Java/Bedrock están listas.",
+    startComplete: "Servidor en línea. Minecraft está listo; la conexión Bedrock externa no se ha probado.",
     stopComplete: "Servidor apagado. La VM se ha desasignado en Azure.",
     operationTimeout: "La solicitud fue aceptada, pero la operación aún no ha terminado. El último estado aparece arriba. Vuelve a consultar dentro de un momento.",
     waiting: "La respuesta suele llegar en 15–25 segundos. El arranque de la máquina virtual puede tardar más.", wrongPassword: "Contraseña incorrecta.",
@@ -219,7 +219,7 @@ const translations = {
     pluginsLabel:"Plugins", noModsDetected:"No installed mods were found in the server folder.", updatedAtLabel:"Updated",
 
     azureShort:"Virtual machine · cloud infrastructure", linuxShort:"Operating system · APT · systemd", dockerShort:"Containerization · mc-server", minecraftShort:"Game server · RCON", pythonShort:"Private monitoring agent", tunnelShort:"Private connection to the agent", internalAdmin:"Internal administration", remoteManagement:"Remote management", compatibility:"Compatibility",
-    languageLabel: "LANGUAGE", panelLabel: "TECHNICAL DASHBOARD",
+    languageLabel: "Language", adminEyebrow: "ADMINISTRATION", adminTitle: "Server controls", adminCopy: "Password-protected management actions. You do not need these controls to play.", panelLabel: "TECHNICAL DASHBOARD",
     eyebrow: "INFRASTRUCTURE AND MONITORING", pageTitle: "Server information",
     architectureLabel: "ARCHITECTURE", architectureTitle: "How the server works",
     architectureAzure: "Azure VM", architectureAzureCopy: "Virtual machine and cloud resources",
@@ -268,11 +268,11 @@ const translations = {
     searchingPrivate: "Checking the private server status through Cloudflare Tunnel...",
     checkingPrivate: "Request sent. Waiting for the status result...",
     serverInitializing: "Preparing Java and Bedrock connections…",
-    bedrockStateLabel: "Bedrock connection · Geyser",
-    bedrockReady: "Ready",
+    bedrockStateLabel: "Bedrock · Geyser status",
+    bedrockReady: "Geyser active · UDP untested",
     bedrockInitializing: "Preparing",
     bedrockUnavailable: "Not confirmed",
-    startComplete: "Server online! Minecraft and Java/Bedrock connections are ready.",
+    startComplete: "Server online. Minecraft is ready; external Bedrock connectivity has not been tested.",
     stopComplete: "Server stopped. The VM has been deallocated in Azure.",
     operationTimeout: "The request was accepted, but the operation has not finished yet. The latest status is shown above. Check again shortly.",
     waiting: "The response usually arrives in 15–25 seconds. Starting the virtual machine may take longer.", wrongPassword: "Incorrect password.",
@@ -363,6 +363,7 @@ function renderStatus(result) {
   const details = document.querySelector("#status-details");
 
   if (state) {
+    const previousState = state.textContent;
     const vmStates = {
       "VM deallocated": t.vmDeallocated, "VM running": t.vmRunning,
       "VM stopped": t.vmStopped, "VM starting": t.vmStarting,
@@ -373,6 +374,10 @@ function renderStatus(result) {
       result.docker === "active" && result.container === "running";
     state.textContent = serverReady ? t.serverOnline :
       (initializing ? t.serverInitializing : (vmStates[result.vm] || t.vmUnknown));
+    if (state.textContent !== previousState && previousState !== "—") {
+      const announcement = document.querySelector("#server-announcement");
+      if (announcement) announcement.textContent = state.textContent;
+    }
     const dot = state.closest(".status-pill")?.querySelector(".status-dot");
     if (dot) {
       const pending = result.vm === "VM starting" || result.vm === "VM stopping" ||
