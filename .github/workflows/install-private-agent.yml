@@ -37,7 +37,6 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          trap 'rm -f "$HOME/.ssh/id_rsa" "$RUNNER_TEMP/cloudflare-tunnel-token"' EXIT
 
       - name: Instalar o agente e reparar o Cloudflare Tunnel
         shell: bash
@@ -47,6 +46,7 @@ jobs:
           CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
         run: |
           set -euo pipefail
+          trap 'rm -f "$HOME/.ssh/id_rsa" "$RUNNER_TEMP/cloudflare-tunnel-token" "$RUNNER_TEMP/known_hosts"' EXIT
 
           if [ -z "${CLOUDFLARE_TUNNEL_TOKEN:-}" ]; then
             echo "Falta o secret CLOUDFLARE_TUNNEL_TOKEN."
