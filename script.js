@@ -211,15 +211,19 @@ async function requestAction(action) {
     }
 
     showFeedback("checkSent");
-    for (let attempt = 0; attempt < 60; attempt++) {
-      if (attempt > 0) await new Promise(resolve => setTimeout(resolve, 2000));
+    // O Workers KV pode demorar algum tempo a propagar uma escrita.
+    // Consultamos de 5 em 5 segundos para não esgotar o limite do Worker.
+    for (let attempt = 0; attempt < 36; attempt++) {
+      if (attempt > 0) await new Promise(resolve => setTimeout(resolve, 5000));
       const statusResponse = await fetchWithTimeout(WORKER_URL.replace(/\/$/, "") + "/api/status/read", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password, request_id: requestId })
       });
 
-      if (statusResponse.status === 202) continue;
+      // 202 = resultado ainda não chegou; 429 = limite temporário, tentar mais tarde.
+      if (statusResponse.status === 202 || statusResponse.status === 429) continue;
+
       const statusResult = await statusResponse.json();
       if (!statusResponse.ok || !statusResult.ok) {
         showFeedback("requestError");
