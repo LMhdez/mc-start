@@ -16,7 +16,6 @@ const translations = {
   pt: {
     hostedOnAzureLabel:"ALOJADO NA AZURE",
     vmStatusLabel:"ESTADO DA MÁQUINA VIRTUAL",
-    pageCopy:"Estado da VM, ligação ao jogo e versões do software em execução.",
     connectionSectionLabel:"LIGAÇÃO AO SERVIDOR", connectionTitleShort:"Endereços e plataformas",
     javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Minecraft Bedrock via Geyser",
     versionsHeading:"VERSÕES DETETADAS", versionsTitle:"Software e versões",
@@ -91,7 +90,6 @@ const translations = {
   es: {
     hostedOnAzureLabel:"ALOJADO EN AZURE",
     vmStatusLabel:"ESTADO DE LA MÁQUINA VIRTUAL",
-    pageCopy:"Estado de la VM, conexión al juego y versiones del software en ejecución.",
     connectionSectionLabel:"CONEXIÓN AL SERVIDOR", connectionTitleShort:"Direcciones y plataformas",
     javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Minecraft Bedrock mediante Geyser",
     versionsHeading:"VERSIONES DETECTADAS", versionsTitle:"Software y versiones",
@@ -115,7 +113,7 @@ const translations = {
     azureShort:"Máquina virtual · infraestructura cloud", linuxShort:"Sistema operativo · APT · systemd", dockerShort:"Contenedores · mc-server", minecraftShort:"Servidor de juego · RCON", pythonShort:"Agente privado de monitorización", tunnelShort:"Comunicación privada con el agente", internalAdmin:"Administración interna", remoteManagement:"Gestión remota", compatibility:"Compatibilidad",
     languageLabel: "IDIOMA", panelLabel: "PANEL TÉCNICO",
     eyebrow: "INFRAESTRUCTURA Y MONITORIZACIÓN", pageTitle: "Información del servidor",
-    pageCopy: "Estado operativo, componentes identificados y compatibilidad. Los datos no confirmados se indican como tales.",
+    pageCopy: "Estado de la VM, conexión al juego y versiones del software en ejecución.",
     serverStatus: "ESTADO EN TIEMPO REAL",
     verifiedHeading: "COMPONENTES IDENTIFICADOS EN EL PROYECTO", stackTitle: "Infraestructura y software",
     verifiedNote: "Información confirmada por la configuración y los scripts del repositorio. No representa una lectura automática de las versiones instaladas.",
@@ -166,7 +164,6 @@ const translations = {
   en: {
     hostedOnAzureLabel:"HOSTED ON AZURE",
     vmStatusLabel:"VIRTUAL MACHINE STATUS",
-    pageCopy:"VM status, game connection details and versions of the running software.",
     connectionSectionLabel:"SERVER CONNECTION", connectionTitleShort:"Addresses and platforms",
     javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Minecraft Bedrock via Geyser",
     versionsHeading:"DETECTED VERSIONS", versionsTitle:"Software and versions",
@@ -190,7 +187,7 @@ const translations = {
     azureShort:"Virtual machine · cloud infrastructure", linuxShort:"Operating system · APT · systemd", dockerShort:"Containerization · mc-server", minecraftShort:"Game server · RCON", pythonShort:"Private monitoring agent", tunnelShort:"Private connection to the agent", internalAdmin:"Internal administration", remoteManagement:"Remote management", compatibility:"Compatibility",
     languageLabel: "LANGUAGE", panelLabel: "TECHNICAL DASHBOARD",
     eyebrow: "INFRASTRUCTURE AND MONITORING", pageTitle: "Server information",
-    pageCopy: "Operational status, identified components and compatibility details. Unverified information is clearly marked.",
+    pageCopy: "VM status, game connection details and versions of the running software.",
     serverStatus: "LIVE STATUS",
     verifiedHeading: "COMPONENTS IDENTIFIED IN THE PROJECT", stackTitle: "Infrastructure and software",
     verifiedNote: "Information confirmed by the repository configuration and scripts. This is not an automatic reading of installed software versions.",
@@ -253,6 +250,10 @@ function setLanguage(language) {
   const dictionary = translations[currentLanguage];
 
   document.documentElement.lang = currentLanguage === "pt" ? "pt-PT" : currentLanguage;
+  document.querySelectorAll("[data-i18n-aria]").forEach(element => {
+    const key = element.dataset.i18nAria;
+    if (dictionary[key]) element.setAttribute("aria-label", dictionary[key]);
+  });
   document.querySelectorAll("[data-i18n]").forEach(element => {
     const key = element.dataset.i18n;
     if (dictionary[key]) element.textContent = dictionary[key];
@@ -425,8 +426,8 @@ function renderTechnicalSpecs(d) {
   const unknown = t.unavailableValue;
 
   function versionOnly(value) {
-    if (!value) return "";
-    const match = String(value).match(/(?:version\\s+)?v?(\\d+(?:\\.\\d+)+(?:[-+][\\w.-]+)?)/i);
+    if (!value || /not installed|no instalado|não instalado|not identified|no identificado|não identificado|unavailable|no disponible|indisponível/i.test(String(value))) return "";
+    const match = String(value).match(/(?:version\s+)?v?(\d+(?:\.\d+)+(?:[-+][\w.-]+)?)/i);
     return match ? match[1] : String(value);
   }
   function safe(value) {
