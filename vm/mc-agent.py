@@ -134,8 +134,8 @@ def read_status():
     except OSError:
         port_open = False
 
-    # A porta Java pode abrir antes de o Minecraft aceitar comandos RCON.
-    rcon_ready = players is not None
+    # RCON só pode estar pronto quando o contentor está ativo e a consulta respondeu.
+    rcon_ready = container_state == "running" and players is not None
 
     # O estado do Geyser e do NetherNet é confirmado pelos registos do arranque
     # atual do contentor; uma porta TCP/UDP aberta, por si só, não é suficiente.
