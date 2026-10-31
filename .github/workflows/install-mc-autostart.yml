@@ -1,0 +1,103 @@
+name: Instalar arranque automático do Minecraft
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mc-server-vm-operations
+  cancel-in-progress: false
+
+jobs:
+  install-mc-autostart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Login na Azure
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Instalar serviço systemd na VM
+        shell: bash
+        env:
+          AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
+        run: |
+          set -euo pipefail
+
+          RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:?Falta AZURE_RESOURCE_GROUP}"
+          VM_NAME="${AZURE_VM_NAME:?Falta AZURE_VM_NAME}"
+
+          VM_STATUS=$(az vm get-instance-view \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$VM_NAME" \
+            --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus | [0]" \
+            -o tsv)
+
+          if [[ "$VM_STATUS" != "VM running" ]]; then
+            echo "A VM tem de estar ligada. Estado atual: $VM_STATUS"
+            exit 1
+          fi
+
+          RESULT=$(az vm run-command invoke \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$VM_NAME" \
+            --command-id RunShellScript \
+            --scripts '
+              set -euo pipefail
+              COMPOSE_FILE=/home/azureuser/minecraft/docker-compose.yml
+              UNIT_FILE=/etc/systemd/system/mc-server-compose.service
+
+              if [ ! -f "$COMPOSE_FILE" ]; then
+                echo "MC_AUTOSTART_ERROR: compose file not found"
+                exit 1
+              fi
+              if ! command -v docker >/dev/null 2>&1; then
+                echo "MC_AUTOSTART_ERROR: Docker is not installed"
+                exit 1
+              fi
+              docker compose -f "$COMPOSE_FILE" config --quiet
+
+              cat > "$UNIT_FILE" <<'"'"'SERVICE'"'"'
+              [Unit]
+              Description=Minecraft server Docker Compose service
+              Requires=docker.service
+              After=docker.service network-online.target
+              Wants=network-online.target
+
+              [Service]
+              Type=oneshot
+              RemainAfterExit=yes
+              WorkingDirectory=/home/azureuser/minecraft
+              ExecStart=/usr/bin/docker compose -f /home/azureuser/minecraft/docker-compose.yml up -d minecraft
+              ExecStop=/usr/bin/docker compose -f /home/azureuser/minecraft/docker-compose.yml stop --timeout 30 minecraft
+              TimeoutStartSec=0
+              TimeoutStopSec=45
+
+              [Install]
+              WantedBy=multi-user.target
+              SERVICE
+
+              chmod 0644 "$UNIT_FILE"
+              systemctl daemon-reload
+              systemctl enable mc-server-compose.service
+              systemctl restart mc-server-compose.service
+
+              if ! docker inspect -f "{{.State.Running}}" mc-server | grep -qx true; then
+                echo "MC_AUTOSTART_ERROR: container did not reach running state"
+                exit 1
+              fi
+
+              echo "MC_AUTOSTART_OK"
+            ' \
+            --query "value[].message" -o tsv)
+
+          if ! grep -q "MC_AUTOSTART_OK" <<< "$RESULT"; then
+            echo "A VM não confirmou a instalação e o arranque automático."
+            exit 1
+          fi
+
+          echo "Serviço de arranque automático instalado e contentor iniciado."
