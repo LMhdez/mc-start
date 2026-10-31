@@ -329,3 +329,33 @@ h2 { margin: 0; font-size: clamp(1.4rem, 3vw, 2rem); letter-spacing: -.04em; }
   .spec-row { flex-direction: column; gap: 5px; }
   .spec-row strong { text-align: left; }
 }
+
+
+/* Dashboard cards */
+.brand-card { display:grid; grid-template-columns:54px minmax(0,1fr) auto; align-items:center; gap:14px; min-height:112px; }
+.brand-card h3 { margin:0 0 6px; }
+.brand-card p { margin:0; }
+.brand-logo { width:50px;height:50px;display:grid;place-items:center;border-radius:14px;font-weight:900;font-size:1.15rem;letter-spacing:-.06em;background:#26352a;color:#fff; }
+.azure-logo { background:#12334b;color:#50b9ff;font-size:.76rem;letter-spacing:0; }
+.ubuntu-logo { background:#442a23;color:#f47735;font-size:2rem; }
+.docker-logo { background:#123747;font-size:1.65rem; }
+.minecraft-logo { background:#38432b;color:#a7d66f;font-size:1.8rem; }
+.python-logo { background:#25374a;color:#ffd34e; }
+.cloudflare-logo { background:#49391f;color:#f6a623;font-size:1.8rem; }
+.card-state { color:var(--muted);font-size:.58rem;font-weight:850;letter-spacing:.12em; }
+.quick-spec-grid { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px; }
+.quick-spec { padding:18px;border:1px solid var(--border);border-radius:13px;background:rgba(255,255,255,.025);display:flex;flex-direction:column;gap:7px;min-width:0; }
+.quick-spec span { color:var(--green);font-size:.65rem;font-weight:900;letter-spacing:.12em; }
+.quick-spec strong { font-size:.95rem;overflow-wrap:anywhere; }
+.quick-spec small { color:var(--muted);font-size:.76rem; }
+.detected-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px; }
+.detected-card { min-width:0;padding:17px;border:1px solid var(--border);border-radius:13px;background:rgba(255,255,255,.025); }
+.detected-top { display:flex;align-items:center;gap:10px;margin-bottom:13px; }
+.detected-icon { width:36px;height:36px;display:grid;place-items:center;border-radius:10px;background:var(--panel-soft);font-size:1.1rem; }
+.detected-label { color:var(--muted);font-size:.72rem;font-weight:700; }
+.detected-value { display:block;font-size:.96rem;font-weight:800;overflow-wrap:anywhere;line-height:1.45; }
+.detected-sub { display:block;margin-top:5px;color:var(--muted);font-size:.72rem;overflow-wrap:anywhere; }
+.detected-card.is-ok { border-color:rgba(131,212,91,.24); }
+.detected-card.is-bad { border-color:rgba(240,110,90,.25); }
+@media(max-width:800px){.detected-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.quick-spec-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(max-width:560px){.detected-grid,.quick-spec-grid{grid-template-columns:1fr;}.brand-card{grid-template-columns:46px minmax(0,1fr);}.brand-logo{width:44px;height:44px}.card-state{display:none}}
