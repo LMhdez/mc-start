@@ -73,20 +73,36 @@ jobs:
             if [ -n "$IP" ] && [ -n "${SSH_PRIVATE_KEY:-}" ]; then
 
               KEY_FILE=$(mktemp)
-              trap 'rm -f "$KEY_FILE"' EXIT
+              KNOWN_HOSTS=$(mktemp)
+              trap 'rm -f "$KEY_FILE" "$KNOWN_HOSTS"' EXIT
 
               printf '%s\n' "$SSH_PRIVATE_KEY" > "$KEY_FILE"
               chmod 600 "$KEY_FILE"
 
-              echo "A tentar consultar a VM por SSH..."
+              echo "A validar a identidade SSH da VM através da Azure..."
+              EXPECTED_HOST_FP=$(az vm run-command invoke \
+                --resource-group "$RESOURCE_GROUP" \
+                --name "$VM_NAME" \
+                --command-id RunShellScript \
+                --scripts 'ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256' \
+                --query "value[].message" -o tsv | grep -oE 'SHA256:[A-Za-z0-9+/=]+' | tail -n1 || true)
 
-              REMOTE_STATUS=$(timeout 20 ssh \
-                -i "$KEY_FILE" \
-                -o BatchMode=yes \
-                -o StrictHostKeyChecking=accept-new \
-                -o ConnectTimeout=8 \
-                "azureuser@$IP" \
-                'sudo bash -s' <<'REMOTE' || true
+              ACTUAL_HOST_FP=""
+              if [ -n "$EXPECTED_HOST_FP" ]; then
+                ssh-keyscan -T 10 -t ed25519 "$IP" > "$KNOWN_HOSTS" 2>/dev/null || true
+                ACTUAL_HOST_FP=$(ssh-keygen -lf "$KNOWN_HOSTS" -E sha256 2>/dev/null | awk '{print $2}' || true)
+              fi
+
+              if [ -n "$EXPECTED_HOST_FP" ] && [ "$ACTUAL_HOST_FP" = "$EXPECTED_HOST_FP" ]; then
+                echo "Fingerprint SSH confirmada. A consultar a VM..."
+                REMOTE_STATUS=$(timeout 20 ssh \
+                  -i "$KEY_FILE" \
+                  -o BatchMode=yes \
+                  -o StrictHostKeyChecking=yes \
+                  -o UserKnownHostsFile="$KNOWN_HOSTS" \
+                  -o ConnectTimeout=8 \
+                  "azureuser@$IP" \
+                  'sudo bash -s' <<'REMOTE' || true
 
           set -e
 
@@ -130,7 +146,10 @@ jobs:
           python3 -c 'import json,os; print("MC_STATUS_JSON:" + json.dumps({"docker":os.environ["DOCKER_STATE"],"container":os.environ["CONTAINER_STATE"],"players":(int(os.environ["PLAYER_COUNT"]) if os.environ["PLAYER_COUNT"].isdigit() else None),"player_names":(None if os.environ["PLAYER_NAMES"] == "null" else [n.strip() for n in os.environ["PLAYER_NAMES"].split(",") if n.strip()])},separators=(",",":")))'
 
           REMOTE
-              )
+                )
+              else
+                echo "Fingerprint SSH ausente ou diferente. A ignorar SSH e a utilizar Azure Run Command."
+              fi
 
             fi
 
