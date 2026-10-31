@@ -179,7 +179,7 @@ def read_technical():
             # Copia em lote: uma operacao por pasta, em vez de uma chamada Docker por ficheiro JAR.
             copied = run_command(["docker", "cp", f"{CONTAINER}:{folder}/.", temp_dir], timeout=30)
             if copied.returncode != 0:
-                return []
+                return [], False
             for filename in filenames:
                 if "/" in filename or filename in (".", ".."):
                     continue
@@ -236,7 +236,7 @@ def read_technical():
                     pass
                 item["description"] = item["description"][:400]
                 found.append(item)
-        return found
+        return found, True
 
     if output(["docker", "inspect", CONTAINER]):
         container_state = output(["docker", "inspect", "-f", "{{.State.Status}}", CONTAINER])
@@ -270,9 +270,8 @@ def read_technical():
         elif server_type != "Fabric" and image:
             server_type = image
 
-        installed_mods = inspect_jars("/data/mods", "mod")
-        mods_inventory_available = True
-        plugins = inspect_jars("/data/plugins", "plugin")
+        installed_mods, mods_inventory_available = inspect_jars("/data/mods", "mod")
+        plugins, _ = inspect_jars("/data/plugins", "plugin")
 
         # O bloco Fabric e a fonte de verdade: considera apenas entradas principais
         # do ultimo arranque e ignora dependencias indentadas (|-- / \\--).
