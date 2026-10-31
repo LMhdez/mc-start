@@ -38,8 +38,8 @@ jobs:
             -o tsv)
 
           if [[ "$VM_STATUS" != "VM running" ]]; then
-            echo "VM desligada; agente sera atualizado automaticamente no proximo arranque."
-            exit 0
+            echo "A VM tem de estar ligada para atualizar o agente (estado: $VM_STATUS). Nenhuma alteração foi aplicada."
+            exit 1
           fi
 
           AGENT_B64="$(base64 -w0 vm/mc-agent.py)"
