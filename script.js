@@ -634,9 +634,13 @@ function renderTechnicalSpecs(d) {
         image.decoding = "async";
         icon.append(image);
       } else {
-        const modId = String(mod.id || "").toLowerCase();
-        if (modMarks[modId]) {
-          icon.innerHTML = modMarks[modId];
+        const modIdentity = [mod.id, mod.file, mod.name]
+          .filter(Boolean).join(" ").toLowerCase();
+        const modKey = modIdentity.includes("floodgate") ? "floodgate" :
+          modIdentity.includes("chunky") ? "chunky" :
+          modIdentity.includes("geyser") ? "geyser" : "";
+        if (modKey && modMarks[modKey]) {
+          icon.innerHTML = modMarks[modKey];
           icon.setAttribute("aria-hidden", "true");
         } else {
           icon.textContent = String(displayName).trim().charAt(0).toUpperCase() || "M";
