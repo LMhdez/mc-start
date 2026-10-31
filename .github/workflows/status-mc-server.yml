@@ -125,7 +125,7 @@ jobs:
 
           export DOCKER_STATE CONTAINER_STATE PLAYER_COUNT PLAYER_NAMES
 
-          python3 -c 'import json,os; print("MC_STATUS_JSON:" + json.dumps({"docker":os.environ["DOCKER_STATE"],"container":os.environ["CONTAINER_STATE"],"players":int(os.environ["PLAYER_COUNT"]),"player_names":[n.strip() for n in os.environ["PLAYER_NAMES"].split(",") if n.strip()]},separators=(",",":")))'
+          python3 -c 'import json,os; print("MC_STATUS_JSON:" + json.dumps({"docker":os.environ["DOCKER_STATE"],"container":os.environ["CONTAINER_STATE"],"players":(int(os.environ["PLAYER_COUNT"]) if os.environ["PLAYER_COUNT"].isdigit() else None),"player_names":(None if os.environ["PLAYER_NAMES"] == "null" else [n.strip() for n in os.environ["PLAYER_NAMES"].split(",") if n.strip()])},separators=(",",":")))'
 
           REMOTE
               )
@@ -178,7 +178,7 @@ jobs:
 
                   export DOCKER_STATE CONTAINER_STATE PLAYER_COUNT PLAYER_NAMES
 
-                  python3 -c "import json,os; print(\"MC_STATUS_JSON:\" + json.dumps({\"docker\":os.environ[\"DOCKER_STATE\"],\"container\":os.environ[\"CONTAINER_STATE\"],\"players\":int(os.environ[\"PLAYER_COUNT\"]),\"player_names\":[n.strip() for n in os.environ[\"PLAYER_NAMES\"].split(\",\") if n.strip()]},separators=(\",\",\":\")))"
+                  python3 -c "import json,os; print(\"MC_STATUS_JSON:\" + json.dumps({\"docker\":os.environ[\"DOCKER_STATE\"],\"container\":os.environ[\"CONTAINER_STATE\"],\"players\":(int(os.environ[\"PLAYER_COUNT\"]) if os.environ[\"PLAYER_COUNT\"].isdigit() else None),\"player_names\":(None if os.environ[\"PLAYER_NAMES\"] == \"null\" else [n.strip() for n in os.environ[\"PLAYER_NAMES\"].split(\",\") if n.strip()])},separators=(\",\",\":\")))"
                 ' --output json)
 
               ACCESS_METHOD="azure_run_command"
