@@ -2,11 +2,6 @@ name: Atualizar agente privado MC
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - "vm/mc-agent.py"
 
 permissions:
   contents: read
