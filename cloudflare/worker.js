@@ -92,28 +92,34 @@ async function checkRateLimit(env, request, scope = "action", limit = RATE_LIMIT
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
   const key = "rate:" + scope + ":" + ip;
   const now = Math.floor(Date.now() / 1000);
-  const stored = await env.STATUS_KV.get(key);
-  let record = null;
-  if (stored) {
-    try {
-      const parsed = JSON.parse(stored);
-      if (parsed && Number.isFinite(parsed.count) && Number.isFinite(parsed.startedAt)) {
-        record = parsed;
-      } else if (Number.isFinite(Number(stored))) {
-        // Migrate counters written by the previous implementation.
-        record = { count: Number(stored), startedAt: now };
-      }
-    } catch {}
+  try {
+    const stored = await env.STATUS_KV.get(key);
+    let record = null;
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed && Number.isFinite(parsed.count) && Number.isFinite(parsed.startedAt)) {
+          record = parsed;
+        } else if (Number.isFinite(Number(stored))) {
+          // Migrate counters written by the previous implementation.
+          record = { count: Number(stored), startedAt: now };
+        }
+      } catch {}
+    }
+    if (!record || now - record.startedAt >= RATE_WINDOW || now < record.startedAt) {
+      record = { count: 0, startedAt: now };
+    }
+    if (record.count >= limit) return false;
+    record.count += 1;
+    // Workers KV is eventually consistent; this is a best-effort per-IP fixed window.
+    await env.STATUS_KV.put(key, JSON.stringify(record), { expirationTtl: RATE_WINDOW });
+    return true;
+  } catch (error) {
+    // The public technical inventory contains no credentials or player data.
+    // Keep it readable during a KV outage; other routes remain fail-closed.
+    console.error("Rate limit storage unavailable:", error.message);
+    return scope === "technical";
   }
-  if (!record || now - record.startedAt >= RATE_WINDOW || now < record.startedAt) {
-    record = { count: 0, startedAt: now };
-  }
-  if (record.count >= limit) return false;
-  record.count += 1;
-  // Workers KV is eventually consistent; this is a best-effort per-IP fixed window.
-  // startedAt, rather than the KV TTL, defines the window so each request cannot extend it.
-  await env.STATUS_KV.put(key, JSON.stringify(record), { expirationTtl: RATE_WINDOW });
-  return true;
 }
 
 async function dispatchWorkflow(env, file, inputs) {
@@ -320,10 +326,18 @@ export default {
       }
       const cacheKey = "technical:public";
       let cached = null;
-      const stored = await env.STATUS_KV.get(cacheKey);
-      if (stored) {
-        try { cached = JSON.parse(stored); }
-        catch { await env.STATUS_KV.delete(cacheKey); }
+      try {
+        const stored = await env.STATUS_KV.get(cacheKey);
+        if (stored) {
+          try { cached = JSON.parse(stored); }
+          catch {
+            try { await env.STATUS_KV.delete(cacheKey); }
+            catch (error) { console.error("Inventario tecnico em cache invalido:", error.message); }
+          }
+        }
+      } catch (error) {
+        // A cache indisponivel nao deve impedir a leitura do agente privado.
+        console.error("Leitura do inventario tecnico em cache indisponivel:", error.message);
       }
       const age = cached && cached.checked_at ? Date.now() - Date.parse(cached.checked_at) : Infinity;
       if (cached && age >= 0 && age < 600000) {
@@ -347,7 +361,12 @@ export default {
         }
 
         // Sem expirationTtl: a ultima fotografia permanece disponivel mesmo apos longos periodos offline.
-        await env.STATUS_KV.put(cacheKey, JSON.stringify(technical));
+        try {
+          await env.STATUS_KV.put(cacheKey, JSON.stringify(technical));
+        } catch (error) {
+          // Devolve o inventario atual mesmo que nao seja possivel persistir a cache.
+          console.error("Gravacao do inventario tecnico em cache indisponivel:", error.message);
+        }
         return json({ ok: true, result: technical, cached: false }, 200, origin);
       } catch (error) {
         console.error("Consulta tecnica indisponivel:", error.message);
