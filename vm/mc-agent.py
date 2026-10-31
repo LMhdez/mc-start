@@ -27,7 +27,7 @@ def run_command(args, timeout=10):
     )
 
 
-# Cache local para não depender de um pedido externo em cada consulta do painel.
+# Cache local: devolve o IP diretamente na resposta /status do agente.
 _PUBLIC_IP_CACHE = ""
 _PUBLIC_IP_CACHE_AT = 0.0
 _PUBLIC_IP_CACHE_TTL = 300
