@@ -2,6 +2,11 @@ name: Instalar arranque automático do Minecraft
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/install-mc-autostart.yml
 
 permissions:
   contents: read
@@ -90,16 +95,14 @@ jobs:
 
           REMOTE_OUTPUT=$(printf '%s' "$AZURE_RESULT" | jq -r '.value[]?.message // empty' 2>/dev/null || true)
           if [[ "$AZURE_EXIT" -ne 0 ]] || ! grep -q "MC_AUTOSTART_OK" <<< "$REMOTE_OUTPUT"; then
-            echo "A VM não confirmou a instalação e o arranque automático. Diagnóstico filtrado:"
-            {
-              printf '%s\n' "$REMOTE_OUTPUT"
-              if [[ "$AZURE_EXIT" -ne 0 ]]; then
-                printf 'Azure CLI terminou com código %s\n' "$AZURE_EXIT"
-                printf '%s\n' "$AZURE_RESULT"
-              fi
-            } | grep -iE 'MC_AUTOSTART_(OK|ERROR)|error|failed|failure|not found|permission denied|inactive|activating|exit code|Azure CLI' |
+            echo "A VM não confirmou a instalação e o arranque automático. Diagnóstico remoto filtrado:"
+            printf '%s\n' "$REMOTE_OUTPUT" |
+              grep -iE 'MC_AUTOSTART_(OK|ERROR)|error|failed|failure|not found|permission denied|inactive|activating|exit code' |
               sed -E 's/(password|secret|token|client[_-]?secret|authorization)([^:=]*[:=])[[:space:]]*[^[:space:]]+/\1\2 [REDACTED]/Ig' |
               tail -n 30 || true
+            if [[ "$AZURE_EXIT" -ne 0 ]]; then
+              echo "Azure CLI terminou com código $AZURE_EXIT (detalhes omitidos por segurança)."
+            fi
             exit 1
           fi
           echo "Serviço de arranque automático instalado e contentor iniciado."
