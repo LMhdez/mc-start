@@ -362,3 +362,35 @@ h2 { margin: 0; font-size: clamp(1.4rem, 3vw, 2rem); letter-spacing: -.04em; }
 
 .brand-logo-img { width:50px;height:50px;object-fit:contain;padding:10px;border-radius:14px;background:#fff; }
 @media(max-width:560px){.brand-logo-img{width:44px;height:44px}}
+
+
+/* Indicador visual para operações demoradas da VM. */
+.feedback.is-loading {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.feedback.is-loading::before {
+  content: "";
+  width: 13px;
+  height: 13px;
+  margin-top: 2px;
+  flex: 0 0 13px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: feedback-spin .8s linear infinite;
+}
+
+@keyframes feedback-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feedback.is-loading::before {
+    animation-duration: 2s;
+  }
+}
