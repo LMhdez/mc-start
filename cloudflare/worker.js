@@ -156,39 +156,47 @@ async function getAzureVmPublicIp(env) {
   if (!accessToken) return "";
 
   const headers = { "Authorization": "Bearer " + accessToken };
-  const subscription = encodeURIComponent(env.AZURE_SUBSCRIPTION_ID);
-  const resourceGroup = encodeURIComponent(env.AZURE_RESOURCE_GROUP);
-  const vmId = ("/" + azureVmResource(env)).toLowerCase();
 
-  // Listar NICs do grupo e identificar a que pertence exatamente a esta VM.
-  const nicListUrl = "https://management.azure.com/subscriptions/" +
-    subscription + "/resourceGroups/" + resourceGroup +
-    "/providers/Microsoft.Network/networkInterfaces?api-version=2025-05-01";
-  const nicResponse = await fetch(nicListUrl, { headers });
+  // O perfil de rede da VM está dentro de properties.networkProfile.
+  const vmResponse = await fetch(
+    "https://management.azure.com/" + azureVmResource(env) + "?api-version=2024-07-01",
+    { headers }
+  );
+  if (!vmResponse.ok) {
+    throw new Error("Azure VM network lookup failed with status " + vmResponse.status);
+  }
+  const vmData = await vmResponse.json();
+
+  const interfaces = vmData.properties?.networkProfile?.networkInterfaces || [];
+  const nicReference =
+    interfaces.find(item => item.properties?.primary === true) || interfaces[0];
+  const nicId = nicReference?.id;
+  if (!nicId || !nicId.startsWith("/subscriptions/")) return "";
+
+  const nicResponse = await fetch(
+    "https://management.azure.com" + nicId + "?api-version=2025-05-01",
+    { headers }
+  );
   if (!nicResponse.ok) {
-    throw new Error("Azure NIC list failed with status " + nicResponse.status);
+    throw new Error("Azure NIC lookup failed with status " + nicResponse.status);
   }
   const nicData = await nicResponse.json();
-  const nic = (nicData.value || []).find(item =>
-    (item.properties?.virtualMachine?.id || "").toLowerCase() === vmId
-  );
-  if (!nic) return "";
 
-  const configurations = nic.properties?.ipConfigurations || [];
+  const configurations = nicData.properties?.ipConfigurations || [];
   const publicIpIds = configurations
     .map(item => item.properties?.publicIPAddress?.id)
     .filter(id => typeof id === "string" && id.startsWith("/subscriptions/"));
 
   for (const publicIpId of publicIpIds) {
-    const response = await fetch(
+    const publicIpResponse = await fetch(
       "https://management.azure.com" + publicIpId + "?api-version=2025-05-01",
       { headers }
     );
-    if (!response.ok) {
-      throw new Error("Azure public IP lookup failed with status " + response.status);
+    if (!publicIpResponse.ok) {
+      throw new Error("Azure public IP lookup failed with status " + publicIpResponse.status);
     }
-    const data = await response.json();
-    const ip = data.properties?.ipAddress;
+    const publicIpData = await publicIpResponse.json();
+    const ip = publicIpData.properties?.ipAddress;
     if (typeof ip === "string" && ip.trim()) return ip.trim();
   }
 
