@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: mc-server-vm-operations
+  cancel-in-progress: false
+
 jobs:
   install-krypton:
     runs-on: ubuntu-latest
@@ -90,7 +94,8 @@ jobs:
           CONTAINER="mc-server"
           VERSION_ID="UugdIYJw"
           WORKDIR=$(mktemp -d /tmp/mc-krypton.XXXXXX)
-          BACKUP="/var/backups/minecraft/mods-krypton-$(date -u +%Y%m%dT%H%M%SZ)-$"
+          mkdir -p /var/backups/minecraft
+          BACKUP=$(mktemp -d "/var/backups/minecraft/mods-krypton-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX")
           CONTAINER_STOPPED=0
           cleanup() {
             if [ "$CONTAINER_STOPPED" = "1" ]; then
@@ -144,7 +149,6 @@ jobs:
             exit 0
           fi
 
-          mkdir -p "$BACKUP"
           docker cp "$CONTAINER:/data/mods" "$BACKUP/mods"
           echo "Backup criado: $BACKUP"
 
@@ -175,7 +179,7 @@ jobs:
           FILENAME=$(cat "$WORKDIR/filename")
           curl --fail --location --silent --show-error --retry 3 --retry-delay 2 --max-time 60 "$URL" -o "$WORKDIR/$FILENAME"
           EXPECTED_SHA512=$(cat "$WORKDIR/sha512")
-          printf '%s  %s\\n' "$EXPECTED_SHA512" "$WORKDIR/$FILENAME" | sha512sum --check --status || {
+          echo "$EXPECTED_SHA512  $WORKDIR/$FILENAME" | sha512sum --check --status || {
             echo "A verificação SHA-512 do ficheiro falhou; instalação cancelada."
             exit 1
           }
