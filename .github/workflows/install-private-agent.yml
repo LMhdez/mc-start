@@ -31,10 +31,10 @@ jobs:
             exit 1
           fi
           install -m 700 -d ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          printf '%s\\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-      - name: Instalar o agente e o Cloudflare Tunnel
+      - name: Instalar o agente e reparar o Cloudflare Tunnel
         shell: bash
         env:
           AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
@@ -48,10 +48,10 @@ jobs:
             exit 1
           fi
 
-          IP=$(az vm list-ip-addresses \
-            --resource-group "$AZURE_RESOURCE_GROUP" \
-            --name "$AZURE_VM_NAME" \
-            --query "[0].virtualMachine.network.publicIpAddresses[0].ipAddress" \
+          IP=$(az vm list-ip-addresses \\
+            --resource-group "$AZURE_RESOURCE_GROUP" \\
+            --name "$AZURE_VM_NAME" \\
+            --query "[0].virtualMachine.network.publicIpAddresses[0].ipAddress" \\
             -o tsv)
 
           if [ -z "$IP" ] || [ "$IP" = "None" ]; then
@@ -75,10 +75,10 @@ jobs:
           apt-get install -y ca-certificates curl
 
           install -d -m 0755 /usr/share/keyrings
-          curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg \
+          curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg \\
             -o /usr/share/keyrings/cloudflare-main.gpg
           chmod 0644 /usr/share/keyrings/cloudflare-main.gpg
-          echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main" \
+          echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main" \\
             > /etc/apt/sources.list.d/cloudflared.list
 
           apt-get update
@@ -110,29 +110,33 @@ jobs:
           WantedBy=multi-user.target
           SERVICE
 
-          TOKEN=$(cat /tmp/mc-tunnel-token)
-          rm -f /tmp/mc-tunnel-token
-          if [ -z "$TOKEN" ]; then
-            echo "O token do Tunnel está vazio."
+          if [ ! -s /tmp/mc-tunnel-token ]; then
+            echo "O ficheiro temporário do token do Tunnel está vazio."
             exit 1
           fi
 
-          # Se o Tunnel ja estiver instalado, preserva a configuracao existente.
-          # Isto evita substituir um servico que ja pode estar ligado ao tunnel correto.
+          # Se ainda não existir serviço, instala-o com o token do Tunnel.
+          # O instalador cria o unit file com --token-file.
           if [ ! -f /etc/systemd/system/cloudflared.service ]; then
+            TOKEN=$(cat /tmp/mc-tunnel-token)
             cloudflared service install "$TOKEN"
-          else
-            echo "Cloudflare Tunnel ja tem um servico instalado; a configuracao existente sera mantida."
+            unset TOKEN
           fi
-          unset TOKEN
+
+          # cloudflared 2026 pode deixar o unit file criado sem o token.
+          # Recria explicitamente o ficheiro esperado pelo serviço, sem o imprimir.
+          install -d -o root -g root -m 0700 /etc/cloudflared
+          install -o root -g root -m 0600 /tmp/mc-tunnel-token /etc/cloudflared/token
+          rm -f /tmp/mc-tunnel-token
 
           systemctl daemon-reload
-          systemctl enable --now mc-private-agent.service
-          systemctl enable --now cloudflared.service
+          systemctl enable mc-private-agent.service cloudflared.service
+          systemctl restart mc-private-agent.service
+          systemctl restart cloudflared.service
 
           systemctl is-active --quiet mc-private-agent.service
           systemctl is-active --quiet cloudflared.service
-          echo "Agente privado e Cloudflare Tunnel instalados."
+          echo "Agente privado ativo. Token do Tunnel reposto com permissões 600 e serviço reiniciado."
           REMOTE
 
           rm -f "$RUNNER_TEMP/cloudflare-tunnel-token"
