@@ -20,7 +20,7 @@ const translations = {
     javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Minecraft Bedrock via Geyser",
     versionsHeading:"VERSÕES DETETADAS", versionsTitle:"Software e versões",
     versionsIntro:"Versões lidas diretamente da VM e dos registos do último arranque.",
-    kernelLabelShort:"Kernel", dockerEngineLabel:"Engine", containerImageLabel:"Imagem",
+    kernelLabelShort:"Kernel", dockerEngineLabel:"Motor", containerImageLabel:"Imagem",
     fabricLabel:"Fabric Loader", agentRuntimeLabel:"Agente de monitorização",
     tunnelStatusLabel:"Estado do túnel", activeStatus:"Ativo", inactiveStatus:"Inativo",
     unknownStatus:"Desconhecido", unavailableValue:"Não disponível",
