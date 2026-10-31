@@ -164,7 +164,7 @@ def read_technical():
     plugins = []
     mods_inventory_available = False
 
-    def inspect_jars(folder, kind, limit=40):  # Inventory and optional JAR-bundled artwork
+    def inspect_jars(folder, kind, limit=40):  # Read metadata and optional artwork from installed JARs
         """Lê metadados públicos dos JARs sem executar os mods/plugins."""
         result = run_command(
             ["docker", "exec", CONTAINER, "sh", "-lc",
