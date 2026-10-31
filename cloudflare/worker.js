@@ -170,7 +170,11 @@ async function performAzureVmAction(env, action) {
     "https://management.azure.com/" + azureVmResource(env) + "/" + action + "?api-version=2024-07-01",
     {
       method: "POST",
-      headers: { "Authorization": "Bearer " + accessToken }
+      headers: {
+        "Authorization": "Bearer " + accessToken,
+        "Content-Length": "0"
+      },
+      body: ""
     }
   );
   if (!response.ok && response.status !== 202) {
