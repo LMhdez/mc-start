@@ -1,10 +1,6 @@
 name: Instalar Krypton no servidor Minecraft
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/install-krypton.yml"
   workflow_dispatch:
 
 permissions:
@@ -17,7 +13,7 @@ concurrency:
 jobs:
   install-krypton:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     steps:
       - name: Login na Azure
         uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
@@ -107,8 +103,11 @@ jobs:
                 echo "O arranque falhou; a remover apenas o JAR acabado de instalar e a restaurar o servidor."
                 docker stop --time 30 "$CONTAINER" >/dev/null 2>&1 || true
                 rm -f "$DATA_SOURCE/mods/$FILENAME"
-                docker start "$CONTAINER" >/dev/null 2>&1 || true
-                echo "Rollback do Krypton executado. Backup preservado em $BACKUP."
+                if docker start "$CONTAINER" >/dev/null 2>&1; then
+                  echo "Rollback aplicado e contentor reiniciado. Backup preservado em $BACKUP."
+                else
+                  echo "Rollback aplicado, mas o contentor não iniciou. Backup preservado em $BACKUP."
+                fi
               else
                 echo "Não foi possível identificar com segurança o volume /data para rollback automático. Backup preservado em $BACKUP."
               fi
@@ -163,10 +162,7 @@ jobs:
             exit 0
           fi
 
-          docker cp "$CONTAINER:/data/mods" "$BACKUP/mods"
-          echo "Backup criado: $BACKUP"
-
-          curl --fail --silent --show-error \
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 --max-time 30 \
             -H "User-Agent: LMhdez/mc-start/1.0" \
             "https://api.modrinth.com/v2/version/$VERSION_ID" \
             -o "$WORKDIR/version.json"
@@ -198,6 +194,8 @@ jobs:
             exit 1
           }
 
+          docker cp "$CONTAINER:/data/mods" "$BACKUP/mods"
+          echo "Backup criado: $BACKUP"
           docker exec "$CONTAINER" rcon-cli save-all flush
           docker stop --time 60 "$CONTAINER" >/dev/null
           CONTAINER_STOPPED=1
