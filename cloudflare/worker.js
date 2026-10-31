@@ -265,7 +265,8 @@ export default {
 
     // Endpoints publicos: nunca devolvem IP, nomes de jogadores ou dados de acesso.
     if (url.pathname === "/api/public/status" && request.method === "GET") {
-      if (!env.STATUS_KV || !(await checkRateLimit(env, request, "public-status", 30))) {
+      if (!env.STATUS_KV) return json({ ok: false, message: "Cache indisponivel." }, 503, origin);
+      if (!(await checkRateLimit(env, request, "public-status", 30))) {
         return json({ ok: false, message: "Demasiados pedidos. Aguarda um minuto." }, 429, origin);
       }
       try {
