@@ -5,6 +5,8 @@ import re
 import socket
 import subprocess
 import urllib.request
+import tempfile
+import zipfile
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -143,8 +145,65 @@ def read_technical():
     java_version = ""
     minecraft_version = ""
     server_type = "Não identificado"
-    mods = "Não verificado"
-    plugins = "Não verificado"
+    mods = []
+    plugins = []
+
+    def inspect_jars(folder, kind, limit=40):
+        """Lê metadados públicos dos JARs sem executar os mods/plugins."""
+        result = run_command(
+            ["docker", "exec", CONTAINER, "sh", "-lc",
+             "find " + folder + " -maxdepth 1 -type f -name '*.jar' -printf '%f\\n' 2>/dev/null"],
+            timeout=8,
+        )
+        if result.returncode != 0:
+            return []
+        filenames = [name.strip() for name in result.stdout.splitlines() if name.strip()][:limit]
+        found = []
+        with tempfile.TemporaryDirectory(prefix="mc-metadata-") as temp_dir:
+            for filename in filenames:
+                if "/" in filename or filename in (".", ".."):
+                    continue
+                local_path = os.path.join(temp_dir, filename)
+                copied = run_command(["docker", "cp", f"{CONTAINER}:{folder}/{filename}", local_path], timeout=8)
+                if copied.returncode != 0:
+                    continue
+                item = {"file": filename, "name": filename[:-4], "version": "", "description": ""}
+                try:
+                    with zipfile.ZipFile(local_path) as archive:
+                        names = set(archive.namelist())
+                        if kind == "mod":
+                            if "fabric.mod.json" in names:
+                                metadata = json.loads(archive.read("fabric.mod.json").decode("utf-8"))
+                                item["name"] = metadata.get("name") or metadata.get("id") or item["name"]
+                                item["version"] = str(metadata.get("version") or "")
+                                item["description"] = str(metadata.get("description") or "")
+                            elif "META-INF/mods.toml" in names:
+                                try:
+                                    import tomllib
+                                    metadata = tomllib.loads(archive.read("META-INF/mods.toml").decode("utf-8"))
+                                    mod = (metadata.get("mods") or [{}])[0]
+                                    item["name"] = mod.get("displayName") or mod.get("modId") or item["name"]
+                                    item["version"] = str(mod.get("version") or "")
+                                    item["description"] = str(mod.get("description") or "")
+                                except Exception:
+                                    pass
+                            elif "mcmod.info" in names:
+                                metadata = json.loads(archive.read("mcmod.info").decode("utf-8"))
+                                if isinstance(metadata, list) and metadata:
+                                    item["name"] = metadata[0].get("name") or item["name"]
+                                    item["version"] = str(metadata[0].get("version") or "")
+                                    item["description"] = str(metadata[0].get("description") or "")
+                        elif "plugin.yml" in names:
+                            metadata = archive.read("plugin.yml").decode("utf-8", errors="replace")
+                            for key, target in [("name", "name"), ("version", "version"), ("description", "description")]:
+                                match = re.search(r"(?m)^" + key + r":\\s*(.+)$", metadata)
+                                if match:
+                                    item[target] = match.group(1).strip().strip('"\\'')
+                except Exception:
+                    pass
+                item["description"] = item["description"][:400]
+                found.append(item)
+        return found
 
     if output(["docker", "inspect", CONTAINER]):
         java_result = run_command(["docker", "exec", CONTAINER, "sh", "-lc", "java -version"], timeout=8)
@@ -164,15 +223,8 @@ def read_technical():
         elif image:
             server_type = image
 
-        for folder, key in [("/data/mods", "mods"), ("/data/plugins", "plugins")]:
-            check = run_command(["docker", "exec", CONTAINER, "sh", "-lc",
-                                 "find " + folder + " -maxdepth 1 -type f -name '*.jar' 2>/dev/null | wc -l"], timeout=5)
-            if check.returncode == 0:
-                count = check.stdout.strip()
-                if key == "mods":
-                    mods = count + " .jar" if count.isdigit() else "Não verificado"
-                else:
-                    plugins = count + " .jar" if count.isdigit() else "Não verificado"
+        mods = inspect_jars("/data/mods", "mod")
+        plugins = inspect_jars("/data/plugins", "plugin")
 
     return {
         "os": os_name,
