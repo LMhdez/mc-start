@@ -60,9 +60,19 @@ jobs:
           chmod 0755 \"\$TMP\"
           python3 -c 'import pathlib,sys; compile(pathlib.Path(sys.argv[1]).read_text(encoding=\"utf-8\"), sys.argv[1], \"exec\")' \"\$TMP\"
           mv -f \"\$TMP\" \"\$TARGET\"
-          if ! systemctl restart mc-private-agent.service || ! systemctl is-active --quiet mc-private-agent.service || ! python3 -c 'import json,urllib.request; d=json.load(urllib.request.urlopen(\"http://127.0.0.1:8765/status\",timeout=30)); r=d.get(\"result\",{}); assert d.get(\"ok\") is True and \"geyser_ready\" in r and \"rcon_ready\" in r'; then
+          if ! systemctl restart mc-private-agent.service || ! systemctl is-active --quiet mc-private-agent.service; then
             echo AGENT_DEPLOY_ROLLBACK
-            if [ \"\$HAD_OLD\" = 1 ]; then mv -f \"\$BACKUP\" \"\$TARGET\"; systemctl restart mc-private-agent.service || true; else rm -f \"\$TARGET\"; fi
+            if [ "\$HAD_OLD" = 1 ]; then mv -f "\$BACKUP" "\$TARGET"; systemctl restart mc-private-agent.service || true; else rm -f "\$TARGET"; fi
+            exit 1
+          fi
+          STATUS_OK=0
+          for attempt in \$(seq 1 20); do
+            if python3 -c 'import json,urllib.request; d=json.load(urllib.request.urlopen("http://127.0.0.1:8765/status",timeout=30)); r=d.get("result",{}); assert d.get("ok") is True and "geyser_ready" in r and "rcon_ready" in r' 2>/dev/null; then STATUS_OK=1; break; fi
+            sleep 2
+          done
+          if [ "\$STATUS_OK" != 1 ]; then
+            echo AGENT_DEPLOY_ROLLBACK
+            if [ "\$HAD_OLD" = 1 ]; then mv -f "\$BACKUP" "\$TARGET"; systemctl restart mc-private-agent.service || true; else rm -f "\$TARGET"; fi
             exit 1
           fi
           rm -f \"\$BACKUP\"
