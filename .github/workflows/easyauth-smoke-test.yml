@@ -1,0 +1,64 @@
+name: EasyAuth Fabric 26.3 smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  easyauth-smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Start isolated Fabric server with EasyAuth, Geyser and Floodgate
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cleanup() {
+            docker logs easyauth-smoke-test 2>&1 \
+              | grep -Ei 'EasyAuth|Geyser|Floodgate|Done \(|ERROR|Exception' \
+              | sed -E 's/(password|token|secret|key)([=: ]+)[^ ,"]+/\1\2[REDACTED]/Ig' \
+              | tail -n 80 || true
+            docker rm -f easyauth-smoke-test >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker run -d --name easyauth-smoke-test \
+            -e EULA=TRUE \
+            -e TYPE=FABRIC \
+            -e VERSION=26.3 \
+            -e FABRIC_LOADER_VERSION=0.20.1 \
+            -e ONLINE_MODE=FALSE \
+            -e MEMORY=2G \
+            -e MODRINTH_DOWNLOAD_DEPENDENCIES=required \
+            -e MODRINTH_PROJECTS=$'fabric-api\neasyauth:Qd0CWVQP\ngeyser\nfloodgate' \
+            itzg/minecraft-server:java25
+
+          ready=0
+          for attempt in $(seq 1 90); do
+            if docker logs easyauth-smoke-test 2>&1 | grep -q 'Done ('; then
+              ready=1
+              break
+            fi
+            if ! docker inspect -f '{{.State.Running}}' easyauth-smoke-test 2>/dev/null | grep -q true; then
+              echo 'Server container exited before startup completed.'
+              exit 1
+            fi
+            sleep 2
+          done
+
+          if [ "$ready" -ne 1 ]; then
+            echo 'Timed out waiting for the Fabric server startup marker.'
+            exit 1
+          fi
+
+          docker exec easyauth-smoke-test sh -lc '
+            test -f /data/config/easyauth/main.conf
+            test -d /data/config/Geyser-Fabric
+            find /data/mods -maxdepth 1 -type f -printf "%f\n" | sort
+          '
+
+          echo 'PASS: Minecraft 26.3 / Fabric 0.20.1 started with EasyAuth 3.4.4, Geyser and Floodgate.'
+          echo 'LIMIT: this is a startup smoke test; Java/Bedrock client authentication and pre-login packet blocking require live-client testing.'
