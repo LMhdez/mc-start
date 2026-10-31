@@ -80,13 +80,18 @@ const translations = {
     sending: "A enviar pedido...", startSent: "Pedido para ligar o servidor aceite.",
     stopSent: "Pedido para desligar o servidor aceite.", checkSent: "Pedido de verificação enviado.",
     starting: "A iniciar a máquina virtual na Azure...",
-    serverStarting: "A VM já está ligada. A aguardar que o Minecraft arranque e abra a porta 25565...",
+    serverStarting: "A VM já está ligada. A aguardar que Minecraft, Java e Geyser/Bedrock estejam prontos...",
     stopping: "A parar o Minecraft e a desligar a máquina virtual...",
     vmStopping: "O Minecraft está a parar. A aguardar que a Azure desligue a VM...",
     searchingPublic: "A procurar o estado atual do servidor...",
     searchingPrivate: "A consultar o estado privado do servidor através do Cloudflare Tunnel...",
     checkingPrivate: "Pedido enviado. A aguardar pelo resultado da verificação...",
-    startComplete: "Servidor online! Minecraft em execução e porta 25565 acessível.",
+    serverInitializing: "A preparar as ligações Java e Bedrock…",
+    bedrockStateLabel: "Ligação Bedrock · Geyser",
+    bedrockReady: "Pronta",
+    bedrockInitializing: "A preparar",
+    bedrockUnavailable: "Não confirmada",
+    startComplete: "Servidor online! Minecraft e ligações Java/Bedrock estão prontas.",
     stopComplete: "Servidor desligado. A VM foi desalocada na Azure.",
     operationTimeout: "O pedido foi aceite, mas a operação ainda não terminou. O estado mais recente está apresentado acima. Consulta novamente daqui a pouco.",
     waiting: "A resposta costuma chegar em 15–25 segundos. O arranque da máquina virtual pode demorar mais.", wrongPassword: "Palavra-passe incorreta.",
@@ -161,13 +166,18 @@ const translations = {
     sending: "Enviando solicitud...", startSent: "Solicitud de inicio aceptada.",
     stopSent: "Solicitud de apagado aceptada.", checkSent: "Se ha enviado la solicitud de comprobación.",
     starting: "Iniciando la máquina virtual en Azure...",
-    serverStarting: "La VM ya está encendida. Esperando a que Minecraft arranque y abra el puerto 25565...",
+    serverStarting: "La VM ya está encendida. Esperando a que Minecraft y las conexiones Java/Bedrock estén listas...",
     stopping: "Deteniendo Minecraft y apagando la máquina virtual...",
     vmStopping: "Minecraft se está deteniendo. Esperando a que Azure apague la VM...",
     searchingPublic: "Buscando el estado actual del servidor...",
     searchingPrivate: "Consultando el estado privado del servidor a través de Cloudflare Tunnel...",
     checkingPrivate: "Solicitud enviada. Esperando el resultado de la comprobación...",
-    startComplete: "¡Servidor en línea! Minecraft está ejecutándose y el puerto 25565 está accesible.",
+    serverInitializing: "Preparando las conexiones Java y Bedrock…",
+    bedrockStateLabel: "Conexión Bedrock · Geyser",
+    bedrockReady: "Lista",
+    bedrockInitializing: "Preparando",
+    bedrockUnavailable: "No confirmada",
+    startComplete: "¡Servidor en línea! Minecraft y las conexiones Java/Bedrock están listas.",
     stopComplete: "Servidor apagado. La VM se ha desasignado en Azure.",
     operationTimeout: "La solicitud fue aceptada, pero la operación aún no ha terminado. El último estado aparece arriba. Vuelve a consultar dentro de un momento.",
     waiting: "La respuesta suele llegar en 15–25 segundos. El arranque de la máquina virtual puede tardar más.", wrongPassword: "Contraseña incorrecta.",
@@ -242,13 +252,18 @@ const translations = {
     sending: "Sending request...", startSent: "Start request accepted.",
     stopSent: "Stop request accepted.", checkSent: "The status check request has been sent.",
     starting: "Starting the Azure virtual machine...",
-    serverStarting: "The VM is running. Waiting for Minecraft to start and port 25565 to open...",
+    serverStarting: "The VM is running. Waiting for Minecraft and Java/Bedrock connections to be ready...",
     stopping: "Stopping Minecraft and shutting down the virtual machine...",
     vmStopping: "Minecraft is stopping. Waiting for Azure to deallocate the VM...",
     searchingPublic: "Checking the current server status...",
     searchingPrivate: "Checking the private server status through Cloudflare Tunnel...",
     checkingPrivate: "Request sent. Waiting for the status result...",
-    startComplete: "Server online! Minecraft is running and port 25565 is reachable.",
+    serverInitializing: "Preparing Java and Bedrock connections…",
+    bedrockStateLabel: "Bedrock connection · Geyser",
+    bedrockReady: "Ready",
+    bedrockInitializing: "Preparing",
+    bedrockUnavailable: "Not confirmed",
+    startComplete: "Server online! Minecraft and Java/Bedrock connections are ready.",
     stopComplete: "Server stopped. The VM has been deallocated in Azure.",
     operationTimeout: "The request was accepted, but the operation has not finished yet. The latest status is shown above. Check again shortly.",
     waiting: "The response usually arrives in 15–25 seconds. Starting the virtual machine may take longer.", wrongPassword: "Incorrect password.",
@@ -320,6 +335,15 @@ async function fetchWithTimeout(url, options = {}) {
   }
 }
 
+function isServerReady(result) {
+  return result?.vm === "VM running" &&
+    result.docker === "active" &&
+    result.container === "running" &&
+    result.port_open === true &&
+    result.rcon_ready === true &&
+    result.geyser_ready === true;
+}
+
 function renderStatus(result) {
   lastStatusResult = result;
   const t = translations[currentLanguage];
@@ -335,13 +359,15 @@ function renderStatus(result) {
       "VM stopped": t.vmStopped, "VM starting": t.vmStarting,
       "VM stopping": t.vmStopping
     };
-    const serverReady = result.vm === "VM running" && result.docker === "active" &&
-      result.container === "running" && result.port_open === true;
-    state.textContent = serverReady ? t.serverOnline : (vmStates[result.vm] || t.vmUnknown);
+    const serverReady = isServerReady(result);
+    const initializing = result.vm === "VM running" && !serverReady &&
+      result.docker === "active" && result.container === "running";
+    state.textContent = serverReady ? t.serverOnline :
+      (initializing ? t.serverInitializing : (vmStates[result.vm] || t.vmUnknown));
     const dot = state.closest(".status-pill")?.querySelector(".status-dot");
     if (dot) {
       const pending = result.vm === "VM starting" || result.vm === "VM stopping" ||
-        (result.vm === "VM running" && result.container === "running" && result.port_open === false);
+        (result.vm === "VM running" && !serverReady);
       dot.classList.toggle("status-dot-muted", !serverReady && !pending);
       dot.classList.toggle("status-dot-pending", pending);
     }
@@ -377,6 +403,8 @@ function renderStatus(result) {
   if (details) {
     const values = [
       [t.portState, result.port_open == null ? t.unknownStatus : result.port_open ? t.portOpen : t.portClosed],
+      [t.bedrockStateLabel, result.geyser_ready === true ? t.bedrockReady :
+        result.geyser_state === "initializing" || result.geyser_ready === false ? t.bedrockInitializing : t.bedrockUnavailable],
       [t.checkedAt, result.checked_at ? new Date(result.checked_at).toLocaleString(currentLanguage === "pt" ? "pt-PT" : currentLanguage === "es" ? "es-ES" : "en-GB") : "—"]
     ];
     details.replaceChildren();
@@ -429,10 +457,7 @@ async function waitForVmAction(action) {
     renderStatus(status);
 
     if (isStarting) {
-      const ready = status.vm === "VM running" &&
-        status.docker === "active" &&
-        status.container === "running" &&
-        status.port_open === true;
+      const ready = isServerReady(status);
 
       if (ready) {
         showFeedback("startComplete");
