@@ -21,11 +21,12 @@ const WORKFLOWS = {
   }
 };
 
-function json(data, status, origin) {
+function json(data, status, origin, extraHeaders = {}) {
   const headers = {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store",
-    "X-Content-Type-Options": "nosniff"
+    "X-Content-Type-Options": "nosniff",
+    ...extraHeaders
   };
   if (origin) {
     headers["Access-Control-Allow-Origin"] = origin;
@@ -397,11 +398,13 @@ export default {
     if (!(request.headers.get("Content-Type") || "").toLowerCase().includes("application/json")) {
       return json({ ok: false, message: "Pedido invalido." }, 415, origin);
     }
+    const isStatusRead = url.pathname === "/api/status/read";
+    const isActionRequest = url.pathname === "/api/action";
+    if (!isStatusRead && !isActionRequest) {
+      return json({ ok: false, message: "Endereco nao encontrado." }, 404, origin);
+    }
     if (!env.ACCESS_PASSWORD || env.ACCESS_PASSWORD.length < 20 || !env.STATUS_KV) {
       return json({ ok: false, message: "Configuracao incompleta do painel." }, 503, origin);
-    }
-    if (!(await checkRateLimit(env, request, "auth", AUTH_RATE_LIMIT))) {
-      return json({ ok: false, message: "Demasiadas tentativas. Aguarda um minuto." }, 429, origin);
     }
 
     let body;
@@ -409,17 +412,34 @@ export default {
     catch (error) {
       return json({ ok: false, message: "Pedido invalido." }, error.message === "BODY_TOO_LARGE" ? 413 : 400, origin);
     }
-    if (!body || typeof body.password !== "string" ||
-        !constantTimeEqual(body.password, env.ACCESS_PASSWORD)) {
+
+    const validPassword = body && typeof body.password === "string" &&
+      constantTimeEqual(body.password, env.ACCESS_PASSWORD);
+    if (!validPassword) {
+      // Only failed password attempts consume the authentication-failure budget.
+      // Valid status polling is governed by its own read limit below.
+      if (!(await checkRateLimit(env, request, "auth-fail", AUTH_RATE_LIMIT))) {
+        return json(
+          { ok: false, message: "Demasiadas tentativas. Aguarda um minuto." },
+          429,
+          origin,
+          { "Retry-After": "60" }
+        );
+      }
       return json({ ok: false, message: "Palavra-passe incorreta." }, 401, origin);
     }
 
-    if (url.pathname === "/api/status/read") {
-      if (!env.STATUS_KV || !validRequestId(body.request_id)) {
+    if (isStatusRead) {
+      if (!validRequestId(body.request_id)) {
         return json({ ok: false, message: "Pedido invalido." }, 400, origin);
       }
       if (!(await checkRateLimit(env, request, "read", 45))) {
-        return json({ ok: false, message: "Demasiados pedidos. Aguarda um minuto." }, 429, origin);
+        return json(
+          { ok: false, message: "Demasiados pedidos. Aguarda um minuto." },
+          429,
+          origin,
+          { "Retry-After": "60" }
+        );
       }
       const key = "status:" + body.request_id;
       const stored = await env.STATUS_KV.get(key);
@@ -433,13 +453,16 @@ export default {
       }
     }
 
-    if (url.pathname !== "/api/action") return json({ ok: false, message: "Endereco nao encontrado." }, 404, origin);
     if (!["start", "stop", "status"].includes(body.action)) {
       return json({ ok: false, message: "Acao nao permitida." }, 400, origin);
     }
-    if (!env.STATUS_KV) return json({ ok: false, message: "Binding STATUS_KV em falta." }, 503, origin);
     if (!(await checkRateLimit(env, request))) {
-      return json({ ok: false, message: "Demasiados pedidos. Aguarda um minuto." }, 429, origin);
+      return json(
+        { ok: false, message: "Demasiados pedidos. Aguarda um minuto." },
+        429,
+        origin,
+        { "Retry-After": "60" }
+      );
     }
 
     let file;
