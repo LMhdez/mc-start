@@ -27,94 +27,79 @@ jobs:
           AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
         run: |
           set -euo pipefail
-
           RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:?Falta AZURE_RESOURCE_GROUP}"
           VM_NAME="${AZURE_VM_NAME:?Falta AZURE_VM_NAME}"
 
-          VM_STATUS=$(az vm get-instance-view \
-            --resource-group "$RESOURCE_GROUP" \
-            --name "$VM_NAME" \
-            --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus | [0]" \
-            -o tsv)
-
+          VM_STATUS=$(az vm get-instance-view --resource-group "$RESOURCE_GROUP" --name "$VM_NAME" --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus | [0]" -o tsv)
           if [[ "$VM_STATUS" != "VM running" ]]; then
             echo "A VM tem de estar ligada. Estado atual: $VM_STATUS"
             exit 1
           fi
 
-          RESULT=$(az vm run-command invoke \
-            --resource-group "$RESOURCE_GROUP" \
-            --name "$VM_NAME" \
-            --command-id RunShellScript \
-            --scripts '
-              set -euo pipefail
-              COMPOSE_FILE=/home/azureuser/minecraft/docker-compose.yml
-              UNIT_FILE=/etc/systemd/system/mc-server-compose.service
+          REMOTE_SCRIPT=$(cat <<'REMOTE'
+          set -Eeuo pipefail
+          trap 'code=$?; echo "MC_AUTOSTART_ERROR: remote script failed at line $LINENO (exit $code)"; exit "$code"' ERR
+          COMPOSE_FILE=/home/azureuser/minecraft/docker-compose.yml
+          UNIT_FILE=/etc/systemd/system/mc-server-compose.service
 
-              if [ ! -f "$COMPOSE_FILE" ]; then
-                echo "MC_AUTOSTART_ERROR: compose file not found"
-                exit 1
+          [ -f "$COMPOSE_FILE" ] || { echo "MC_AUTOSTART_ERROR: compose file not found"; exit 1; }
+          command -v docker >/dev/null 2>&1 || { echo "MC_AUTOSTART_ERROR: Docker is not installed"; exit 1; }
+          docker compose -f "$COMPOSE_FILE" config --quiet
+
+          curl -fsSL "https://raw.githubusercontent.com/LMhdez/mc-start/3e12adea2615bb60ceccf4b9194b922fd5c8a098/vm/mc-agent.py" -o /tmp/mc-agent.py
+          install -d -m 0755 /opt/mc-agent
+          install -m 0755 /tmp/mc-agent.py /opt/mc-agent/mc-agent.py
+          rm -f /tmp/mc-agent.py
+          systemctl cat mc-private-agent.service >/dev/null 2>&1 || { echo "MC_AUTOSTART_ERROR: private agent service not found"; exit 1; }
+          systemctl restart mc-private-agent.service
+          systemctl is-active --quiet mc-private-agent.service
+
+          cat > "$UNIT_FILE" <<'SERVICE'
+          [Unit]
+          Description=Minecraft server Docker Compose service
+          Requires=docker.service
+          After=docker.service network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          RemainAfterExit=yes
+          WorkingDirectory=/home/azureuser/minecraft
+          ExecStart=/usr/bin/docker compose -f /home/azureuser/minecraft/docker-compose.yml up -d minecraft
+          ExecStop=/usr/bin/docker compose -f /home/azureuser/minecraft/docker-compose.yml stop --timeout 30 minecraft
+          TimeoutStartSec=0
+          TimeoutStopSec=45
+
+          [Install]
+          WantedBy=multi-user.target
+          SERVICE
+
+          chmod 0644 "$UNIT_FILE"
+          systemctl daemon-reload
+          systemctl enable mc-server-compose.service
+          systemctl restart mc-server-compose.service
+          docker inspect -f '{{.State.Running}}' mc-server | grep -qx true || { echo "MC_AUTOSTART_ERROR: container did not reach running state"; exit 1; }
+          echo "MC_AUTOSTART_OK"
+          REMOTE
+          )
+
+          set +e
+          AZURE_RESULT=$(az vm run-command invoke --resource-group "$RESOURCE_GROUP" --name "$VM_NAME" --command-id RunShellScript --scripts "$REMOTE_SCRIPT" -o json 2>&1)
+          AZURE_EXIT=$?
+          set -e
+
+          REMOTE_OUTPUT=$(printf '%s' "$AZURE_RESULT" | jq -r '.value[]?.message // empty' 2>/dev/null || true)
+          if [[ "$AZURE_EXIT" -ne 0 ]] || ! grep -q "MC_AUTOSTART_OK" <<< "$REMOTE_OUTPUT"; then
+            echo "A VM não confirmou a instalação e o arranque automático. Diagnóstico filtrado:"
+            {
+              printf '%s\n' "$REMOTE_OUTPUT"
+              if [[ "$AZURE_EXIT" -ne 0 ]]; then
+                printf 'Azure CLI terminou com código %s\n' "$AZURE_EXIT"
+                printf '%s\n' "$AZURE_RESULT"
               fi
-              if ! command -v docker >/dev/null 2>&1; then
-                echo "MC_AUTOSTART_ERROR: Docker is not installed"
-                exit 1
-              fi
-              docker compose -f "$COMPOSE_FILE" config --quiet
-
-              # Atualiza o agente privado com a correção de rcon_ready.
-              curl -fsSL "https://raw.githubusercontent.com/LMhdez/mc-start/3e12adea2615bb60ceccf4b9194b922fd5c8a098/vm/mc-agent.py" -o /tmp/mc-agent.py
-              install -d -m 0755 /opt/mc-agent
-              install -m 0755 /tmp/mc-agent.py /opt/mc-agent/mc-agent.py
-              rm -f /tmp/mc-agent.py
-              if systemctl cat mc-private-agent.service >/dev/null 2>&1; then
-                systemctl restart mc-private-agent.service
-                systemctl is-active --quiet mc-private-agent.service
-              else
-                echo "MC_AUTOSTART_ERROR: private agent service not found"
-                exit 1
-              fi
-
-              cat > "$UNIT_FILE" <<'"'"'SERVICE'"'"'
-              [Unit]
-              Description=Minecraft server Docker Compose service
-              Requires=docker.service
-              After=docker.service network-online.target
-              Wants=network-online.target
-
-              [Service]
-              Type=oneshot
-              RemainAfterExit=yes
-              WorkingDirectory=/home/azureuser/minecraft
-              ExecStart=/usr/bin/docker compose -f /home/azureuser/minecraft/docker-compose.yml up -d minecraft
-              ExecStop=/usr/bin/docker compose -f /home/azureuser/minecraft/docker-compose.yml stop --timeout 30 minecraft
-              TimeoutStartSec=0
-              TimeoutStopSec=45
-
-              [Install]
-              WantedBy=multi-user.target
-              SERVICE
-
-              chmod 0644 "$UNIT_FILE"
-              systemctl daemon-reload
-              systemctl enable mc-server-compose.service
-              systemctl restart mc-server-compose.service
-
-              if ! docker inspect -f "{{.State.Running}}" mc-server | grep -qx true; then
-                echo "MC_AUTOSTART_ERROR: container did not reach running state"
-                exit 1
-              fi
-
-              echo "MC_AUTOSTART_OK"
-            ' \
-            --query "value[].message" -o tsv)
-
-          if ! grep -q "MC_AUTOSTART_OK" <<< "$RESULT"; then
-            echo "A VM não confirmou a instalação e o arranque automático. Diagnóstico (sem valores sensíveis):"
-            printf '%s\\n' "$RESULT" \
-              | grep -iE 'MC_AUTOSTART|error|failed|failure|not found|permission denied|inactive|activating|stdout|stderr|exit code|systemctl|docker|curl' \
-              | sed -E 's/((password|secret|token|client[_-]?secret|authorization)[^:=]*[:=])[[:space:]]*[^[:space:]]+/\\1 [REDACTED]/Ig' \
-              | tail -n 40 || true
+            } | grep -iE 'MC_AUTOSTART_(OK|ERROR)|error|failed|failure|not found|permission denied|inactive|activating|exit code|Azure CLI' |
+              sed -E 's/(password|secret|token|client[_-]?secret|authorization)([^:=]*[:=])[[:space:]]*[^[:space:]]+/\1\2 [REDACTED]/Ig' |
+              tail -n 30 || true
             exit 1
           fi
-
           echo "Serviço de arranque automático instalado e contentor iniciado."
