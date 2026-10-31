@@ -248,12 +248,27 @@ async function loadTechnicalSpecs() {
     const response = await fetchWithTimeout(WORKER_URL + "/api/technical");
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error("Technical data unavailable");
+    const services = data.result.services || {};
     const fields = [
-      [t.techOS, data.result.os], [t.techArch, data.result.architecture],
-      [t.techKernel, data.result.kernel], [t.techDocker, data.result.docker],
-      [t.techImage, data.result.container_image], [t.techJava, data.result.java],
-      [t.techMinecraft, data.result.minecraft], [t.techType, data.result.server_type],
-      [t.techMods, data.result.mods], [t.techPlugins, data.result.plugins]
+      [t.techOS, data.result.os],
+      ["Versão do sistema", data.result.os_version],
+      [t.techArch, data.result.architecture],
+      [t.techKernel, data.result.kernel],
+      ["Python", data.result.python],
+      ["APT", data.result.apt],
+      ["systemd", data.result.systemd],
+      [t.techDocker, data.result.docker],
+      ["Docker Engine", data.result.docker_server],
+      ["cloudflared", data.result.cloudflared],
+      ["Serviço Docker", services.docker],
+      ["Agente privado", services.mc_private_agent],
+      ["Serviço Cloudflare Tunnel", services.cloudflared],
+      [t.techImage, data.result.container_image],
+      [t.techJava, data.result.java],
+      [t.techMinecraft, data.result.minecraft],
+      [t.techType, data.result.server_type],
+      [t.techMods, data.result.mods],
+      [t.techPlugins, data.result.plugins]
     ];
     target.replaceChildren();
     fields.forEach(([label, value]) => {
