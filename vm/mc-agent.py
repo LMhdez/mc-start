@@ -7,6 +7,7 @@ import time
 import socket
 import subprocess
 import urllib.request
+import urllib.parse
 import tempfile
 import zipfile
 import base64
@@ -81,26 +82,30 @@ def read_status():
             container_state = state.stdout.strip() or "unknown"
 
         if container_state == "running":
+            players = None
+            player_names = None
             result = run_command(
                 ["docker", "exec", CONTAINER, "rcon-cli", "list"],
                 timeout=10,
             )
-            output = result.stdout + "\n" + result.stderr
-            count_match = re.search(r"There are (\d+) of", output, re.IGNORECASE)
-            if count_match:
-                players = int(count_match.group(1))
-
-            names_match = re.search(
-                r"players online:\s*(.*)",
-                output,
-                re.IGNORECASE,
-            )
-            if names_match and names_match.group(1).strip():
-                player_names = [
-                    name.strip()
-                    for name in names_match.group(1).split(",")
-                    if name.strip()
-                ]
+            if result.returncode == 0:
+                output = result.stdout + "\n" + result.stderr
+                count_match = re.search(r"There are (\d+) of", output, re.IGNORECASE)
+                if count_match:
+                    players = int(count_match.group(1))
+                    names_match = re.search(
+                        r"players online:\s*(.*)",
+                        output,
+                        re.IGNORECASE,
+                    )
+                    if names_match:
+                        player_names = [
+                            name.strip()
+                            for name in names_match.group(1).split(",")
+                            if name.strip()
+                        ]
+                    elif players == 0:
+                        player_names = []
 
     try:
         with socket.create_connection(("127.0.0.1", 25565), timeout=1):
