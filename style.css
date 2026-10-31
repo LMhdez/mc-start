@@ -246,3 +246,86 @@ h2 { margin: 0; font-size: clamp(1.4rem, 3vw, 2rem); letter-spacing: -.04em; }
 @media (max-width: 650px) {
   .status-details { grid-template-columns: 1fr; }
 }
+
+
+/* Technical information layout */
+.page-intro { padding: 58px 0 34px; }
+.page-intro h1 {
+  max-width: 800px;
+  color: var(--text);
+  font-size: clamp(2.35rem, 6vw, 4.6rem);
+  line-height: 1.04;
+  letter-spacing: -.065em;
+}
+.intro-copy, .section-copy {
+  max-width: 760px;
+  color: var(--muted);
+  font-size: .9rem;
+  line-height: 1.7;
+}
+.intro-copy { margin: 16px 0 0; }
+.technical-section { padding: 48px 0 8px; }
+.section-heading { margin-bottom: 20px; }
+.section-heading .section-copy { margin: 12px 0 0; }
+.tech-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.tech-card {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: rgba(255,255,255,.025);
+}
+.tech-category {
+  color: var(--green);
+  font-size: .61rem;
+  font-weight: 850;
+  letter-spacing: .13em;
+}
+.tech-card h3 { margin: 13px 0 9px; font-size: 1.05rem; }
+.tech-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: .84rem;
+  line-height: 1.65;
+}
+.tech-card code {
+  padding: 2px 5px;
+  border-radius: 5px;
+  background: rgba(131,212,91,.1);
+  color: #c8e8b7;
+  font-size: .8rem;
+}
+.spec-list {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: rgba(255,255,255,.02);
+}
+.spec-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 15px 18px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: .86rem;
+  line-height: 1.5;
+}
+.spec-row:last-child { border-bottom: 0; }
+.spec-row strong { color: var(--text); text-align: right; font-weight: 700; }
+.compatibility-note { margin-top: 13px; }
+@media (max-width: 800px) {
+  .tech-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .page-intro { padding: 42px 0 28px; }
+  .technical-section { padding-top: 38px; }
+  .tech-grid { grid-template-columns: 1fr; }
+  .spec-row { flex-direction: column; gap: 5px; }
+  .spec-row strong { text-align: left; }
+}
