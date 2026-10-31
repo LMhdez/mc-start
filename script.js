@@ -7,7 +7,8 @@ const languageSelect = document.querySelector("#language-select");
 const buttons = [
   document.querySelector("#start-button"),
   document.querySelector("#stop-button"),
-  document.querySelector("#status-button")
+  document.querySelector("#status-button"),
+  document.querySelector("#private-status-button")
 ];
 
 let lastTechnicalData = null;
@@ -17,7 +18,7 @@ const translations = {
     hostedOnAzureLabel:"ALOJADO NA AZURE",
     vmStatusLabel:"ESTADO DA MÁQUINA VIRTUAL",
     connectionSectionLabel:"LIGAÇÃO AO SERVIDOR", connectionTitleShort:"Endereços e plataformas",
-    javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Minecraft Bedrock via Geyser",
+    javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Minecraft Bedrock (requer Geyser)",
     versionsHeading:"VERSÕES DETETADAS", versionsTitle:"Software e versões",
     versionsIntro:"Versões lidas diretamente da VM e dos registos do último arranque.",
     kernelLabelShort:"Kernel", dockerEngineLabel:"Motor", containerImageLabel:"Imagem",
@@ -84,13 +85,13 @@ const translations = {
     notAllowed: "Origem não autorizada.", incomplete: "Configuração do painel incompleta.",
     requestError: "O pedido não foi aceite. Tenta novamente mais tarde.",
     connectionError: "Erro de comunicação com o serviço.",
-    vmState: "Estado da VM", vmDeallocated: "Servidor desligado", vmRunning: "Servidor online", vmStopped: "Servidor parado", vmStarting: "A iniciar", vmStopping: "A desligar", vmUnknown: "Estado desconhecido", notChecked: "Não verificado", dockerActive: "Ativo", dockerInactive: "Inativo", containerRunning: "Em execução", containerExited: "Parado", containerNotFound: "Não encontrado", dockerState: "Docker", containerState: "Contentor", portState: "Ligação Java", playerNames: "Jogadores", checkedAt: "Verificado", noPlayers: "Ninguém online", statusReady: "Estado atualizado.", statusTimeout: "A verificação ainda não terminou. Tenta consultar novamente daqui a pouco.", portOpen: "Acessível", portClosed: "Inacessível"
+    vmState: "Estado da VM", vmDeallocated: "Servidor desligado", vmRunning: "VM ligada", serverOnline: "Servidor online", vmStopped: "Servidor parado", vmStarting: "A iniciar", vmStopping: "A desligar", vmUnknown: "Estado desconhecido", notChecked: "Não verificado", dockerActive: "Ativo", dockerInactive: "Inativo", containerRunning: "Em execução", containerExited: "Parado", containerNotFound: "Não encontrado", dockerState: "Docker", containerState: "Contentor", portState: "Ligação Java", playerNames: "Jogadores", checkedAt: "Verificado", noPlayers: "Ninguém online", statusReady: "Estado atualizado.", statusTimeout: "A verificação ainda não terminou. Tenta consultar novamente daqui a pouco.", portOpen: "Acessível", portClosed: "Inacessível"
   },
   es: {
     hostedOnAzureLabel:"ALOJADO EN AZURE",
     vmStatusLabel:"ESTADO DE LA MÁQUINA VIRTUAL",
     connectionSectionLabel:"CONEXIÓN AL SERVIDOR", connectionTitleShort:"Direcciones y plataformas",
-    javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Minecraft Bedrock mediante Geyser",
+    javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Minecraft Bedrock (requiere Geyser)",
     versionsHeading:"VERSIONES DETECTADAS", versionsTitle:"Software y versiones",
     versionsIntro:"Versiones obtenidas directamente de la VM y de los registros del último inicio.",
     kernelLabelShort:"Kernel", dockerEngineLabel:"Motor", containerImageLabel:"Imagen",
@@ -157,13 +158,13 @@ const translations = {
     notAllowed: "Origen no autorizado.", incomplete: "La configuración del panel está incompleta.",
     requestError: "No se ha aceptado la solicitud. Inténtalo de nuevo más tarde.",
     connectionError: "Error de comunicación con el servicio.",
-    vmState: "Estado de la VM", vmDeallocated: "Servidor apagado", vmRunning: "Servidor en línea", vmStopped: "Servidor detenido", vmStarting: "Iniciando", vmStopping: "Apagando", vmUnknown: "Estado desconocido", notChecked: "No comprobado", dockerActive: "Activo", dockerInactive: "Inactivo", containerRunning: "En ejecución", containerExited: "Detenido", containerNotFound: "No encontrado", dockerState: "Docker", containerState: "Contenedor", portState: "Conexión Java", playerNames: "Jugadores", checkedAt: "Comprobado", noPlayers: "Nadie conectado", statusReady: "Estado actualizado.", statusTimeout: "La comprobación aún no ha terminado. Vuelve a consultar dentro de un momento.", portOpen: "Accesible", portClosed: "Inaccesible"
+    vmState: "Estado de la VM", vmDeallocated: "Servidor apagado", vmRunning: "VM encendida", serverOnline: "Servidor en línea", vmStopped: "Servidor detenido", vmStarting: "Iniciando", vmStopping: "Apagando", vmUnknown: "Estado desconocido", notChecked: "No comprobado", dockerActive: "Activo", dockerInactive: "Inactivo", containerRunning: "En ejecución", containerExited: "Detenido", containerNotFound: "No encontrado", dockerState: "Docker", containerState: "Contenedor", portState: "Conexión Java", playerNames: "Jugadores", checkedAt: "Comprobado", noPlayers: "Nadie conectado", statusReady: "Estado actualizado.", statusTimeout: "La comprobación aún no ha terminado. Vuelve a consultar dentro de un momento.", portOpen: "Accesible", portClosed: "Inaccesible"
   },
   en: {
     hostedOnAzureLabel:"HOSTED ON AZURE",
     vmStatusLabel:"VIRTUAL MACHINE STATUS",
     connectionSectionLabel:"SERVER CONNECTION", connectionTitleShort:"Addresses and platforms",
-    javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Minecraft Bedrock via Geyser",
+    javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Minecraft Bedrock (requires Geyser)",
     versionsHeading:"DETECTED VERSIONS", versionsTitle:"Software and versions",
     versionsIntro:"Versions read directly from the VM and the latest startup logs.",
     kernelLabelShort:"Kernel", dockerEngineLabel:"Engine", containerImageLabel:"Image",
@@ -230,7 +231,7 @@ const translations = {
     notAllowed: "Origin not authorized.", incomplete: "The dashboard is not fully configured.",
     requestError: "The request was not accepted. Please try again later.",
     connectionError: "Communication error with the service.",
-    vmState: "VM state", vmDeallocated: "Server offline", vmRunning: "Server online", vmStopped: "Server stopped", vmStarting: "Starting", vmStopping: "Stopping", vmUnknown: "Unknown state", notChecked: "Not checked", dockerActive: "Active", dockerInactive: "Inactive", containerRunning: "Running", containerExited: "Stopped", containerNotFound: "Not found", dockerState: "Docker", containerState: "Container", portState: "Java connection", playerNames: "Players", checkedAt: "Checked", noPlayers: "Nobody online", statusReady: "Status updated.", statusTimeout: "The check has not finished yet. Please try checking again shortly.", portOpen: "Reachable", portClosed: "Unreachable"
+    vmState: "VM state", vmDeallocated: "Server offline", vmRunning: "VM running", serverOnline: "Server online", vmStopped: "Server stopped", vmStarting: "Starting", vmStopping: "Stopping", vmUnknown: "Unknown state", notChecked: "Not checked", dockerActive: "Active", dockerInactive: "Inactive", containerRunning: "Running", containerExited: "Stopped", containerNotFound: "Not found", dockerState: "Docker", containerState: "Container", portState: "Java connection", playerNames: "Players", checkedAt: "Checked", noPlayers: "Nobody online", statusReady: "Status updated.", statusTimeout: "The check has not finished yet. Please try checking again shortly.", portOpen: "Reachable", portClosed: "Unreachable"
   }
 };
 
@@ -328,12 +329,14 @@ function renderStatus(result) {
       address.textContent = t.addressProtected;
     }
   }
-  if (count) count.textContent = String(result.players ?? 0);
-  if (names) names.textContent = result.player_names?.length ? result.player_names.join(", ") : t.noPlayers;
+  if (count) count.textContent = result.players == null ? "—" : String(result.players);
+  if (names) names.textContent = Array.isArray(result.player_names)
+    ? (result.player_names.length ? result.player_names.join(", ") : t.noPlayers)
+    : (result.players == null ? t.unknownStatus : t.noPlayers);
 
   if (details) {
     const values = [
-      [t.portState, result.port_open ? t.portOpen : t.portClosed],
+      [t.portState, result.port_open == null ? t.unknownStatus : result.port_open ? t.portOpen : t.portClosed],
       [t.checkedAt, result.checked_at ? new Date(result.checked_at).toLocaleString(currentLanguage === "pt" ? "pt-PT" : currentLanguage === "es" ? "es-ES" : "en-GB") : "—"]
     ];
     details.replaceChildren();
@@ -654,6 +657,12 @@ async function requestAction(action) {
     buttons.forEach(button => button.disabled = false);
   }
 }
+passwordInput?.addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    requestAction("status");
+  }
+});
 languageSelect?.addEventListener("change", event => setLanguage(event.target.value));
 document.querySelector("#start-button")?.addEventListener("click", () => requestAction("start"));
 document.querySelector("#stop-button")?.addEventListener("click", () => requestAction("stop"));
