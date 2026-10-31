@@ -161,12 +161,15 @@ def read_technical():
         filenames = [name.strip() for name in result.stdout.splitlines() if name.strip()][:limit]
         found = []
         with tempfile.TemporaryDirectory(prefix="mc-metadata-") as temp_dir:
+            # Copiar a pasta numa unica operacao evita uma chamada Docker por cada JAR.
+            copied = run_command(["docker", "cp", f"{CONTAINER}:{folder}/.", temp_dir], timeout=30)
+            if copied.returncode != 0:
+                return []
             for filename in filenames:
                 if "/" in filename or filename in (".", ".."):
                     continue
                 local_path = os.path.join(temp_dir, filename)
-                copied = run_command(["docker", "cp", f"{CONTAINER}:{folder}/{filename}", local_path], timeout=8)
-                if copied.returncode != 0:
+                if not os.path.isfile(local_path):
                     continue
                 item = {"file": filename, "name": filename[:-4], "version": "", "description": ""}
                 try:
