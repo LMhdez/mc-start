@@ -33,7 +33,8 @@ const translations = {
     notPublished: "Não identificada no repositório", bedrockSupport: "Minecraft Bedrock",
     notConfirmed: "Não confirmado; requer compatibilidade própria",
     compatNote: "Não apresentamos números de versão nem compatibilidade Bedrock sem confirmação técnica. Para clientes Java, Windows, macOS e Linux são plataformas suportadas pelo próprio jogo; a versão exata tem de corresponder à do servidor.",
-    serverAddress: "IP PÚBLICO", addressUnavailable: "Indisponível enquanto a VM está desligada",
+    serverAddress: "ENDEREÇO DE LIGAÇÃO", addressUnavailable: "Indisponível enquanto a VM está desligada", addressProtected: "Protegido — introduz a palavra-passe", revealAddress: "Mostrar endereço",
+    liveTechHeading: "ESPECIFICAÇÕES DETETADAS", liveTechTitle: "Software instalado", liveTechNote: "Leitura automática em cache durante 10 minutos. Esta secção não apresenta endereços de rede nem credenciais.", techLoading: "A carregar especificações", techChecked: "Recolhido", techOS: "Sistema operativo", techArch: "Arquitetura", techKernel: "Kernel", techDocker: "Docker", techImage: "Imagem do contentor", techJava: "Java", techMinecraft: "Minecraft", techType: "Tipo de servidor", techMods: "Mods", techPlugins: "Plugins", techUnavailable: "Dynamic specifications unavailable.", techUnavailable: "Especificações dinámicas no disponibles.", techUnavailable: "Especificações dinâmicas indisponíveis.",
     playersOnline: "JOGADORES ONLINE", manualCheck: "Consulta manual", viaActions: "via Cloudflare / Actions",
     passwordLabel: "PALAVRA-PASSE DE ACESSO AO PAINEL", passwordPlaceholder: "Palavra-passe partilhada",
     start: "Ligar VM", stop: "Desligar VM", check: "Atualizar estado",
@@ -73,7 +74,8 @@ const translations = {
     notPublished: "No identificada en el repositorio", bedrockSupport: "Minecraft Bedrock",
     notConfirmed: "No confirmado; requiere compatibilidad específica",
     compatNote: "No mostramos versiones ni compatibilidad Bedrock sin confirmación técnica. Para clientes Java, Windows, macOS y Linux son plataformas compatibles con el propio juego; la versión debe coincidir con la del servidor.",
-    serverAddress: "IP PÚBLICA", addressUnavailable: "No disponible cuando la VM está apagada",
+    serverAddress: "DIRECCIÓN DE CONEXIÓN", addressUnavailable: "No disponible cuando la VM está apagada", addressProtected: "Protegida — introduce la contraseña", revealAddress: "Mostrar dirección",
+    liveTechHeading: "ESPECIFICACIONES DETECTADAS", liveTechTitle: "Software instalado", liveTechNote: "Lectura automática en caché durante 10 minutos. Esta sección no muestra direcciones de red ni credenciales.", techLoading: "Cargando especificaciones", techChecked: "Recopilado", techOS: "Sistema operativo", techArch: "Arquitectura", techKernel: "Kernel", techDocker: "Docker", techImage: "Imagen del contenedor", techJava: "Java", techMinecraft: "Minecraft", techType: "Tipo de servidor", techMods: "Mods", techPlugins: "Plugins",
     playersOnline: "JUGADORES EN LÍNEA", manualCheck: "Consulta manual", viaActions: "via Cloudflare / Actions",
     passwordLabel: "CONTRASEÑA DE ACCESO AL PANEL", passwordPlaceholder: "Contraseña compartida",
     start: "Iniciar VM", stop: "Apagar VM", check: "Actualizar estado",
@@ -113,7 +115,8 @@ const translations = {
     notPublished: "Not identified in the repository", bedrockSupport: "Minecraft Bedrock",
     notConfirmed: "Not confirmed; requires specific compatibility",
     compatNote: "We do not publish version numbers or Bedrock compatibility without technical confirmation. For Java clients, Windows, macOS and Linux are supported by the game itself; the client version must match the server.",
-    serverAddress: "PUBLIC IP", addressUnavailable: "Unavailable while the VM is powered off",
+    serverAddress: "CONNECTION ADDRESS", addressUnavailable: "Unavailable while the VM is powered off", addressProtected: "Protected — enter the password", revealAddress: "Show address",
+    liveTechHeading: "DETECTED SPECIFICATIONS", liveTechTitle: "Installed software", liveTechNote: "Automatically collected and cached for 10 minutes. This section does not expose network addresses or credentials.", techLoading: "Loading specifications", techChecked: "Collected", techOS: "Operating system", techArch: "Architecture", techKernel: "Kernel", techDocker: "Docker", techImage: "Container image", techJava: "Java", techMinecraft: "Minecraft", techType: "Server type", techMods: "Mods", techPlugins: "Plugins",
     playersOnline: "PLAYERS ONLINE", manualCheck: "Manual check", viaActions: "via Cloudflare / Actions",
     passwordLabel: "DASHBOARD ACCESS PASSWORD", passwordPlaceholder: "Shared password",
     start: "Start VM", stop: "Stop VM", check: "Refresh status",
@@ -191,7 +194,7 @@ function renderStatus(result) {
     };
     state.textContent = vmStates[result.vm] || t.vmUnknown;
   }
-  if (address) address.textContent = result.ip || t.addressUnavailable;
+  if (address) address.textContent = result.ip || (result.private ? t.addressUnavailable : t.addressProtected);
   if (count) count.textContent = String(result.players ?? 0);
   if (names) names.textContent = result.player_names?.length ? result.player_names.join(", ") : t.noPlayers;
 
@@ -218,6 +221,53 @@ function renderStatus(result) {
       item.append(labelElement, valueElement);
       details.append(item);
     });
+  }
+}
+
+async function requestPublicStatus() {
+  const button = document.querySelector("#status-button");
+  if (button) button.disabled = true;
+  try {
+    const response = await fetchWithTimeout(WORKER_URL + "/api/public/status");
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error("Public status unavailable");
+    renderStatus(data.result);
+    showFeedback("statusReady");
+  } catch {
+    showFeedback("connectionError");
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+async function loadTechnicalSpecs() {
+  const target = document.querySelector("#technical-specs");
+  if (!target) return;
+  const t = translations[currentLanguage];
+  try {
+    const response = await fetchWithTimeout(WORKER_URL + "/api/technical");
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error("Technical data unavailable");
+    const fields = [
+      [t.techOS, data.result.os], [t.techArch, data.result.architecture],
+      [t.techKernel, data.result.kernel], [t.techDocker, data.result.docker],
+      [t.techImage, data.result.container_image], [t.techJava, data.result.java],
+      [t.techMinecraft, data.result.minecraft], [t.techType, data.result.server_type],
+      [t.techMods, data.result.mods], [t.techPlugins, data.result.plugins]
+    ];
+    target.replaceChildren();
+    fields.forEach(([label, value]) => {
+      const row = document.createElement("div");
+      row.className = "spec-row";
+      const name = document.createElement("span");
+      const detail = document.createElement("strong");
+      name.textContent = label;
+      detail.textContent = value || "—";
+      row.append(name, detail);
+      target.append(row);
+    });
+  } catch {
+    target.textContent = t.techUnavailable || "Especificações dinâmicas indisponíveis.";
   }
 }
 
@@ -297,7 +347,8 @@ async function requestAction(action) {
 languageSelect?.addEventListener("change", event => setLanguage(event.target.value));
 document.querySelector("#start-button")?.addEventListener("click", () => requestAction("start"));
 document.querySelector("#stop-button")?.addEventListener("click", () => requestAction("stop"));
-document.querySelector("#status-button")?.addEventListener("click", () => requestAction("status"));
+document.querySelector("#status-button")?.addEventListener("click", requestPublicStatus);
+document.querySelector("#private-status-button")?.addEventListener("click", () => requestAction("status"));
 
 let savedLanguage = "pt";
 try {
@@ -308,6 +359,9 @@ if (!translations[savedLanguage]) {
   savedLanguage = translations[browserLanguage] ? browserLanguage : "pt";
 }
 setLanguage(savedLanguage);
+requestPublicStatus();
+loadTechnicalSpecs();
+setInterval(requestPublicStatus, 30000);
 
 // Permite testar a funcao de idioma diretamente na consola do navegador.
 window.setLanguage = setLanguage;
