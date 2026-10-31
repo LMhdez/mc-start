@@ -19,9 +19,6 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - name: Obter codigo do agente
-        uses: actions/checkout@v4
-
       - name: Login na Azure
         uses: azure/login@v2
         with:
@@ -91,38 +88,6 @@ jobs:
 
           echo "ERRO: A VM não ficou ligada dentro do tempo limite."
           exit 1
-
-      - name: Atualizar agente de monitorizacao
-        if: success()
-        shell: bash
-        env:
-          AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
-          AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
-        run: |
-          set -euo pipefail
-
-          AGENT_B64="$(base64 -w0 vm/mc-agent.py)"
-          SCRIPT="set -eu
-          install -d -m 0755 /opt/mc-agent
-          printf '%s' '$AGENT_B64' | base64 -d > /opt/mc-agent/mc-agent.py
-          chmod 0755 /opt/mc-agent/mc-agent.py
-          systemctl restart mc-private-agent.service
-          systemctl is-active --quiet mc-private-agent.service
-          echo AGENT_DEPLOY_OK"
-
-          RESULT=$(az vm run-command invoke \
-            --resource-group "$AZURE_RESOURCE_GROUP" \
-            --name "$AZURE_VM_NAME" \
-            --command-id RunShellScript \
-            --scripts "$SCRIPT" \
-            --query "value[].message" \
-            -o tsv)
-
-          printf '%s\\n' "$RESULT"
-          if ! grep -q "AGENT_DEPLOY_OK" <<< "$RESULT"; then
-            echo "A VM nao confirmou a atualizacao do agente."
-            exit 1
-          fi
 
       - name: Identificar Origem do Pedido
         if: success()
