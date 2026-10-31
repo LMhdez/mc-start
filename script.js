@@ -271,6 +271,8 @@ function setLanguage(language) {
   if (languageSelect) languageSelect.value = currentLanguage;
   document.title = currentLanguage === "pt" ? "Minecraft Server | Painel" :
     currentLanguage === "es" ? "Minecraft Server | Panel" : "Minecraft Server | Dashboard";
+  const metaDescription = document.querySelector('meta[name="description"]');
+  if (metaDescription) metaDescription.content = dictionary.pageCopy;
   try { localStorage.setItem("mc-server-language", currentLanguage); } catch {}
 }
 
