@@ -1,3 +1,4 @@
+
 name: Verificar Servidor Minecraft
 
 on:
@@ -15,6 +16,7 @@ jobs:
   check-minecraft:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
     steps:
       - name: Login na Azure
         uses: azure/login@v2
@@ -27,8 +29,11 @@ jobs:
         env:
           AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
           AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
+          SSH_PRIVATE_KEY: ${{ secrets.MC_VM_SSH_PRIVATE_KEY }}
+
         run: |
           set -euo pipefail
+
           RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:?Falta AZURE_RESOURCE_GROUP}"
           VM_NAME="${AZURE_VM_NAME:?Falta AZURE_VM_NAME}"
 
@@ -37,6 +42,7 @@ jobs:
             --name "$VM_NAME" \
             --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus | [0]" \
             -o tsv)
+
           VM_STATUS="${VM_STATUS:-Unknown}"
 
           IP=""
@@ -47,57 +53,139 @@ jobs:
           PLAYER_NAMES="[]"
 
           if [ "$VM_STATUS" = "VM running" ]; then
+
             IP=$(az vm list-ip-addresses \
               --resource-group "$RESOURCE_GROUP" \
               --name "$VM_NAME" \
               --query "[0].virtualMachine.network.publicIpAddresses[0].ipAddress" \
               -o tsv 2>/dev/null || true)
+
             [ "$IP" = "None" ] && IP=""
 
             if [ -n "$IP" ] && timeout 5 bash -c "echo > /dev/tcp/$IP/25565" 2>/dev/null; then
               PORT_OPEN="true"
             fi
 
-            RUN_RESULT=$(az vm run-command invoke \
-              --resource-group "$RESOURCE_GROUP" \
-              --name "$VM_NAME" \
-              --command-id RunShellScript \
-              --scripts '
-                DOCKER_STATE="inactive"
-                CONTAINER_STATE="not_found"
-                PLAYER_COUNT="0"
-                PLAYER_NAMES=""
+            REMOTE_STATUS=""
 
-                if systemctl is-active --quiet docker; then
-                  DOCKER_STATE="active"
-                fi
+            # Tentar primeiro por SSH
+            if [ -n "$IP" ] && [ -n "${SSH_PRIVATE_KEY:-}" ]; then
 
-                if docker inspect mc-server >/dev/null 2>&1; then
-                  CONTAINER_STATE=$(docker inspect -f "{{.State.Status}}" mc-server)
-                  if [ "$CONTAINER_STATE" = "running" ]; then
-                    PLAYERS=$(timeout 10 docker exec mc-server rcon-cli list 2>/dev/null || true)
-                    PLAYER_COUNT=$(printf "%s\n" "$PLAYERS" | sed -n "s/.*There are \([0-9][0-9]*\) of.*/\1/p" | head -n1)
-                    PLAYER_NAMES=$(printf "%s\n" "$PLAYERS" | sed -n "s/.*players online: *//p" | tail -n1)
-                    [ -z "$PLAYER_COUNT" ] && PLAYER_COUNT="0"
+              KEY_FILE=$(mktemp)
+              trap 'rm -f "$KEY_FILE"' EXIT
+
+              printf '%s\n' "$SSH_PRIVATE_KEY" > "$KEY_FILE"
+              chmod 600 "$KEY_FILE"
+
+              echo "A tentar consultar a VM por SSH..."
+
+              REMOTE_STATUS=$(timeout 20 ssh \
+                -i "$KEY_FILE" \
+                -o BatchMode=yes \
+                -o StrictHostKeyChecking=accept-new \
+                -o ConnectTimeout=8 \
+                "azureuser@$IP" \
+                'sudo bash -s' <<'REMOTE' || true
+
+          set -e
+
+          DOCKER_STATE="inactive"
+          CONTAINER_STATE="not_found"
+          PLAYER_COUNT="0"
+          PLAYER_NAMES=""
+
+          if systemctl is-active --quiet docker; then
+            DOCKER_STATE="active"
+          fi
+
+          if docker inspect mc-server >/dev/null 2>&1; then
+
+            CONTAINER_STATE=$(docker inspect -f '{{.State.Status}}' mc-server)
+
+            if [ "$CONTAINER_STATE" = "running" ]; then
+
+              PLAYERS=$(timeout 8 docker exec mc-server rcon-cli list 2>/dev/null || true)
+
+              PLAYER_COUNT=$(printf '%s\n' "$PLAYERS" |
+                sed -n 's/.*There are \([0-9][0-9]*\) of.*/\1/p' |
+                head -n1)
+
+              PLAYER_NAMES=$(printf '%s\n' "$PLAYERS" |
+                sed -n 's/.*players online: *//p' |
+                tail -n1)
+
+              [ -z "$PLAYER_COUNT" ] && PLAYER_COUNT="0"
+
+            fi
+          fi
+
+          export DOCKER_STATE CONTAINER_STATE PLAYER_COUNT PLAYER_NAMES
+
+          python3 -c 'import json,os; print("MC_STATUS_JSON:" + json.dumps({"docker":os.environ["DOCKER_STATE"],"container":os.environ["CONTAINER_STATE"],"players":int(os.environ["PLAYER_COUNT"]),"player_names":[n.strip() for n in os.environ["PLAYER_NAMES"].split(",") if n.strip()]},separators=(",",":")))'
+
+          REMOTE
+              )
+
+            fi
+
+            # Se SSH falhar, utilizar Azure Run Command
+            if [ -z "$REMOTE_STATUS" ]; then
+
+              echo "SSH indisponível. A utilizar Azure Run Command..."
+
+              RUN_RESULT=$(az vm run-command invoke \
+                --resource-group "$RESOURCE_GROUP" \
+                --name "$VM_NAME" \
+                --command-id RunShellScript \
+                --scripts '
+                  DOCKER_STATE="inactive"
+                  CONTAINER_STATE="not_found"
+                  PLAYER_COUNT="0"
+                  PLAYER_NAMES=""
+
+                  if systemctl is-active --quiet docker; then
+                    DOCKER_STATE="active"
                   fi
-                fi
 
-                export DOCKER_STATE CONTAINER_STATE PLAYER_COUNT PLAYER_NAMES
-                python3 -c "import json,os; print(\"MC_STATUS_JSON:\" + json.dumps({\"docker\":os.environ[\"DOCKER_STATE\"],\"container\":os.environ[\"CONTAINER_STATE\"],\"players\":int(os.environ[\"PLAYER_COUNT\"]),\"player_names\":[n.strip() for n in os.environ[\"PLAYER_NAMES\"].split(\",\") if n.strip()]},separators=(\",\",\":\")))"
-              ' --output json)
+                  if docker inspect mc-server >/dev/null 2>&1; then
+                    CONTAINER_STATE=$(docker inspect -f "{{.State.Status}}" mc-server)
 
-            REMOTE_STATUS=$(printf '%s' "$RUN_RESULT" | python3 -c '
+                    if [ "$CONTAINER_STATE" = "running" ]; then
+                      PLAYERS=$(timeout 10 docker exec mc-server rcon-cli list 2>/dev/null || true)
+
+                      PLAYER_COUNT=$(printf "%s\n" "$PLAYERS" |
+                        sed -n "s/.*There are \([0-9][0-9]*\) of.*/\1/p" |
+                        head -n1)
+
+                      PLAYER_NAMES=$(printf "%s\n" "$PLAYERS" |
+                        sed -n "s/.*players online: *//p" |
+                        tail -n1)
+
+                      [ -z "$PLAYER_COUNT" ] && PLAYER_COUNT="0"
+                    fi
+                  fi
+
+                  export DOCKER_STATE CONTAINER_STATE PLAYER_COUNT PLAYER_NAMES
+
+                  python3 -c "import json,os; print(\"MC_STATUS_JSON:\" + json.dumps({\"docker\":os.environ[\"DOCKER_STATE\"],\"container\":os.environ[\"CONTAINER_STATE\"],\"players\":int(os.environ[\"PLAYER_COUNT\"]),\"player_names\":[n.strip() for n in os.environ[\"PLAYER_NAMES\"].split(\",\") if n.strip()]},separators=(\",\",\":\")))"
+                ' --output json)
+
+              REMOTE_STATUS=$(printf '%s' "$RUN_RESULT" | python3 -c '
           import json,sys
           data=json.load(sys.stdin)
           messages="\n".join(x.get("message","") for x in data.get("value",[]))
           marker="MC_STATUS_JSON:"
           line=next((x for x in messages.splitlines() if marker in x), "")
           print(line.split(marker,1)[1] if line else "{}")
-          ')
+              ')
+
+            fi
+
             DOCKER=$(echo "$REMOTE_STATUS" | jq -r '.docker // "unknown"')
             CONTAINER=$(echo "$REMOTE_STATUS" | jq -r '.container // "unknown"')
             PLAYER_COUNT=$(echo "$REMOTE_STATUS" | jq -r '.players // 0')
             PLAYER_NAMES=$(echo "$REMOTE_STATUS" | jq -c '.player_names // []')
+
           fi
 
           RESULT=$(jq -cn \
@@ -119,22 +207,28 @@ jobs:
           REQUEST_ID: ${{ inputs.request_id }}
           STATUS_JSON: ${{ steps.status.outputs.status_json }}
           WORKER_URL: "https://mc-start-control.luismariohernandezsantos.workers.dev"
+
         shell: bash
         run: |
           set -euo pipefail
+
           node <<'NODE'
           const crypto = require("crypto");
 
           (async () => {
             const password = process.env.ACCESS_PASSWORD;
+
             if (!password || password.length < 20) {
               throw new Error("Falta configurar o secret ACCESS_PASSWORD no GitHub.");
             }
 
             const salt = crypto.randomBytes(16);
             const iv = crypto.randomBytes(12);
+
             const key = crypto.pbkdf2Sync(password, salt, 100000, 32, "sha256");
+
             const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+
             const encrypted = Buffer.concat([
               cipher.update(process.env.STATUS_JSON, "utf8"),
               cipher.final(),
@@ -160,7 +254,9 @@ jobs:
             if (!response.ok) {
               throw new Error("O Worker recusou o resultado (" + response.status + ").");
             }
+
             console.log("Resultado enviado e guardado temporariamente.");
+
           })().catch(error => {
             console.error(error.message);
             process.exitCode = 1;
