@@ -45,10 +45,35 @@ jobs:
           AGENT_B64="$(base64 -w0 vm/mc-agent.py)"
           SCRIPT="set -eu
           install -d -m 0755 /opt/mc-agent
-          printf '%s' '$AGENT_B64' | base64 -d > /opt/mc-agent/mc-agent.py
-          chmod 0755 /opt/mc-agent/mc-agent.py
-          systemctl restart mc-private-agent.service
-          systemctl is-active --quiet mc-private-agent.service
+          TARGET=/opt/mc-agent/mc-agent.py
+          TMP=\$(mktemp /opt/mc-agent/mc-agent.py.XXXXXX)
+          BACKUP=/opt/mc-agent/mc-agent.py.rollback.\$\$
+          HAD_OLD=0
+          if [ -f \"\$TARGET\" ]; then
+            cp -p \"\$TARGET\" \"\$BACKUP\"
+            HAD_OLD=1
+          fi
+          trap 'rm -f \"\$TMP\"' EXIT
+          printf '%s' '$AGENT_B64' | base64 -d > \"\$TMP\"
+          chmod 0755 \"\$TMP\"
+          python3 -c 'import pathlib,sys; compile(pathlib.Path(sys.argv[1]).read_text(encoding=\"utf-8\"), sys.argv[1], \"exec\")' \"\$TMP\"
+          mv -f \"\$TMP\" \"\$TARGET\"
+
+          if ! systemctl restart mc-private-agent.service || \
+             ! systemctl is-active --quiet mc-private-agent.service || \
+             ! python3 -c 'import json,urllib.request; response=urllib.request.urlopen(\"http://127.0.0.1:8765/status\", timeout=8); data=json.load(response); assert data.get(\"ok\") is True'; then
+            echo 'O novo agente falhou na verificacao; a restaurar a versao anterior.'
+            if [ \"\$HAD_OLD\" = 1 ]; then
+              mv -f \"\$BACKUP\" \"\$TARGET\"
+              systemctl restart mc-private-agent.service || true
+            else
+              rm -f \"\$TARGET\"
+              systemctl stop mc-private-agent.service || true
+            fi
+            exit 1
+          fi
+
+          rm -f \"\$BACKUP\"
           echo AGENT_DEPLOY_OK"
 
           RESULT=$(az vm run-command invoke \
