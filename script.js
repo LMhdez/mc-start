@@ -37,6 +37,7 @@ const translations = {
     modDescEssentialCommands:"Acrescenta comandos como teletransporte, casas, regresso e warps.",
     modDescChunky:"Gera antecipadamente chunks para preparar áreas do mundo.",
     modDescGeyser:"Permite que jogadores Bedrock entrem num servidor Minecraft Java.",
+    modDescKrypton:"Otimiza a rede do servidor, tornando o processamento e o envio de pacotes mais eficientes e reduzindo o overhead de comunicação.",
     pluginsLabel:"Plugins", noModsDetected:"Não foram encontrados mods instalados na pasta do servidor.", updatedAtLabel:"Atualizado",
 
     azureShort:"Máquina virtual · infraestrutura cloud", linuxShort:"Sistema operativo · APT · systemd", dockerShort:"Contentorização · mc-server", minecraftShort:"Servidor de jogo · RCON", pythonShort:"Agente privado de monitorização", tunnelShort:"Comunicação privada com o agente", internalAdmin:"Administração interna", remoteManagement:"Gestão remota", compatibility:"Compatibilidade",
@@ -123,6 +124,7 @@ const translations = {
     modDescEssentialCommands:"Añade comandos como teletransporte, casas, regreso y warps.",
     modDescChunky:"Genera chunks por adelantado para preparar zonas del mundo.",
     modDescGeyser:"Permite que jugadores de Bedrock entren en un servidor Minecraft Java.",
+    modDescKrypton:"Optimiza la red del servidor, haciendo más eficiente el procesamiento y el envío de paquetes y reduciendo la sobrecarga de comunicación.",
     pluginsLabel:"Plugins", noModsDetected:"No se encontraron mods instalados en la carpeta del servidor.", updatedAtLabel:"Actualizado",
 
     azureShort:"Máquina virtual · infraestructura cloud", linuxShort:"Sistema operativo · APT · systemd", dockerShort:"Contenedores · mc-server", minecraftShort:"Servidor de juego · RCON", pythonShort:"Agente privado de monitorización", tunnelShort:"Comunicación privada con el agente", internalAdmin:"Administración interna", remoteManagement:"Gestión remota", compatibility:"Compatibilidad",
@@ -209,6 +211,7 @@ const translations = {
     modDescEssentialCommands:"Adds commands such as teleport, homes, back and warps.",
     modDescChunky:"Pre-generates chunks to prepare areas of the world.",
     modDescGeyser:"Allows Bedrock players to join a Minecraft Java server.",
+    modDescKrypton:"Optimizes the server network stack, making packet processing and transmission more efficient and reducing communication overhead.",
     pluginsLabel:"Plugins", noModsDetected:"No installed mods were found in the server folder.", updatedAtLabel:"Updated",
 
     azureShort:"Virtual machine · cloud infrastructure", linuxShort:"Operating system · APT · systemd", dockerShort:"Containerization · mc-server", minecraftShort:"Game server · RCON", pythonShort:"Private monitoring agent", tunnelShort:"Private connection to the agent", internalAdmin:"Internal administration", remoteManagement:"Remote management", compatibility:"Compatibility",
@@ -585,7 +588,8 @@ function renderTechnicalSpecs(d) {
       essential_commands: t.modDescEssentialCommands,
       "essential-commands": t.modDescEssentialCommands,
       chunky: t.modDescChunky,
-      "geyser-fabric": t.modDescGeyser
+      "geyser-fabric": t.modDescGeyser,
+      krypton: t.modDescKrypton
     };
     mods.forEach(mod => {
       const item = document.createElement("article");
