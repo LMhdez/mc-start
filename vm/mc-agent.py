@@ -298,7 +298,7 @@ def read_technical():
                 item["status"] = "loaded" if container_state == "running" else "last_loaded"
                 mods.append(item)
 
-        mod_count_matches = re.findall(r"Loading (\\d+) mods:", logs)
+        mod_count_matches = re.findall(r"Loading (\d+) mods:", logs)
         mod_count = len(mods)
         fabric_total = int(mod_count_matches[-1]) if mod_count_matches else len(loaded_entries)
 
