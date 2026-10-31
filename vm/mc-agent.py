@@ -225,13 +225,13 @@ def read_technical():
                                 match = re.search(r"(?m)^" + key + r":\s*(.+)$", metadata)
                                 if match:
                                     item[target] = match.group(1).strip().strip('"').strip("'")
-                    if icon_path and isinstance(icon_path, str) and ".." not in icon_path.split("/"):
-                        extension = os.path.splitext(icon_path.lower())[1]
-                        mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif"}.get(extension)
-                        if mime and icon_path in names:
-                            image_bytes = archive.read(icon_path)
-                            if 0 < len(image_bytes) <= 131072:
-                                item["icon"] = "data:" + mime + ";base64," + base64.b64encode(image_bytes).decode("ascii")
+                        if icon_path and isinstance(icon_path, str) and ".." not in icon_path.split("/"):
+                            extension = os.path.splitext(icon_path.lower())[1]
+                            mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif"}.get(extension)
+                            if mime and icon_path in names:
+                                image_bytes = archive.read(icon_path)
+                                if 0 < len(image_bytes) <= 131072:
+                                    item["icon"] = "data:" + mime + ";base64," + base64.b64encode(image_bytes).decode("ascii")
                 except Exception:
                     pass
                 item["description"] = item["description"][:400]
