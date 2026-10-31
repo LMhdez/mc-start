@@ -151,6 +151,49 @@ async function getAzureVmPowerState(env) {
   return states[power.code] || null;
 }
 
+async function getAzureVmPublicIp(env) {
+  const accessToken = await getAzureAccessToken(env);
+  if (!accessToken) return "";
+
+  const headers = { "Authorization": "Bearer " + accessToken };
+
+  // Obter a NIC associada a esta VM.
+  const vmResponse = await fetch(
+    "https://management.azure.com/" + azureVmResource(env) + "?api-version=2024-07-01",
+    { headers }
+  );
+  if (!vmResponse.ok) throw new Error("Azure VM network lookup failed");
+  const vmData = await vmResponse.json();
+
+  const interfaces = vmData.networkProfile?.networkInterfaces || [];
+  const nicReference = interfaces.find(item => item.properties?.primary) || interfaces[0];
+  const nicId = nicReference?.id;
+  if (!nicId || !nicId.startsWith("/subscriptions/")) return "";
+
+  const nicResponse = await fetch(
+    "https://management.azure.com" + nicId + "?api-version=2024-05-01",
+    { headers }
+  );
+  if (!nicResponse.ok) throw new Error("Azure NIC lookup failed");
+  const nicData = await nicResponse.json();
+
+  const configurations = nicData.properties?.ipConfigurations || [];
+  const publicIpId = configurations
+    .map(item => item.properties?.publicIPAddress?.id)
+    .find(Boolean);
+  if (!publicIpId || !publicIpId.startsWith("/subscriptions/")) return "";
+
+  const publicIpResponse = await fetch(
+    "https://management.azure.com" + publicIpId + "?api-version=2024-05-01",
+    { headers }
+  );
+  if (!publicIpResponse.ok) throw new Error("Azure public IP lookup failed");
+  const publicIpData = await publicIpResponse.json();
+
+  const ip = publicIpData.properties?.ipAddress;
+  return typeof ip === "string" ? ip.trim() : "";
+}
+
 async function performAzureVmAction(env, action) {
   if (!["start", "deallocate"].includes(action)) {
     throw new Error("Azure VM action is not allowed");
@@ -358,7 +401,16 @@ export default {
           try {
             const agent = await callPrivateAgent(env, "/status");
             if (agent.result && typeof agent.result === "object") {
-              return json({ ok: true, immediate: true, result: agent.result }, 200, origin);
+              const result = { ...agent.result };
+              if (!result.ip) {
+                try {
+                  result.ip = await getAzureVmPublicIp(env);
+                } catch (ipError) {
+                  console.error("IP publico Azure indisponivel:", ipError.message);
+                  result.ip = "";
+                }
+              }
+              return json({ ok: true, immediate: true, result }, 200, origin);
             }
             throw new Error("Private MC agent returned an invalid status payload");
           } catch (error) {
