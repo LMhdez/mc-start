@@ -29,6 +29,11 @@ jobs:
             SUBNET_IDS=$(az network nic show --ids "$NIC" --query 'ipConfigurations[].subnet.id' -o tsv)
             if [ -n "$NIC_NSG" ] && [ "$NIC_NSG" != "None" ]; then
               NSG_NAME=$(basename "$NIC_NSG")
+              echo '=== AZURE IDENTITY NETWORK PERMISSIONS ===' >> report.txt
+              APP_ID=$(az account show --query user.name -o tsv)
+              if ! az role assignment list --assignee "$APP_ID" --scope "$NIC_NSG" --include-inherited --query '[].roleDefinitionName' -o tsv >> report.txt 2>/dev/null; then
+                echo 'Role assignments: read denied or unavailable' >> report.txt
+              fi
               echo "NIC NSG: $NSG_NAME" >> report.txt
               if ! az network nsg rule list -g "$RG" --nsg-name "$NSG_NAME" --query "[?direction=='Inbound'].{name:name,access:access,protocol:protocol,priority:priority,sourceAddressPrefix:sourceAddressPrefix,sourceAddressPrefixes:sourceAddressPrefixes,sourcePortRange:sourcePortRange,sourcePortRanges:sourcePortRanges,destinationPortRange:destinationPortRange,destinationPortRanges:destinationPortRanges}" -o json | jq 'map({name,access,protocol,priority,sourcePortRange,sourcePortRanges,destinationPortRange,destinationPortRanges,sourceScope: (([.sourceAddressPrefix] + (.sourceAddressPrefixes // [])) | map(select(. != null and . != "")) | if any(.[]; . == "*" or . == "Internet" or . == "0.0.0.0/0" or . == "::/0") then "ANY/INTERNET" elif any(.[]; . == "VirtualNetwork" or . == "AzureLoadBalancer") then "AZURE SERVICE SCOPE" elif length > 0 then "RESTRICTED (CIDRs redacted)" else "UNSPECIFIED" end)})' >> report.txt 2>nsg-error.txt; then
                 echo 'NIC NSG rules: read denied or unavailable' >> report.txt
