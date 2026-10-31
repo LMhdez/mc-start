@@ -172,7 +172,7 @@ def read_technical():
             timeout=8,
         )
         if result.returncode != 0:
-            return []
+            return [], False
         filenames = [name.strip() for name in result.stdout.splitlines() if name.strip()][:limit]
         found = []
         with tempfile.TemporaryDirectory(prefix="mc-metadata-") as temp_dir:
