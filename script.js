@@ -332,7 +332,7 @@ function renderStatus(result) {
   if (count) count.textContent = result.players == null ? "—" : String(result.players);
   if (names) names.textContent = Array.isArray(result.player_names)
     ? (result.player_names.length ? result.player_names.join(", ") : t.noPlayers)
-    : t.unknownStatus;
+    : (result.players === 0 ? t.noPlayers : t.unknownStatus);
 
   if (details) {
     const values = [
