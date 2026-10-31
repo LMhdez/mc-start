@@ -32,6 +32,17 @@ jobs:
         run: |
           set -euo pipefail
 
+          VM_STATUS=$(az vm get-instance-view \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_VM_NAME" \
+            --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus | [0]" \
+            -o tsv)
+
+          if [[ "$VM_STATUS" != "VM running" ]]; then
+            echo "VM desligada; agente sera atualizado automaticamente no proximo arranque."
+            exit 0
+          fi
+
           AGENT_B64="$(base64 -w0 vm/mc-agent.py)"
           SCRIPT="set -eu
           install -d -m 0755 /opt/mc-agent
