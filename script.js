@@ -19,7 +19,7 @@ const translations = {
     stackLabel:"ARQUITETURA E VERSÕES", stackTitle:"Arquitetura e versões", stackIntro:"Componentes da infraestrutura, do sistema e do servidor de jogo, reunidos numa única grelha com as versões detetadas.",
     azureName:"Microsoft Azure", azureComponent:"Máquina virtual", azureDescription:"Infraestrutura cloud que aloja a máquina virtual do servidor.",
     architectureIntro:"Percurso desde a infraestrutura cloud até ao servidor de jogo e à monitorização.",
-    vmStatusLabel:"ESTADO DA MÁQUINA VIRTUAL",
+    vmStatusLabel:"ESTADO DO SERVIDOR",
     connectionSectionLabel:"LIGAÇÃO AO SERVIDOR", connectionTitleShort:"Endereços e plataformas",
     javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Bedrock · Geyser necessário; UDP não verificado",
     versionsHeading:"VERSÕES DETETADAS", versionsTitle:"Software e versões",
@@ -41,14 +41,14 @@ const translations = {
     pluginsLabel:"Plugins", noModsDetected:"Não foram encontrados mods instalados na pasta do servidor.", updatedAtLabel:"Atualizado",
 
     azureShort:"Máquina virtual · infraestrutura cloud", linuxShort:"Sistema operativo · APT · systemd", dockerShort:"Contentorização · mc-server", minecraftShort:"Servidor de jogo · RCON", pythonShort:"Agente privado de monitorização", tunnelShort:"Comunicação privada com o agente", internalAdmin:"Administração interna", remoteManagement:"Gestão remota", compatibility:"Compatibilidade",
-    languageLabel: "IDIOMA", panelLabel: "PAINEL TÉCNICO",
-    eyebrow: "INFRAESTRUTURA E MONITORIZAÇÃO", pageTitle: "Informação do servidor",
+    languageLabel: "Idioma", adminEyebrow: "ADMINISTRAÇÃO", adminTitle: "Controlos do servidor", adminCopy: "Ações de gestão protegidas por palavra-passe. Estes controlos não são necessários para jogar.", panelLabel: "PAINEL TÉCNICO",
+    eyebrow: "O TEU MUNDO. À TUA MANEIRA.", pageTitle: "O teu servidor. As tuas regras.",
     architectureLabel: "ARQUITETURA", architectureTitle: "Como o servidor funciona",
     architectureAzure: "Azure VM", architectureAzureCopy: "Máquina virtual e recursos cloud",
     architectureHost: "Linux + Docker", architectureHostCopy: "Sistema operativo e contentor do jogo",
     architectureGame: "Minecraft", architectureGameCopy: "Servidor Java e gestão através de RCON",
     architectureControl: "Cloudflare Tunnel", architectureControlCopy: "Ligação privada ao agente de monitorização",
-    pageCopy: "Estado operacional, componentes identificados e detalhes de compatibilidade. Os dados não confirmados são assinalados como tal.",
+    pageCopy: "Consulta se o servidor está online, vê quem está a jogar e encontra os dados para te ligares.",
     serverStatus: "ESTADO EM TEMPO REAL",
     verifiedHeading: "COMPONENTES IDENTIFICADOS NO PROJETO", stackTitle: "Infraestrutura do servidor",
     verifiedNote: "Informação confirmada pela configuração e pelos scripts existentes no repositório. Não representa uma leitura automática de versões instaladas.",
@@ -90,11 +90,11 @@ const translations = {
     searchingPrivate: "A consultar o estado privado do servidor através do Cloudflare Tunnel...",
     checkingPrivate: "Pedido enviado. A aguardar pelo resultado da verificação...",
     serverInitializing: "A preparar as ligações Java e Bedrock…",
-    bedrockStateLabel: "Ligação Bedrock · Geyser",
-    bedrockReady: "Pronta",
+    bedrockStateLabel: "Bedrock · estado do Geyser",
+    bedrockReady: "Geyser ativo · UDP não testado",
     bedrockInitializing: "A preparar",
     bedrockUnavailable: "Não confirmada",
-    startComplete: "Servidor online! Minecraft e ligações Java/Bedrock estão prontas.",
+    startComplete: "Servidor online. O serviço Minecraft está pronto; a ligação Bedrock externa não foi testada.",
     stopComplete: "Servidor desligado. A VM foi desalocada na Azure.",
     operationTimeout: "O pedido foi aceite, mas a operação ainda não terminou. O estado mais recente está apresentado acima. Consulta novamente daqui a pouco.",
     waiting: "A resposta costuma chegar em 15–25 segundos. O arranque da máquina virtual pode demorar mais.", wrongPassword: "Palavra-passe incorreta.",
@@ -108,7 +108,7 @@ const translations = {
     stackLabel:"ARQUITECTURA Y VERSIONES", stackTitle:"Arquitectura y versiones", stackIntro:"Componentes de la infraestructura, el sistema y el servidor de juego, reunidos en una única cuadrícula con las versiones detectadas.",
     azureName:"Microsoft Azure", azureComponent:"Máquina virtual", azureDescription:"Infraestructura cloud que aloja la máquina virtual del servidor.",
     architectureIntro:"Desde la infraestructura cloud hasta el servidor de juego y la monitorización.",
-    vmStatusLabel:"ESTADO DE LA MÁQUINA VIRTUAL",
+    vmStatusLabel:"ESTADO DEL SERVIDOR",
     connectionSectionLabel:"CONEXIÓN AL SERVIDOR", connectionTitleShort:"Direcciones y plataformas",
     javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Bedrock · requiere Geyser; UDP no verificado",
     versionsHeading:"VERSIONES DETECTADAS", versionsTitle:"Software y versiones",
@@ -130,14 +130,14 @@ const translations = {
     pluginsLabel:"Plugins", noModsDetected:"No se encontraron mods instalados en la carpeta del servidor.", updatedAtLabel:"Actualizado",
 
     azureShort:"Máquina virtual · infraestructura cloud", linuxShort:"Sistema operativo · APT · systemd", dockerShort:"Contenedores · mc-server", minecraftShort:"Servidor de juego · RCON", pythonShort:"Agente privado de monitorización", tunnelShort:"Comunicación privada con el agente", internalAdmin:"Administración interna", remoteManagement:"Gestión remota", compatibility:"Compatibilidad",
-    languageLabel: "IDIOMA", panelLabel: "PANEL TÉCNICO",
-    eyebrow: "INFRAESTRUCTURA Y MONITORIZACIÓN", pageTitle: "Información del servidor",
+    languageLabel: "Idioma", adminEyebrow: "ADMINISTRACIÓN", adminTitle: "Controles del servidor", adminCopy: "Acciones de gestión protegidas por contraseña. No necesitas estos controles para jugar.", panelLabel: "PANEL TÉCNICO",
+    eyebrow: "TU MUNDO. A TU MANERA.", pageTitle: "Tu servidor. Tus reglas.",
     architectureLabel: "ARQUITECTURA", architectureTitle: "Cómo funciona el servidor",
     architectureAzure: "Azure VM", architectureAzureCopy: "Máquina virtual e infraestructura cloud",
     architectureHost: "Linux + Docker", architectureHostCopy: "Sistema operativo y contenedor del juego",
     architectureGame: "Minecraft", architectureGameCopy: "Servidor Java y administración mediante RCON",
     architectureControl: "Cloudflare Tunnel", architectureControlCopy: "Conexión privada al agente de monitorización",
-    pageCopy: "Estado de la VM, conexión al juego y versiones del software en ejecución.",
+    pageCopy: "Comprueba si el servidor está en línea, quién está jugando y cómo conectarte.",
     serverStatus: "ESTADO EN TIEMPO REAL",
     verifiedHeading: "COMPONENTES IDENTIFICADOS EN EL PROYECTO", stackTitle: "Infraestructura del servidor",
     verifiedNote: "Información confirmada por la configuración y los scripts del repositorio. No representa una lectura automática de las versiones instaladas.",
@@ -179,11 +179,11 @@ const translations = {
     searchingPrivate: "Consultando el estado privado del servidor a través de Cloudflare Tunnel...",
     checkingPrivate: "Solicitud enviada. Esperando el resultado de la comprobación...",
     serverInitializing: "Preparando las conexiones Java y Bedrock…",
-    bedrockStateLabel: "Conexión Bedrock · Geyser",
-    bedrockReady: "Lista",
+    bedrockStateLabel: "Bedrock · estado de Geyser",
+    bedrockReady: "Geyser activo · UDP no probado",
     bedrockInitializing: "Preparando",
     bedrockUnavailable: "No confirmada",
-    startComplete: "¡Servidor en línea! Minecraft y las conexiones Java/Bedrock están listas.",
+    startComplete: "Servidor en línea. Minecraft está listo; la conexión Bedrock externa no se ha probado.",
     stopComplete: "Servidor apagado. La VM se ha desasignado en Azure.",
     operationTimeout: "La solicitud fue aceptada, pero la operación aún no ha terminado. El último estado aparece arriba. Vuelve a consultar dentro de un momento.",
     waiting: "La respuesta suele llegar en 15–25 segundos. El arranque de la máquina virtual puede tardar más.", wrongPassword: "Contraseña incorrecta.",
@@ -197,7 +197,7 @@ const translations = {
     stackLabel:"ARCHITECTURE & VERSIONS", stackTitle:"Architecture and versions", stackIntro:"Infrastructure, system and game-server components in one unified grid, with detected versions.",
     azureName:"Microsoft Azure", azureComponent:"Virtual machine", azureDescription:"Cloud infrastructure hosting the server virtual machine.",
     architectureIntro:"From cloud infrastructure to the game server and monitoring.",
-    vmStatusLabel:"VIRTUAL MACHINE STATUS",
+    vmStatusLabel:"SERVER STATUS",
     connectionSectionLabel:"SERVER CONNECTION", connectionTitleShort:"Addresses and platforms",
     javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Bedrock · requires Geyser; UDP unverified",
     versionsHeading:"DETECTED VERSIONS", versionsTitle:"Software and versions",
@@ -219,14 +219,14 @@ const translations = {
     pluginsLabel:"Plugins", noModsDetected:"No installed mods were found in the server folder.", updatedAtLabel:"Updated",
 
     azureShort:"Virtual machine · cloud infrastructure", linuxShort:"Operating system · APT · systemd", dockerShort:"Containerization · mc-server", minecraftShort:"Game server · RCON", pythonShort:"Private monitoring agent", tunnelShort:"Private connection to the agent", internalAdmin:"Internal administration", remoteManagement:"Remote management", compatibility:"Compatibility",
-    languageLabel: "LANGUAGE", panelLabel: "TECHNICAL DASHBOARD",
-    eyebrow: "INFRASTRUCTURE AND MONITORING", pageTitle: "Server information",
+    languageLabel: "Language", adminEyebrow: "ADMINISTRATION", adminTitle: "Server controls", adminCopy: "Password-protected management actions. You do not need these controls to play.", panelLabel: "TECHNICAL DASHBOARD",
+    eyebrow: "YOUR WORLD. YOUR WAY.", pageTitle: "Your server. Your rules.",
     architectureLabel: "ARCHITECTURE", architectureTitle: "How the server works",
     architectureAzure: "Azure VM", architectureAzureCopy: "Virtual machine and cloud resources",
     architectureHost: "Linux + Docker", architectureHostCopy: "Operating system and game container",
     architectureGame: "Minecraft", architectureGameCopy: "Java server managed through RCON",
     architectureControl: "Cloudflare Tunnel", architectureControlCopy: "Private connection to the monitoring agent",
-    pageCopy: "VM status, game connection details and versions of the running software.",
+    pageCopy: "Check whether the server is online, see who is playing and find the details to join.",
     serverStatus: "LIVE STATUS",
     verifiedHeading: "COMPONENTS IDENTIFIED IN THE PROJECT", stackTitle: "Server infrastructure",
     verifiedNote: "Information confirmed by the repository configuration and scripts. This is not an automatic reading of installed software versions.",
@@ -268,11 +268,11 @@ const translations = {
     searchingPrivate: "Checking the private server status through Cloudflare Tunnel...",
     checkingPrivate: "Request sent. Waiting for the status result...",
     serverInitializing: "Preparing Java and Bedrock connections…",
-    bedrockStateLabel: "Bedrock connection · Geyser",
-    bedrockReady: "Ready",
+    bedrockStateLabel: "Bedrock · Geyser status",
+    bedrockReady: "Geyser active · UDP untested",
     bedrockInitializing: "Preparing",
     bedrockUnavailable: "Not confirmed",
-    startComplete: "Server online! Minecraft and Java/Bedrock connections are ready.",
+    startComplete: "Server online. Minecraft is ready; external Bedrock connectivity has not been tested.",
     stopComplete: "Server stopped. The VM has been deallocated in Azure.",
     operationTimeout: "The request was accepted, but the operation has not finished yet. The latest status is shown above. Check again shortly.",
     waiting: "The response usually arrives in 15–25 seconds. Starting the virtual machine may take longer.", wrongPassword: "Incorrect password.",
@@ -317,8 +317,8 @@ function setLanguage(language) {
     feedback.setAttribute("aria-busy", String(lastFeedbackLoading));
   }
   if (languageSelect) languageSelect.value = currentLanguage;
-  document.title = currentLanguage === "pt" ? "Minecraft Server | Painel" :
-    currentLanguage === "es" ? "Minecraft Server | Panel" : "Minecraft Server | Dashboard";
+  document.title = currentLanguage === "pt" ? "Minecraft Server | O teu servidor" :
+    currentLanguage === "es" ? "Minecraft Server | Tu servidor" : "Minecraft Server | Your server";
   const metaDescription = document.querySelector('meta[name="description"]');
   if (metaDescription) metaDescription.content = dictionary.pageCopy;
   try { localStorage.setItem("mc-server-language", currentLanguage); } catch {}
@@ -363,6 +363,7 @@ function renderStatus(result) {
   const details = document.querySelector("#status-details");
 
   if (state) {
+    const previousState = state.textContent;
     const vmStates = {
       "VM deallocated": t.vmDeallocated, "VM running": t.vmRunning,
       "VM stopped": t.vmStopped, "VM starting": t.vmStarting,
@@ -373,6 +374,10 @@ function renderStatus(result) {
       result.docker === "active" && result.container === "running";
     state.textContent = serverReady ? t.serverOnline :
       (initializing ? t.serverInitializing : (vmStates[result.vm] || t.vmUnknown));
+    if (state.textContent !== previousState && previousState !== "—") {
+      const announcement = document.querySelector("#server-announcement");
+      if (announcement) announcement.textContent = state.textContent;
+    }
     const dot = state.closest(".status-pill")?.querySelector(".status-dot");
     if (dot) {
       const pending = result.vm === "VM starting" || result.vm === "VM stopping" ||
