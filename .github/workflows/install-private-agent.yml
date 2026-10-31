@@ -74,10 +74,28 @@ jobs:
             exit 1
           fi
 
+          EXPECTED_HOST_FP=$(az vm run-command invoke \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_VM_NAME" \
+            --command-id RunShellScript \
+            --scripts 'ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256' \
+            --query "value[].message" -o tsv | grep -oE 'SHA256:[A-Za-z0-9+/=]+' | tail -n1)
+          if [ -z "$EXPECTED_HOST_FP" ]; then
+            echo "Não foi possível obter a fingerprint SSH autenticada pela Azure."
+            exit 1
+          fi
+
+          ssh-keyscan -T 10 -t ed25519 "$IP" > "$RUNNER_TEMP/known_hosts" 2>/dev/null
+          ACTUAL_HOST_FP=$(ssh-keygen -lf "$RUNNER_TEMP/known_hosts" -E sha256 | awk '{print $2}')
+          if [ "$ACTUAL_HOST_FP" != "$EXPECTED_HOST_FP" ]; then
+            echo "A fingerprint SSH da VM não corresponde à obtida pela Azure. Ligação cancelada."
+            exit 1
+          fi
+
           printf '%s' "$CLOUDFLARE_TUNNEL_TOKEN" > "$RUNNER_TEMP/cloudflare-tunnel-token"
           chmod 600 "$RUNNER_TEMP/cloudflare-tunnel-token"
 
-          SSH_OPTS="-i $HOME/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10"
+          SSH_OPTS="-i $HOME/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$RUNNER_TEMP/known_hosts -o ConnectTimeout=10"
 
           scp $SSH_OPTS vm/mc-agent.py "azureuser@$IP:/tmp/mc-agent.py"
           scp $SSH_OPTS "$RUNNER_TEMP/cloudflare-tunnel-token" "azureuser@$IP:/tmp/mc-tunnel-token"
