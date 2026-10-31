@@ -504,14 +504,33 @@ function renderTechnicalSpecs(d) {
     mods.forEach(mod => {
       const item = document.createElement("article");
       item.className = "mod-item";
+      const displayName = mod.name || mod.id || mod.file || "Mod";
+      const icon = document.createElement("div");
+      icon.className = "mod-icon";
+      if (typeof mod.icon === "string" &&
+          /^data:image\/(png|jpeg|webp|gif);base64,/i.test(mod.icon) &&
+          mod.icon.length <= 180000) {
+        const image = document.createElement("img");
+        image.src = mod.icon;
+        image.alt = "";
+        image.loading = "lazy";
+        image.decoding = "async";
+        icon.append(image);
+      } else {
+        icon.textContent = String(displayName).trim().charAt(0).toUpperCase() || "M";
+        icon.setAttribute("aria-hidden", "true");
+      }
+      const content = document.createElement("div");
+      content.className = "mod-content";
       const name = document.createElement("strong");
-      name.textContent = mod.name || mod.id || mod.file || "Mod";
+      name.textContent = displayName;
       const version = document.createElement("span");
       version.className = "mod-version";
       version.textContent = mod.version ? "v" + mod.version : unknown;
       const desc = document.createElement("p");
       desc.textContent = descriptions[String(mod.id || "").toLowerCase()] || t.modDescUnavailable;
-      item.append(name, version, desc);
+      content.append(name, version, desc);
+      item.append(icon, content);
       list.append(item);
     });
     section.append(list);
