@@ -178,7 +178,8 @@ const translations = {
   },
   en: {
     hostedOnAzureLabel:"HOSTED ON AZURE",
-    stackLabel:"ARCHITECTURE & SOFTWARE", stackTitle:"Architecture and versions", stackIntro:"An integrated view of the components running and supporting the server, with detected versions.",
+    stackLabel:"ARCHITECTURE & VERSIONS", stackTitle:"Architecture and versions", stackIntro:"Infrastructure, system and game-server components in one unified grid, with detected versions.",
+    azureName:"Microsoft Azure", azureComponent:"Virtual machine", azureDescription:"Cloud infrastructure hosting the server virtual machine.",
     architectureIntro:"From cloud infrastructure to the game server and monitoring.",
     vmStatusLabel:"VIRTUAL MACHINE STATUS",
     connectionSectionLabel:"SERVER CONNECTION", connectionTitleShort:"Addresses and platforms",
