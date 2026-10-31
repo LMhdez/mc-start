@@ -166,7 +166,16 @@ def read_status():
             if geyser_loaded and signaling_ready:
                 geyser_ready = True
                 geyser_state = "ready"
-                geyser_udp_ready = probe_bedrock_udp()
+                container_ip = run_command(
+                    [
+                        "docker", "inspect", "-f",
+                        "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
+                        CONTAINER,
+                    ],
+                    timeout=5,
+                )
+                probe_host = container_ip.stdout.strip() if container_ip.returncode == 0 else ""
+                geyser_udp_ready = probe_bedrock_udp(probe_host) if probe_host else probe_bedrock_udp()
                 geyser_udp_state = "ready" if geyser_udp_ready else "no_response"
 
     return {
