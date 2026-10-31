@@ -102,7 +102,7 @@ const translations = {
     notAllowed: "Origem não autorizada.", rateLimited: "Demasiados pedidos. Aguarda um minuto antes de voltar a tentar.", incomplete: "Configuração do painel incompleta.",
     requestError: "O pedido não foi aceite. Tenta novamente mais tarde.",
     connectionError: "Erro de comunicação com o serviço.",
-    vmState: "Estado da VM", vmDeallocated: "Servidor desligado", vmRunning: "VM ligada", serverOnline: "Servidor online", vmStopped: "Servidor parado", vmStarting: "A iniciar", vmStopping: "A desligar", vmUnknown: "Estado desconhecido", notChecked: "Não verificado", dockerActive: "Ativo", dockerInactive: "Inativo", containerRunning: "Em execução", containerExited: "Parado", containerNotFound: "Não encontrado", dockerState: "Docker", containerState: "Contentor", portState: "Ligação Java", playerNames: "Jogadores", checkedAt: "Verificado", noPlayers: "Ninguém online", statusReady: "Estado atualizado.", statusTimeout: "A verificação ainda não terminou. Tenta consultar novamente daqui a pouco.", portOpen: "Acessível", portClosed: "Inacessível"
+    vmState: "Estado da VM", vmDeallocated: "Servidor desligado", vmRunning: "VM ligada", serverOnline: "Servidor online", vmStopped: "Servidor parado", vmStarting: "A iniciar", vmStopping: "A desligar", vmUnknown: "Estado desconhecido", notChecked: "Não verificado", dockerActive: "Ativo", dockerInactive: "Inativo", containerRunning: "Em execução", containerExited: "Parado", containerNotFound: "Não encontrado", dockerState: "Docker", containerState: "Contentor", portState: "Ligação Java", playerNames: "Jogadores", checkedAt: "Verificado", noPlayers: "Ninguém online", playersProtected: "Privado — mostra o endereço", statusReady: "Estado atualizado.", statusTimeout: "A verificação ainda não terminou. Tenta consultar novamente daqui a pouco.", portOpen: "Acessível", portClosed: "Inacessível"
   },
   es: {
     hostedOnAzureLabel:"ALOJADO EN AZURE",
@@ -195,7 +195,7 @@ const translations = {
     notAllowed: "Origen no autorizado.", rateLimited: "Demasiadas solicitudes. Espera un minuto antes de volver a intentarlo.", incomplete: "La configuración del panel está incompleta.",
     requestError: "No se ha aceptado la solicitud. Inténtalo de nuevo más tarde.",
     connectionError: "Error de comunicación con el servicio.",
-    vmState: "Estado de la VM", vmDeallocated: "Servidor apagado", vmRunning: "VM encendida", serverOnline: "Servidor en línea", vmStopped: "Servidor detenido", vmStarting: "Iniciando", vmStopping: "Apagando", vmUnknown: "Estado desconocido", notChecked: "No comprobado", dockerActive: "Activo", dockerInactive: "Inactivo", containerRunning: "En ejecución", containerExited: "Detenido", containerNotFound: "No encontrado", dockerState: "Docker", containerState: "Contenedor", portState: "Conexión Java", playerNames: "Jugadores", checkedAt: "Comprobado", noPlayers: "Nadie conectado", statusReady: "Estado actualizado.", statusTimeout: "La comprobación aún no ha terminado. Vuelve a consultar dentro de un momento.", portOpen: "Accesible", portClosed: "Inaccesible"
+    vmState: "Estado de la VM", vmDeallocated: "Servidor apagado", vmRunning: "VM encendida", serverOnline: "Servidor en línea", vmStopped: "Servidor detenido", vmStarting: "Iniciando", vmStopping: "Apagando", vmUnknown: "Estado desconocido", notChecked: "No comprobado", dockerActive: "Activo", dockerInactive: "Inactivo", containerRunning: "En ejecución", containerExited: "Detenido", containerNotFound: "No encontrado", dockerState: "Docker", containerState: "Contenedor", portState: "Conexión Java", playerNames: "Jugadores", checkedAt: "Comprobado", noPlayers: "Nadie conectado", playersProtected: "Privado — muestra la dirección", statusReady: "Estado actualizado.", statusTimeout: "La comprobación aún no ha terminado. Vuelve a consultar dentro de un momento.", portOpen: "Accesible", portClosed: "Inaccesible"
   },
   en: {
     hostedOnAzureLabel:"HOSTED ON AZURE",
@@ -288,7 +288,7 @@ const translations = {
     notAllowed: "Origin not authorized.", rateLimited: "Too many requests. Wait one minute before trying again.", incomplete: "The dashboard is not fully configured.",
     requestError: "The request was not accepted. Please try again later.",
     connectionError: "Communication error with the service.",
-    vmState: "VM state", vmDeallocated: "Server offline", vmRunning: "VM running", serverOnline: "Server online", vmStopped: "Server stopped", vmStarting: "Starting", vmStopping: "Stopping", vmUnknown: "Unknown state", notChecked: "Not checked", dockerActive: "Active", dockerInactive: "Inactive", containerRunning: "Running", containerExited: "Stopped", containerNotFound: "Not found", dockerState: "Docker", containerState: "Container", portState: "Java connection", playerNames: "Players", checkedAt: "Checked", noPlayers: "Nobody online", statusReady: "Status updated.", statusTimeout: "The check has not finished yet. Please try checking again shortly.", portOpen: "Reachable", portClosed: "Unreachable"
+    vmState: "VM state", vmDeallocated: "Server offline", vmRunning: "VM running", serverOnline: "Server online", vmStopped: "Server stopped", vmStarting: "Starting", vmStopping: "Stopping", vmUnknown: "Unknown state", notChecked: "Not checked", dockerActive: "Active", dockerInactive: "Inactive", containerRunning: "Running", containerExited: "Stopped", containerNotFound: "Not found", dockerState: "Docker", containerState: "Container", portState: "Java connection", playerNames: "Players", checkedAt: "Checked", noPlayers: "Nobody online", playersProtected: "Private — reveal the address", statusReady: "Status updated.", statusTimeout: "The check has not finished yet. Please try checking again shortly.", portOpen: "Reachable", portClosed: "Unreachable"
   }
 };
 
@@ -296,6 +296,7 @@ let currentLanguage = "pt";
 let lastFeedbackKey = "initialFeedback";
 let lastStatusResult = null;
 let lastPrivateIp = "";
+let lastPrivatePlayerNames = null;
 let lastFeedbackLoading = false;
 let actionInProgress = false;
 let publicStatusInFlight = false;
@@ -407,6 +408,7 @@ function renderStatus(result) {
 
     if (result.vm === "VM deallocated" || result.vm === "VM stopped") {
       lastPrivateIp = "";
+      lastPrivatePlayerNames = null;
       address.textContent = t.addressUnavailable;
     } else if (result.vm === "VM running" && lastPrivateIp) {
       // A consulta publica de 30 em 30 segundos nao deve esconder um IP
@@ -425,10 +427,19 @@ function renderStatus(result) {
     result.docker === "inactive" ||
     (result.docker === "active" && result.container !== "unknown")
   );
+  if (result.private) {
+    lastPrivatePlayerNames = Array.isArray(result.player_names) ? result.player_names : null;
+  }
+  const privateDetailsVisible = Boolean(lastPrivateIp);
   if (count) count.textContent = playersKnown ? String(result.players) : "—";
-  if (names) names.textContent = Array.isArray(result.player_names)
-    ? (result.player_names.length ? result.player_names.join(", ") : t.noPlayers)
-    : (playersKnown && result.players === 0 ? t.noPlayers : t.unknownStatus);
+  if (names) {
+    const visibleNames = result.private && Array.isArray(result.player_names)
+      ? result.player_names
+      : privateDetailsVisible ? lastPrivatePlayerNames : null;
+    names.textContent = Array.isArray(visibleNames)
+      ? (visibleNames.length ? visibleNames.join(", ") : t.noPlayers)
+      : (playersKnown && result.players === 0 ? t.noPlayers : t.playersProtected);
+  }
 
   if (details) {
     const values = [
