@@ -272,38 +272,32 @@ h2 { margin: 0; font-size: clamp(1.4rem, 3vw, 2rem); letter-spacing: -.04em; }
 .technical-section { padding: 48px 0 8px; }
 .section-heading { margin-bottom: 20px; }
 .section-heading .section-copy { margin: 12px 0 0; }
-.tech-grid {
+.architecture-flow {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
-.tech-card {
+.architecture-node {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   min-width: 0;
-  padding: 20px;
+  padding: 18px;
   border: 1px solid var(--border);
   border-radius: 13px;
   background: rgba(255,255,255,.025);
 }
-.tech-category {
+.architecture-index {
   color: var(--green);
-  font-size: .61rem;
-  font-weight: 850;
-  letter-spacing: .13em;
+  font-size: .65rem;
+  font-weight: 900;
+  letter-spacing: .12em;
 }
-.tech-card h3 { margin: 13px 0 9px; font-size: 1.05rem; }
-.tech-card p {
-  margin: 0;
-  color: var(--muted);
-  font-size: .84rem;
-  line-height: 1.65;
-}
-.tech-card code {
-  padding: 2px 5px;
-  border-radius: 5px;
-  background: rgba(131,212,91,.1);
-  color: #c8e8b7;
-  font-size: .8rem;
-}
+.architecture-node strong { color: var(--text); font-size: .95rem; }
+.architecture-node small { color: var(--muted); font-size: .78rem; line-height: 1.5; }
 .spec-list {
   overflow: hidden;
   border: 1px solid var(--border);
@@ -324,31 +318,15 @@ h2 { margin: 0; font-size: clamp(1.4rem, 3vw, 2rem); letter-spacing: -.04em; }
 .spec-row:last-child { border-bottom: 0; }
 .spec-row strong { color: var(--text); text-align: right; font-weight: 700; }
 .compatibility-note { margin-top: 13px; }
-@media (max-width: 800px) {
-  .tech-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
 @media (max-width: 560px) {
   .page-intro { padding: 42px 0 28px; }
   .technical-section { padding-top: 38px; }
-  .tech-grid { grid-template-columns: 1fr; }
   .spec-row { flex-direction: column; gap: 5px; }
   .spec-row strong { text-align: left; }
 }
 
 
-/* Dashboard cards */
-.brand-card { display:grid; grid-template-columns:54px minmax(0,1fr) auto; align-items:center; gap:14px; min-height:112px; }
-.brand-card h3 { margin:0 0 6px; }
-.brand-card p { margin:0; }
-.brand-logo { width:50px;height:50px;display:grid;place-items:center;border-radius:14px;font-weight:900;font-size:1.15rem;letter-spacing:-.06em;background:#26352a;color:#fff; }
-.azure-logo { background:#12334b;color:#50b9ff;font-size:.76rem;letter-spacing:0; }
-.ubuntu-logo { background:#442a23;color:#f47735;font-size:2rem; }
-.docker-logo { background:#123747;font-size:1.65rem; }
-.minecraft-logo { background:#38432b;color:#a7d66f;font-size:1.8rem; }
-.python-logo { background:#25374a;color:#ffd34e; }
-.cloudflare-logo { background:#49391f;color:#f6a623;font-size:1.8rem; }
-.card-state { color:var(--muted);font-size:.58rem;font-weight:850;letter-spacing:.12em; }
-.quick-spec-grid { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px; }
+.quick-spec-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
 .quick-spec { padding:18px;border:1px solid var(--border);border-radius:13px;background:rgba(255,255,255,.025);display:flex;flex-direction:column;gap:7px;min-width:0; }
 .quick-spec span { color:var(--green);font-size:.65rem;font-weight:900;letter-spacing:.12em; }
 .quick-spec strong { font-size:.95rem;overflow-wrap:anywhere; }
@@ -362,11 +340,9 @@ h2 { margin: 0; font-size: clamp(1.4rem, 3vw, 2rem); letter-spacing: -.04em; }
 .detected-sub { display:block;margin-top:5px;color:var(--muted);font-size:.72rem;overflow-wrap:anywhere; }
 .detected-card.is-ok { border-color:rgba(131,212,91,.24); }
 .detected-card.is-bad { border-color:rgba(240,110,90,.25); }
-@media(max-width:800px){.detected-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.quick-spec-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
-@media(max-width:560px){.detected-grid,.quick-spec-grid{grid-template-columns:1fr;}.brand-card{grid-template-columns:46px minmax(0,1fr);}.brand-logo{width:44px;height:44px}.card-state{display:none}}
+@media(max-width:800px){.architecture-flow{grid-template-columns:repeat(2,minmax(0,1fr));}.detected-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.quick-spec-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(max-width:560px){.architecture-flow,.detected-grid,.quick-spec-grid{grid-template-columns:1fr;}}
 
-.brand-logo-img { width:50px;height:50px;object-fit:contain;padding:10px;border-radius:14px;background:#fff; }
-@media(max-width:560px){.brand-logo-img{width:44px;height:44px}}
 
 
 /* Indicador visual para operações demoradas da VM. */
