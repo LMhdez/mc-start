@@ -3,6 +3,9 @@ const API_VERSION = "2022-11-28";
 const STATUS_TTL = 300;
 const RATE_WINDOW = 60;
 const RATE_LIMIT = 10;
+const AUTH_RATE_LIMIT = 20;
+const CALLBACK_RATE_LIMIT = 10;
+const MAX_JSON_BYTES = 64 * 1024;
 
 const WORKFLOWS = {
   start: {
@@ -76,12 +79,40 @@ async function decryptStatus(envelope, password) {
   return JSON.parse(new TextDecoder().decode(clear));
 }
 
+async function readJsonBody(request, maxBytes = MAX_JSON_BYTES) {
+  const contentLength = Number(request.headers.get("Content-Length") || 0);
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) throw new Error("BODY_TOO_LARGE");
+  const raw = await request.text();
+  if (new TextEncoder().encode(raw).byteLength > maxBytes) throw new Error("BODY_TOO_LARGE");
+  try { return JSON.parse(raw); }
+  catch { throw new Error("INVALID_JSON"); }
+}
+
 async function checkRateLimit(env, request, scope = "action", limit = RATE_LIMIT) {
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
   const key = "rate:" + scope + ":" + ip;
-  const current = Number(await env.STATUS_KV.get(key) || "0");
-  if (current >= limit) return false;
-  await env.STATUS_KV.put(key, String(current + 1), { expirationTtl: RATE_WINDOW });
+  const now = Math.floor(Date.now() / 1000);
+  const stored = await env.STATUS_KV.get(key);
+  let record = null;
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (parsed && Number.isFinite(parsed.count) && Number.isFinite(parsed.startedAt)) {
+        record = parsed;
+      } else if (Number.isFinite(Number(stored))) {
+        // Migrate counters written by the previous implementation.
+        record = { count: Number(stored), startedAt: now };
+      }
+    } catch {}
+  }
+  if (!record || now - record.startedAt >= RATE_WINDOW || now < record.startedAt) {
+    record = { count: 0, startedAt: now };
+  }
+  if (record.count >= limit) return false;
+  record.count += 1;
+  // Workers KV is eventually consistent; this is a best-effort per-IP fixed window.
+  // startedAt, rather than the KV TTL, defines the window so each request cannot extend it.
+  await env.STATUS_KV.put(key, JSON.stringify(record), { expirationTtl: RATE_WINDOW });
   return true;
 }
 
@@ -159,18 +190,18 @@ async function getAzureVmPowerState(env, accessToken = null) {
   return states[power.code] || null;
 }
 
-async function performAzureVmAction(env, action) {
+async function performAzureVmAction(env, action, accessToken = null) {
   if (!["start", "deallocate"].includes(action)) {
     throw new Error("Azure VM action is not allowed");
   }
-  const accessToken = await getAzureAccessToken(env);
-  if (!accessToken) throw new Error("Azure credentials are incomplete");
+  const token = accessToken || await getAzureAccessToken(env);
+  if (!token) throw new Error("Azure credentials are incomplete");
 
   const response = await fetch(
     "https://management.azure.com/" + azureVmResource(env) + "/" + action + "?api-version=2024-07-01",
     {
       method: "POST",
-      headers: { "Authorization": "Bearer " + accessToken },
+      headers: { "Authorization": "Bearer " + token },
       body: ""
     }
   );
@@ -202,8 +233,15 @@ export default {
     if (isStatusCallback) {
       if (request.method !== "POST") return json({ ok: false }, 405);
       if (!env.ACCESS_PASSWORD || !env.STATUS_KV) return json({ ok: false }, 503);
+      if (!(request.headers.get("Content-Type") || "").toLowerCase().includes("application/json")) {
+        return json({ ok: false }, 415);
+      }
+      if (!(await checkRateLimit(env, request, "callback", CALLBACK_RATE_LIMIT))) {
+        return json({ ok: false, message: "Demasiados pedidos." }, 429);
+      }
       let body;
-      try { body = await request.json(); } catch { return json({ ok: false }, 400); }
+      try { body = await readJsonBody(request); }
+      catch (error) { return json({ ok: false }, error.message === "BODY_TOO_LARGE" ? 413 : 400); }
       if (!body || typeof body.password !== "string" ||
           !constantTimeEqual(body.password, env.ACCESS_PASSWORD)) {
         return json({ ok: false }, 401);
@@ -227,14 +265,18 @@ export default {
 
     // Endpoints publicos: nunca devolvem IP, nomes de jogadores ou dados de acesso.
     if (url.pathname === "/api/public/status" && request.method === "GET") {
+      if (!env.STATUS_KV) return json({ ok: false, message: "Cache indisponivel." }, 503, origin);
+      if (!(await checkRateLimit(env, request, "public-status", 30))) {
+        return json({ ok: false, message: "Demasiados pedidos. Aguarda um minuto." }, 429, origin);
+      }
       try {
         const vm = await getAzureVmPowerState(env);
         let result = {
           vm: vm || "Unknown",
-          players: 0,
+          players: vm === "VM running" ? null : 0,
           docker: "unknown",
           container: "unknown",
-          port_open: false,
+          port_open: vm === "VM running" ? null : false,
           checked_at: new Date().toISOString()
         };
         if (vm === "VM running") {
@@ -243,10 +285,10 @@ export default {
             const live = agent.result || {};
             result = {
               vm: "VM running",
-              players: Number.isFinite(Number(live.players)) ? Number(live.players) : 0,
+              players: live.players !== null && live.players !== undefined && Number.isFinite(Number(live.players)) ? Number(live.players) : null,
               docker: live.docker || "unknown",
               container: live.container || "unknown",
-              port_open: Boolean(live.port_open),
+              port_open: typeof live.port_open === "boolean" ? live.port_open : null,
               checked_at: live.checked_at || result.checked_at
             };
           } catch (error) {
@@ -262,6 +304,9 @@ export default {
 
     if (url.pathname === "/api/technical" && request.method === "GET") {
       if (!env.STATUS_KV) return json({ ok: false, message: "Cache indisponivel." }, 503, origin);
+      if (!(await checkRateLimit(env, request, "technical", 10))) {
+        return json({ ok: false, message: "Demasiados pedidos. Aguarda um minuto." }, 429, origin);
+      }
       const cacheKey = "technical:public";
       let cached = null;
       const stored = await env.STATUS_KV.get(cacheKey);
@@ -316,13 +361,17 @@ export default {
     if (!(request.headers.get("Content-Type") || "").toLowerCase().includes("application/json")) {
       return json({ ok: false, message: "Pedido invalido." }, 415, origin);
     }
-    if (!env.ACCESS_PASSWORD || env.ACCESS_PASSWORD.length < 20) {
+    if (!env.ACCESS_PASSWORD || env.ACCESS_PASSWORD.length < 20 || !env.STATUS_KV) {
       return json({ ok: false, message: "Configuracao incompleta do painel." }, 503, origin);
+    }
+    if (!(await checkRateLimit(env, request, "auth", AUTH_RATE_LIMIT))) {
+      return json({ ok: false, message: "Demasiadas tentativas. Aguarda um minuto." }, 429, origin);
     }
 
     let body;
-    try { body = await request.json(); } catch {
-      return json({ ok: false, message: "Pedido invalido." }, 400, origin);
+    try { body = await readJsonBody(request); }
+    catch (error) {
+      return json({ ok: false, message: "Pedido invalido." }, error.message === "BODY_TOO_LARGE" ? 413 : 400, origin);
     }
     if (!body || typeof body.password !== "string" ||
         !constantTimeEqual(body.password, env.ACCESS_PASSWORD)) {
@@ -411,11 +460,12 @@ export default {
     // Ligar e desligar diretamente pela API do Azure. As Actions ficam como fallback.
     if (body.action === "start") {
       try {
-        const vmState = await getAzureVmPowerState(env);
+        const accessToken = await getAzureAccessToken(env);
+        const vmState = await getAzureVmPowerState(env, accessToken);
         if (vmState === "VM running" || vmState === "VM starting") {
           return json({ ok: true, message: "O servidor ja esta ligado ou a iniciar." }, 200, origin);
         }
-        await performAzureVmAction(env, "start");
+        await performAzureVmAction(env, "start", accessToken);
         return json({ ok: true, message: "Pedido para ligar o servidor enviado diretamente ao Azure." }, 202, origin);
       } catch (error) {
         console.error("Arranque direto Azure falhou; a usar GitHub Actions:", error.message);
@@ -425,7 +475,9 @@ export default {
       }
     } else if (body.action === "stop") {
       try {
-        const vmState = await getAzureVmPowerState(env);
+        const accessToken = await getAzureAccessToken(env);
+        const vmState = await getAzureVmPowerState(env, accessToken);
+        if (!vmState) throw new Error("Nao foi possivel confirmar o estado da VM.");
         if (vmState === "VM deallocated") {
           return json({ ok: true, message: "O servidor ja esta desligado." }, 200, origin);
         }
@@ -436,7 +488,7 @@ export default {
           // Parar o Minecraft de forma graciosa antes de desalocar a VM.
           await callPrivateAgent(env, "/stop", "POST");
         }
-        await performAzureVmAction(env, "deallocate");
+        await performAzureVmAction(env, "deallocate", accessToken);
         return json({ ok: true, message: "Pedido para desligar o servidor enviado diretamente ao Azure." }, 202, origin);
       } catch (error) {
         console.error("Desligamento direto nao concluido; a usar GitHub Actions:", error.message);
