@@ -52,11 +52,18 @@ jobs:
 
           # Keep Java publicly reachable, but only over its required TCP transport.
           stage="update Java TCP rule"
-          az network nsg rule update -g "$RG" --nsg-name "$NSG" -n Minecraft \
+          if ! az network nsg rule update -g "$RG" --nsg-name "$NSG" -n Minecraft \
             --priority "$EXISTING" --direction Inbound --access Allow --protocol Tcp \
             --source-address-prefixes '*' --source-port-ranges '*' \
             --destination-address-prefixes '*' --destination-port-ranges 25565 \
-            --description "Minecraft Java TCP only"
+            --description "Minecraft Java TCP only" >/dev/null 2>nsg-update-error.txt; then
+            if grep -Eqi 'AuthorizationFailed|does not have authorization|forbidden|\\b403\\b' nsg-update-error.txt; then
+              stage="Azure identity lacks NSG write permission"
+            else
+              stage="Azure rejected Java NSG rule update"
+            fi
+            exit 1
+          fi
 
           # Select a free priority after the existing Minecraft rule.
           stage="inspect Bedrock rule and choose priority"
