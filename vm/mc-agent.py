@@ -143,6 +143,7 @@ def read_status():
     geyser_state = "not_ready"
     geyser_udp_ready = None
     geyser_udp_state = "unknown"
+    geyser_udp_diagnostic = "not_checked"
     if container_state == "running":
         started = run_command(
             ["docker", "inspect", "-f", "{{.State.StartedAt}}", CONTAINER],
@@ -189,6 +190,9 @@ def read_status():
                         timeout=4,
                     )
                     geyser_udp_ready = namespace_result.returncode == 0
+                    geyser_udp_diagnostic = "raknet_response_in_container" if geyser_udp_ready else "container_probe_no_response"
+                else:
+                    geyser_udp_diagnostic = "container_network_namespace_unavailable"
 
                 # Fallback: testa o IP da bridge diretamente a partir da VM.
                 if not geyser_udp_ready:
@@ -201,7 +205,10 @@ def read_status():
                         timeout=5,
                     )
                     probe_host = container_ip.stdout.strip() if container_ip.returncode == 0 else ""
-                    geyser_udp_ready = probe_bedrock_udp(probe_host) if probe_host else probe_bedrock_udp()
+                    bridge_ready = probe_bedrock_udp(probe_host) if probe_host else False
+                    if bridge_ready:
+                        geyser_udp_ready = True
+                        geyser_udp_diagnostic = "raknet_response_via_docker_bridge"
                 geyser_udp_state = "ready" if geyser_udp_ready else "no_response"
 
     return {
@@ -213,6 +220,7 @@ def read_status():
         "geyser_state": geyser_state,
         "geyser_udp_ready": geyser_udp_ready,
         "geyser_udp_state": geyser_udp_state,
+        "geyser_udp_diagnostic": geyser_udp_diagnostic,
         "docker": docker_state,
         "container": container_state,
         "players": players,
