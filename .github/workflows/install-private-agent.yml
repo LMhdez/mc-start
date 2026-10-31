@@ -52,6 +52,16 @@ jobs:
             exit 1
           fi
 
+          VM_STATUS=$(az vm get-instance-view \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_VM_NAME" \
+            --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus | [0]" \
+            -o tsv)
+          if [[ "$VM_STATUS" != "VM running" ]]; then
+            echo "A VM tem de estar ligada para instalar o agente privado (estado: $VM_STATUS)."
+            exit 1
+          fi
+
           IP=$(az vm list-ip-addresses \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --name "$AZURE_VM_NAME" \
@@ -120,19 +130,31 @@ jobs:
             exit 1
           fi
 
-          # Se ainda não existir serviço, instala-o com o token do Tunnel.
-          # O instalador cria o unit file com --token-file.
-          if [ ! -f /etc/systemd/system/cloudflared.service ]; then
-            TOKEN=$(cat /tmp/mc-tunnel-token)
-            cloudflared service install "$TOKEN"
-            unset TOKEN
-          fi
-
-          # cloudflared 2026 pode deixar o unit file criado sem o token.
-          # Recria explicitamente o ficheiro esperado pelo serviço, sem o imprimir.
+          # O token fica num ficheiro root-only; nunca é passado na linha de comandos.
           install -d -o root -g root -m 0700 /etc/cloudflared
           install -o root -g root -m 0600 /tmp/mc-tunnel-token /etc/cloudflared/token
           rm -f /tmp/mc-tunnel-token
+
+          # Recriar sempre o unit file garante que uma rotação do token é aplicada.
+          cat > /etc/systemd/system/cloudflared.service <<'SERVICE'
+          [Unit]
+          Description=Cloudflare Tunnel
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=simple
+          ExecStart=/usr/bin/cloudflared tunnel --no-autoupdate run --token-file /etc/cloudflared/token
+          Restart=on-failure
+          RestartSec=5s
+          NoNewPrivileges=true
+          ProtectSystem=full
+          ProtectHome=true
+          PrivateTmp=true
+
+          [Install]
+          WantedBy=multi-user.target
+          SERVICE
 
           systemctl daemon-reload
           systemctl enable mc-private-agent.service cloudflared.service
