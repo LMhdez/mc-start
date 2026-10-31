@@ -50,7 +50,7 @@ function validIPv4(value) {
   if (typeof value !== "string") return false;
   const parts = value.trim().split(".");
   return parts.length === 4 && parts.every(part =>
-    /^\\d{1,3}$/.test(part) && Number(part) >= 0 && Number(part) <= 255
+    /^\d{1,3}$/.test(part) && Number(part) >= 0 && Number(part) <= 255
   );
 }
 
