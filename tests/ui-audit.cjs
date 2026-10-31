@@ -75,6 +75,34 @@ async function main() {
       failures.push("Skip link/focus indicator check failed: " + JSON.stringify(firstFocus));
     }
     console.log("Keyboard first focus: " + JSON.stringify(firstFocus));
+    const focusedControls = new Set();
+    for (let index = 0; index < 24; index++) {
+      await page.keyboard.press("Tab");
+      const focus = await page.evaluate(() => {
+        const element = document.activeElement;
+        const style = getComputedStyle(element);
+        return {
+          id: element.id,
+          tag: element.tagName.toLowerCase(),
+          outlineStyle: style.outlineStyle,
+          outlineWidth: style.outlineWidth
+        };
+      });
+      if (focus.tag === "body") break;
+      if (focus.id) focusedControls.add(focus.id);
+      if (["a", "button", "input", "select"].includes(focus.tag) &&
+          (focus.outlineStyle === "none" || focus.outlineWidth === "0px")) {
+        failures.push("Missing visible keyboard focus on " + focus.tag + "#" + focus.id);
+      }
+    }
+    for (const requiredId of [
+      "language-select", "access-password", "start-button", "stop-button",
+      "status-button", "private-status-button"
+    ]) {
+      if (!focusedControls.has(requiredId)) {
+        failures.push("Keyboard sequence did not reach #" + requiredId);
+      }
+    }
 
     const languages = [
       ["pt", "Minecraft Server | O teu servidor", "pt"],
