@@ -16,7 +16,8 @@ let lastTechnicalData = null;
 const translations = {
   pt: {
     hostedOnAzureLabel:"ALOJADO NA AZURE",
-    stackLabel:"ARQUITETURA E SOFTWARE", stackTitle:"Arquitetura e versões", stackIntro:"Visão integrada dos componentes que executam e suportam o servidor, com as versões detetadas.",
+    stackLabel:"ARQUITETURA E VERSÕES", stackTitle:"Arquitetura e versões", stackIntro:"Componentes da infraestrutura, do sistema e do servidor de jogo, reunidos numa única grelha com as versões detetadas.",
+    azureName:"Microsoft Azure", azureComponent:"Máquina virtual", azureDescription:"Infraestrutura cloud que aloja a máquina virtual do servidor.",
     architectureIntro:"Percurso desde a infraestrutura cloud até ao servidor de jogo e à monitorização.",
     vmStatusLabel:"ESTADO DA MÁQUINA VIRTUAL",
     connectionSectionLabel:"LIGAÇÃO AO SERVIDOR", connectionTitleShort:"Endereços e plataformas",
@@ -96,7 +97,8 @@ const translations = {
   },
   es: {
     hostedOnAzureLabel:"ALOJADO EN AZURE",
-    stackLabel:"ARQUITECTURA Y SOFTWARE", stackTitle:"Arquitectura y versiones", stackIntro:"Vista integrada de los componentes que ejecutan y soportan el servidor, con las versiones detectadas.",
+    stackLabel:"ARQUITECTURA Y VERSIONES", stackTitle:"Arquitectura y versiones", stackIntro:"Componentes de la infraestructura, el sistema y el servidor de juego, reunidos en una única cuadrícula con las versiones detectadas.",
+    azureName:"Microsoft Azure", azureComponent:"Máquina virtual", azureDescription:"Infraestructura cloud que aloja la máquina virtual del servidor.",
     architectureIntro:"Desde la infraestructura cloud hasta el servidor de juego y la monitorización.",
     vmStatusLabel:"ESTADO DE LA MÁQUINA VIRTUAL",
     connectionSectionLabel:"CONEXIÓN AL SERVIDOR", connectionTitleShort:"Direcciones y plataformas",
@@ -472,6 +474,8 @@ function renderTechnicalSpecs(d) {
       ? String(value) : unknown;
   }
   const brandMarks = {
+    azure: '<svg viewBox="0 0 24 24"><path d="M13.1 2h7.2L11.7 22H4.1L13.1 2Zm-1.5 12.2h8.1l-2.1 4.5h-8.1l2.1-4.5Z" fill="currentColor"/></svg>',
+    ubuntu: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.2" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="3.2" r="2" fill="currentColor"/><circle cx="4.4" cy="16.4" r="2" fill="currentColor"/><circle cx="19.6" cy="16.4" r="2" fill="currentColor"/></svg>',
     linux: '<svg viewBox="0 0 24 24"><path d="M12 2.5c-3.8 0-5.5 3.4-5.5 7.2 0 2.1-1.4 3.1-2 4.8-.5 1.5.2 2.7 1.5 2.7 1.1 0 1.6-1.2 2.4-1.2h7.2c.8 0 1.3 1.2 2.4 1.2 1.3 0 2-1.2 1.5-2.7-.6-1.7-2-2.7-2-4.8 0-3.8-1.7-7.2-5.5-7.2Z" fill="currentColor"/><circle cx="9.5" cy="8.5" r="1" fill="#172015"/><circle cx="14.5" cy="8.5" r="1" fill="#172015"/><path d="m10 12 2 1.4 2-1.4" fill="none" stroke="#172015" stroke-width="1.2" stroke-linecap="round"/></svg>',
     docker: '<svg viewBox="0 0 24 24"><path d="M2 13h19c-.7 4.1-3.3 6.2-7.5 6.2H8.1C4.8 19.2 2.7 17.2 2 13Zm3-4h3v3H5V9Zm4 0h3v3H9V9Zm4 0h3v3h-3V9Zm-4-4h3v3H9V5Zm4 4h3v3h-3V9Zm4 1.2c1.5-1.4 3.1-1.5 4.7-.4-.7 1.1-2.1 1.6-4.2 1.3l-.5-.9Z" fill="currentColor"/></svg>',
     java: '<svg viewBox="0 0 24 24"><path d="M7 13h11l-1 5H9l-2-5Zm11 1h2.2a2 2 0 0 1-2 2H18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 10c-1-1 1-1.5 0-2.5m4 2.5c-1-1 1-1.5 0-2.5M7 20h13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
@@ -521,7 +525,8 @@ function renderTechnicalSpecs(d) {
   const tunnelState = services.cloudflared === "active" ? t.activeStatus :
     services.cloudflared === "inactive" ? t.inactiveStatus : t.unknownStatus;
 
-  addCard(t.techOS, safe(d.os), [d.architecture, kernel].filter(Boolean).join(" · "), "linux");
+  addCard(t.azureName, t.azureComponent, t.azureDescription, "azure");
+  addCard(t.techOS, safe(d.os), [d.architecture, kernel].filter(Boolean).join(" · "), "ubuntu");
   addCard(t.techDocker, dockerCli || dockerEngine, dockerDetails.join(" · "), "docker");
   addCard(t.techJava, versionOnly(d.java), "", "java");
   addCard("Python", versionOnly(d.python), t.agentRuntimeLabel, "python");
