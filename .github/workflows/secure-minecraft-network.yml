@@ -71,11 +71,16 @@ jobs:
             fi
           fi
 
-          az network nsg rule create -g "$RG" --nsg-name "$NSG" -n Minecraft-Bedrock \
-            --priority "$BEDROCK_PRIORITY" --direction Inbound --access Allow --protocol Udp \
-            --source-address-prefixes '*' --source-port-ranges '*' \
-            --destination-address-prefixes '*' --destination-port-ranges 19132 \
-            --description "Minecraft Bedrock UDP only" >/dev/null
+          BEDROCK_ARGS=(-g "$RG" --nsg-name "$NSG" -n Minecraft-Bedrock
+            --priority "$BEDROCK_PRIORITY" --direction Inbound --access Allow --protocol Udp
+            --source-address-prefixes '*' --source-port-ranges '*'
+            --destination-address-prefixes '*' --destination-port-ranges 19132
+            --description "Minecraft Bedrock UDP only")
+          if az network nsg rule show -g "$RG" --nsg-name "$NSG" -n Minecraft-Bedrock >/dev/null 2>&1; then
+            az network nsg rule update "${BEDROCK_ARGS[@]}" >/dev/null
+          else
+            az network nsg rule create "${BEDROCK_ARGS[@]}" >/dev/null
+          fi
 
           # Emit only a non-sensitive summary; never print IPs, CIDRs, credentials, or raw rule objects.
           echo "nsg_name=$NSG" >> "$GITHUB_OUTPUT"
