@@ -79,6 +79,7 @@ button { font: inherit; cursor: pointer; }
   box-shadow: 0 0 12px rgba(131, 212, 91, .55);
 }
 .status-dot-muted { background: #a0a99b; box-shadow: none; }
+.status-dot-pending { background: #e5b85c; box-shadow: 0 0 12px rgba(229, 184, 92, .4); }
 
 .hero { padding: 76px 0 48px; }
 .eyebrow { color: var(--green); margin: 0 0 18px; }
