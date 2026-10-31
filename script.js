@@ -4,12 +4,10 @@ const WORKER_URL = "https://mc-start-control.luismariohernandezsantos.workers.de
 const passwordInput = document.querySelector("#access-password");
 const feedback = document.querySelector("#feedback");
 const languageSelect = document.querySelector("#language-select");
-const buttons = [
-  document.querySelector("#start-button"),
-  document.querySelector("#stop-button"),
-  document.querySelector("#status-button"),
-  document.querySelector("#private-status-button")
-];
+const startButton = document.querySelector("#start-button");
+const stopButton = document.querySelector("#stop-button");
+const statusButton = document.querySelector("#status-button");
+const privateStatusButton = document.querySelector("#private-status-button");
 
 let lastTechnicalData = null;
 
@@ -290,6 +288,18 @@ let lastPrivateIp = "";
 let lastFeedbackLoading = false;
 let actionInProgress = false;
 let publicStatusInFlight = false;
+let adminAuthenticated = false;
+
+function updateActionButtons() {
+  const hasPassword = Boolean(passwordInput?.value);
+  if (startButton) startButton.disabled = actionInProgress || !hasPassword;
+  if (privateStatusButton) privateStatusButton.disabled = actionInProgress || !hasPassword;
+  if (stopButton) {
+    stopButton.hidden = !adminAuthenticated;
+    stopButton.disabled = actionInProgress || !adminAuthenticated;
+  }
+  if (statusButton) statusButton.disabled = actionInProgress || publicStatusInFlight;
+}
 
 function setLanguage(language) {
   currentLanguage = translations[language] ? language : "pt";
@@ -439,7 +449,7 @@ async function requestPublicStatus(showProgress = false) {
   if (actionInProgress || publicStatusInFlight) return;
   publicStatusInFlight = true;
   const button = document.querySelector("#status-button");
-  if (button) button.disabled = true;
+  updateActionButtons();
   if (showProgress) showFeedback("searchingPublic", true);
 
   try {
@@ -452,7 +462,7 @@ async function requestPublicStatus(showProgress = false) {
     if (showProgress) showFeedback("connectionError");
   } finally {
     publicStatusInFlight = false;
-    if (button) button.disabled = false;
+    updateActionButtons();
   }
 }
 
@@ -602,6 +612,12 @@ function renderTechnicalSpecs(d) {
       "geyser-fabric": t.modDescGeyser,
       krypton: t.modDescKrypton
     };
+    const modMarks = {
+      floodgate: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M13 52V29a19 19 0 0 1 38 0v23" fill="none" stroke="#68c9ef" stroke-width="6" stroke-linecap="round"/><path d="M8 52h48" stroke="#68c9ef" stroke-width="6" stroke-linecap="round"/><path d="M16 40c5-5 10 5 15 0s10 5 17 0" fill="none" stroke="#b4ecff" stroke-width="4" stroke-linecap="round"/><circle cx="32" cy="15" r="4" fill="#b4ecff"/></svg>',
+      chunky: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="m32 6 24 13v27L32 59 8 46V19L32 6Z" fill="#8b9b63"/><path d="m8 19 24 13 24-13M32 32v27" fill="none" stroke="#26351f" stroke-width="3"/><path d="m20 12 24 13v9L20 21v-9Z" fill="#c2d48b"/><path d="M16 36v8l7 4v-8l-7-4Zm24 5v8l7-4v-8l-7 4Z" fill="#526b3e"/></svg>',
+      "geyser-fabric": '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M8 48c7-8 13 8 20 0s13 8 20 0 7 1 8 1" fill="none" stroke="#54c8ed" stroke-width="6" stroke-linecap="round"/><path d="M17 39c-5-7 6-10 2-17m14 17c-5-7 6-10 2-17m14 17c-5-7 6-10 2-17" fill="none" stroke="#9ce8ff" stroke-width="5" stroke-linecap="round"/><path d="M7 54h50" stroke="#54c8ed" stroke-width="4" stroke-linecap="round"/></svg>',
+      geyser: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M8 48c7-8 13 8 20 0s13 8 20 0 7 1 8 1" fill="none" stroke="#54c8ed" stroke-width="6" stroke-linecap="round"/><path d="M17 39c-5-7 6-10 2-17m14 17c-5-7 6-10 2-17m14 17c-5-7 6-10 2-17" fill="none" stroke="#9ce8ff" stroke-width="5" stroke-linecap="round"/><path d="M7 54h50" stroke="#54c8ed" stroke-width="4" stroke-linecap="round"/></svg>'
+    };
     mods.forEach(mod => {
       const item = document.createElement("article");
       item.className = "mod-item";
@@ -618,8 +634,14 @@ function renderTechnicalSpecs(d) {
         image.decoding = "async";
         icon.append(image);
       } else {
-        icon.textContent = String(displayName).trim().charAt(0).toUpperCase() || "M";
-        icon.setAttribute("aria-hidden", "true");
+        const modId = String(mod.id || "").toLowerCase();
+        if (modMarks[modId]) {
+          icon.innerHTML = modMarks[modId];
+          icon.setAttribute("aria-hidden", "true");
+        } else {
+          icon.textContent = String(displayName).trim().charAt(0).toUpperCase() || "M";
+          icon.setAttribute("aria-hidden", "true");
+        }
       }
       const content = document.createElement("div");
       content.className = "mod-content";
@@ -685,8 +707,8 @@ async function requestAction(action) {
 
   if (actionInProgress) return;
   actionInProgress = true;
+  updateActionButtons();
   const requestId = action === "status" ? crypto.randomUUID() : null;
-  buttons.forEach(button => button.disabled = true);
 
   if (action === "start") showFeedback("starting", true);
   else if (action === "stop") showFeedback("stopping", true);
@@ -704,12 +726,18 @@ async function requestAction(action) {
     const result = await response.json();
 
     if (!response.ok || !result.ok) {
-      if (response.status === 401) showFeedback("wrongPassword");
-      else if (response.status === 403) showFeedback("notAllowed");
+      if (response.status === 401) {
+        adminAuthenticated = false;
+        updateActionButtons();
+        showFeedback("wrongPassword");
+      } else if (response.status === 403) showFeedback("notAllowed");
       else if (response.status === 503) showFeedback("incomplete");
       else showFeedback("requestError");
       return;
     }
+
+    adminAuthenticated = true;
+    updateActionButtons();
 
     if (action !== "status") {
       await waitForVmAction(action);
@@ -752,9 +780,13 @@ async function requestAction(action) {
     showFeedback("connectionError");
   } finally {
     actionInProgress = false;
-    buttons.forEach(button => button.disabled = false);
+    updateActionButtons();
   }
 }
+passwordInput?.addEventListener("input", () => {
+  adminAuthenticated = false;
+  updateActionButtons();
+});
 passwordInput?.addEventListener("keydown", event => {
   if (event.key === "Enter") {
     event.preventDefault();
