@@ -21,7 +21,7 @@ jobs:
           VM: ${{ secrets.AZURE_VM_NAME }}
         run: |
           set -eu
-          echo '=== ATTACHED NETWORK SECURITY GROUPS ===' > report.txt
+          echo '=== NIC / NETWORK SECURITY GROUP ===' > report.txt
           NIC_IDS=$(az vm show -g "$RG" -n "$VM" --query 'networkProfile.networkInterfaces[].id' -o tsv)
           for NIC in $NIC_IDS; do
             echo "NIC: $(basename "$NIC")" >> report.txt
@@ -30,15 +30,18 @@ jobs:
             if [ -n "$NIC_NSG" ] && [ "$NIC_NSG" != "None" ]; then
               NSG_NAME=$(basename "$NIC_NSG")
               echo "NIC NSG: $NSG_NAME" >> report.txt
-              az network nsg rule list -g "$RG" --nsg-name "$NSG_NAME" --query "[?direction=='Inbound'].{name:name,access:access,protocol:protocol,priority:priority,destinationPortRange:destinationPortRange}" -o json >> report.txt
+              if ! az network nsg rule list -g "$RG" --nsg-name "$NSG_NAME" --query "[?direction=='Inbound'].{name:name,access:access,protocol:protocol,priority:priority,destinationPortRange:destinationPortRange}" -o json >> report.txt 2>nsg-error.txt; then
+                echo 'NIC NSG rules: read denied or unavailable' >> report.txt
+              fi
             else echo 'NIC NSG: none' >> report.txt; fi
             for SUBNET in $SUBNET_IDS; do
-              SUBNET_NSG=$(az network vnet subnet show --ids "$SUBNET" --query 'networkSecurityGroup.id' -o tsv)
-              if [ -n "$SUBNET_NSG" ] && [ "$SUBNET_NSG" != "None" ]; then
-                NSG_NAME=$(basename "$SUBNET_NSG")
-                echo "Subnet NSG: $NSG_NAME" >> report.txt
-                az network nsg rule list -g "$RG" --nsg-name "$NSG_NAME" --query "[?direction=='Inbound'].{name:name,access:access,protocol:protocol,priority:priority,destinationPortRange:destinationPortRange}" -o json >> report.txt
-              else echo 'Subnet NSG: none' >> report.txt; fi
+              if SUBNET_NSG=$(az network vnet subnet show --ids "$SUBNET" --query 'networkSecurityGroup.id' -o tsv 2>/dev/null); then
+                if [ -n "$SUBNET_NSG" ] && [ "$SUBNET_NSG" != "None" ]; then
+                  NSG_NAME=$(basename "$SUBNET_NSG")
+                  echo "Subnet NSG: $NSG_NAME" >> report.txt
+                  if ! az network nsg rule list -g "$RG" --nsg-name "$NSG_NAME" --query "[?direction=='Inbound'].{name:name,access:access,protocol:protocol,priority:priority,destinationPortRange:destinationPortRange}" -o json >> report.txt 2>nsg-error.txt; then echo 'Subnet NSG rules: read denied' >> report.txt; fi
+                else echo 'Subnet NSG: none' >> report.txt; fi
+              else echo 'Subnet NSG: unavailable (Azure RBAC denies subnet read)' >> report.txt; fi
             done
             PUB=$(az network nic show --ids "$NIC" --query 'ipConfigurations[?publicIpAddress!=null].name' -o tsv)
             if [ -n "$PUB" ]; then echo 'Public IP association: YES' >> report.txt; else echo 'Public IP association: NO' >> report.txt; fi
