@@ -61,6 +61,27 @@ def get_public_ip():
         return _PUBLIC_IP_CACHE
 
 
+def probe_bedrock_udp(host="127.0.0.1", port=19132, timeout=1):
+    """Confirma uma resposta RakNet/Geyser UDP no próprio host."""
+    magic = bytes.fromhex("00ffff00fefefefefdfdfdfd12345678")
+    timestamp = int(time.time() * 1000).to_bytes(8, "big", signed=True)
+    client_guid = os.urandom(8)
+    packet = b"\x01" + timestamp + magic + client_guid
+
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            probe.settimeout(timeout)
+            probe.sendto(packet, (host, port))
+            response, _ = probe.recvfrom(2048)
+        return (
+            len(response) >= 35
+            and response[0] == 0x1C
+            and response[17:33] == magic
+        )
+    except OSError:
+        return False
+
+
 def read_status():
     docker_state = "inactive"
     container_state = "not_found"
@@ -119,6 +140,8 @@ def read_status():
     # atual do contentor; uma porta TCP/UDP aberta, por si só, não é suficiente.
     geyser_ready = False
     geyser_state = "not_ready"
+    geyser_udp_ready = None
+    geyser_udp_state = "unknown"
     if container_state == "running":
         started = run_command(
             ["docker", "inspect", "-f", "{{.State.StartedAt}}", CONTAINER],
@@ -142,6 +165,8 @@ def read_status():
             if geyser_loaded and signaling_ready:
                 geyser_ready = True
                 geyser_state = "ready"
+                geyser_udp_ready = probe_bedrock_udp()
+                geyser_udp_state = "ready" if geyser_udp_ready else "no_response"
 
     return {
         "vm": "VM running",
@@ -150,6 +175,8 @@ def read_status():
         "rcon_ready": rcon_ready,
         "geyser_ready": geyser_ready,
         "geyser_state": geyser_state,
+        "geyser_udp_ready": geyser_udp_ready,
+        "geyser_udp_state": geyser_udp_state,
         "docker": docker_state,
         "container": container_state,
         "players": players,
