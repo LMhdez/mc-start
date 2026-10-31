@@ -349,11 +349,11 @@ def read_technical():
 
         logs = output(["docker", "logs", "--tail", "3000", CONTAINER], timeout=12)
         # Remove sequências ANSI antes de analisar logs de diferentes versões do loader.
-        logs = re.sub(r"\\x1B\\[[0-?]*[ -/]*[@-~]", "", logs).replace("\\r", "")
+        logs = re.sub(r"\x1B\[[0-?]*[ -/]*[@-~]", "", logs).replace("\r", "")
         version_patterns = (
-            r"Starting minecraft server version\\s+([0-9]+(?:\\.[0-9]+)+)",
-            r"Loading Minecraft\\s+([0-9]+(?:\\.[0-9]+)+)\\s+with Fabric Loader\\s+([0-9]+(?:\\.[0-9]+)+)",
-            r"Minecraft(?: server)? version\\s*[:=]\\s*([0-9]+(?:\\.[0-9]+)+)",
+            r"Starting minecraft server version\s+([0-9]+(?:\.[0-9]+)+)",
+            r"Loading Minecraft\s+([0-9]+(?:\.[0-9]+)+)\s+with Fabric Loader\s+([0-9]+(?:\.[0-9]+)+)",
+            r"Minecraft(?: server)? version\s*[:=]\s*([0-9]+(?:\.[0-9]+)+)",
         )
         for pattern in version_patterns:
             match = re.search(pattern, logs, re.IGNORECASE)
@@ -371,7 +371,7 @@ def read_technical():
                 timeout=5,
             )
             candidate = configured_version.stdout.strip()
-            if configured_version.returncode == 0 and re.fullmatch(r"[0-9]+(?:\\.[0-9]+)+", candidate):
+            if configured_version.returncode == 0 and re.fullmatch(r"[0-9]+(?:\.[0-9]+)+", candidate):
                 minecraft_version = candidate
 
         if "fabric_loader_version" not in locals():
