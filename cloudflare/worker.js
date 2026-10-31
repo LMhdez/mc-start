@@ -253,18 +253,24 @@ export default {
     if (url.pathname === "/api/technical" && request.method === "GET") {
       if (!env.STATUS_KV) return json({ ok: false, message: "Cache indisponivel." }, 503, origin);
       const cacheKey = "technical:public";
-      const cached = await env.STATUS_KV.get(cacheKey);
-      if (cached) {
-        try { return json({ ok: true, result: JSON.parse(cached), cached: true }, 200, origin); }
+      let cached = null;
+      const stored = await env.STATUS_KV.get(cacheKey);
+      if (stored) {
+        try { cached = JSON.parse(stored); }
         catch { await env.STATUS_KV.delete(cacheKey); }
+      }
+      const age = cached && cached.checked_at ? Date.now() - Date.parse(cached.checked_at) : Infinity;
+      if (cached && age >= 0 && age < 600000) {
+        return json({ ok: true, result: cached, cached: true }, 200, origin);
       }
       try {
         const agent = await callPrivateAgent(env, "/technical");
         const technical = agent.result || {};
-        await env.STATUS_KV.put(cacheKey, JSON.stringify(technical), { expirationTtl: 600 });
+        await env.STATUS_KV.put(cacheKey, JSON.stringify(technical), { expirationTtl: 604800 });
         return json({ ok: true, result: technical, cached: false }, 200, origin);
       } catch (error) {
         console.error("Consulta tecnica indisponivel:", error.message);
+        if (cached) return json({ ok: true, result: cached, cached: true, stale: true }, 200, origin);
         return json({ ok: false, message: "Dados tecnicos dinamicos indisponiveis." }, 503, origin);
       }
     }
