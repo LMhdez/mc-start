@@ -9,6 +9,7 @@ import subprocess
 import urllib.request
 import tempfile
 import zipfile
+import base64
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -161,6 +162,7 @@ def read_technical():
     server_type = "Não identificado"
     mods = []
     plugins = []
+    mods_inventory_available = False
 
     def inspect_jars(folder, kind, limit=40):
         """Lê metadados públicos dos JARs sem executar os mods/plugins."""
@@ -185,6 +187,7 @@ def read_technical():
                 if not os.path.isfile(local_path):
                     continue
                 item = {"file": filename, "id": "", "name": filename[:-4], "version": "", "description": ""}
+                icon_path = ""
                 try:
                     with zipfile.ZipFile(local_path) as archive:
                         names = set(archive.namelist())
@@ -195,6 +198,11 @@ def read_technical():
                                 item["name"] = metadata.get("name") or metadata.get("id") or item["name"]
                                 item["version"] = str(metadata.get("version") or "")
                                 item["description"] = str(metadata.get("description") or "")
+                                icon_value = metadata.get("icon")
+                                if isinstance(icon_value, str):
+                                    icon_path = icon_value
+                                elif isinstance(icon_value, dict) and icon_value:
+                                    icon_path = max(icon_value.items(), key=lambda pair: int(pair[0]) if str(pair[0]).isdigit() else 0)[1]
                             elif "META-INF/mods.toml" in names:
                                 try:
                                     import tomllib
@@ -217,6 +225,13 @@ def read_technical():
                                 match = re.search(r"(?m)^" + key + r":\s*(.+)$", metadata)
                                 if match:
                                     item[target] = match.group(1).strip().strip('"').strip("'")
+                    if icon_path and isinstance(icon_path, str) and ".." not in icon_path.split("/"):
+                        extension = os.path.splitext(icon_path.lower())[1]
+                        mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif"}.get(extension)
+                        if mime and icon_path in names:
+                            image_bytes = archive.read(icon_path)
+                            if 0 < len(image_bytes) <= 131072:
+                                item["icon"] = "data:" + mime + ";base64," + base64.b64encode(image_bytes).decode("ascii")
                 except Exception:
                     pass
                 item["description"] = item["description"][:400]
@@ -256,6 +271,7 @@ def read_technical():
             server_type = image
 
         installed_mods = inspect_jars("/data/mods", "mod")
+        mods_inventory_available = True
         plugins = inspect_jars("/data/plugins", "plugin")
 
         # O bloco Fabric e a fonte de verdade: considera apenas entradas principais
@@ -320,6 +336,7 @@ def read_technical():
         "fabric_loader": fabric_loader_version if "fabric_loader_version" in locals() else "Não identificado",
         "server_type": server_type,
         "mods": mods,
+        "mods_inventory_available": mods_inventory_available,
         "mod_count": mod_count if "mod_count" in locals() else len(mods),
         "fabric_total": fabric_total if "fabric_total" in locals() else 0,
         "mods_status": "loaded" if "loaded_entries" in locals() and loaded_entries and container_state == "running" else "installed" if "container_state" in locals() and container_state == "running" else "last_loaded",
