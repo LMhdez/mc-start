@@ -1,7 +1,13 @@
 name: Sincronizar IP publico Azure
+# Sincroniza também quando este workflow é atualizado.
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/sync-public-ip.yml"
 
 permissions:
   contents: read
