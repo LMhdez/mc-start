@@ -120,10 +120,25 @@ def read_technical():
                     key, value = line.rstrip().split("=", 1)
                     values[key] = value.strip().strip('"')
             os_name = values.get("PRETTY_NAME", os_name)
+            os_version = values.get("VERSION_ID", "")
     except OSError:
         pass
 
+    def service_state(name):
+        result = run_command(["systemctl", "is-active", name], timeout=5)
+        return result.stdout.strip() or result.stderr.strip() or "unknown"
+
+    services = {
+        "docker": service_state("docker"),
+        "mc_private_agent": service_state("mc-private-agent"),
+        "cloudflared": service_state("cloudflared"),
+    }
+
     docker_version = output(["docker", "--version"])
+    docker_server_version = output(["docker", "version", "--format", "{{.Server.Version}}"])
+    python_version = output(["python3", "--version"])
+    apt_version = output(["apt", "--version"])
+    systemd_version = output(["systemctl", "--version"])
     image = output(["docker", "inspect", "-f", "{{.Config.Image}}", CONTAINER])
     java_version = ""
     minecraft_version = ""
@@ -161,9 +176,16 @@ def read_technical():
 
     return {
         "os": os_name,
+        "os_version": os_version or "Não identificada",
         "architecture": output(["uname", "-m"]) or "Não identificada",
         "kernel": output(["uname", "-r"]) or "Não identificado",
+        "python": python_version or "Não identificado",
+        "apt": apt_version.splitlines()[0] if apt_version else "Não identificado",
+        "systemd": systemd_version.splitlines()[0] if systemd_version else "Não identificado",
         "docker": docker_version or "Não identificado",
+        "docker_server": docker_server_version or "Não identificado",
+        "cloudflared": output(["cloudflared", "--version"]) or "Não instalado ou não disponível",
+        "services": services,
         "container_image": image or "Não identificado",
         "java": java_version or "Não identificado",
         "minecraft": minecraft_version or "Não identificado nos logs",
