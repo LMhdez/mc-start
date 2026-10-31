@@ -84,7 +84,7 @@ async function dispatchWorkflow(env, file, inputs) {
       method: "POST",
       headers: {
         "Accept": "application/vnd.github+json",
-        "Authorization": "Bearer " + (env.GITHUB_TOKEN_SECRET || env.GITHUB_TOKEN),
+        "Authorization": "Bearer " + env.GITHUB_TOKEN,
         "X-GitHub-Api-Version": API_VERSION,
         "Content-Type": "application/json",
         "User-Agent": "mc-start-control-worker"
@@ -95,10 +95,9 @@ async function dispatchWorkflow(env, file, inputs) {
 }
 
 async function getAzureAccessToken(env) {
-  const azureClientSecret = env.AZURE_CLIENT_SECRET_SECRET || env.AZURE_CLIENT_SECRET;
-  const required = ["AZURE_CLIENT_ID", "AZURE_TENANT_ID",
+  const required = ["AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID",
     "AZURE_SUBSCRIPTION_ID", "AZURE_RESOURCE_GROUP", "AZURE_VM_NAME"];
-  if (!azureClientSecret || required.some(name => !env[name])) return null;
+  if (required.some(name => !env[name])) return null;
 
   const tokenResponse = await fetch(
     "https://login.microsoftonline.com/" + encodeURIComponent(env.AZURE_TENANT_ID) + "/oauth2/v2.0/token",
@@ -107,7 +106,7 @@ async function getAzureAccessToken(env) {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         client_id: env.AZURE_CLIENT_ID,
-        client_secret: azureClientSecret,
+        client_secret: env.AZURE_CLIENT_SECRET,
         grant_type: "client_credentials",
         scope: "https://management.azure.com/.default"
       })
@@ -189,16 +188,15 @@ export default {
     const url = new URL(request.url);
     const origin = request.headers.get("Origin");
     const isCallback = url.pathname === "/api/status-result";
-    const accessPassword = env.ACCESS_PASSWORD_SECRET || env.ACCESS_PASSWORD;
 
     // O callback do GitHub Actions nao vem do navegador; autentica-se pela palavra-passe.
     if (isCallback) {
       if (request.method !== "POST") return json({ ok: false }, 405);
-      if (!accessPassword || !env.STATUS_KV) return json({ ok: false }, 503);
+      if (!env.ACCESS_PASSWORD || !env.STATUS_KV) return json({ ok: false }, 503);
       let body;
       try { body = await request.json(); } catch { return json({ ok: false }, 400); }
       if (!body || typeof body.password !== "string" ||
-          !constantTimeEqual(body.password, accessPassword)) {
+          !constantTimeEqual(body.password, env.ACCESS_PASSWORD)) {
         return json({ ok: false }, 401);
       }
       if (!validRequestId(body.request_id) || !body.envelope ||
@@ -233,7 +231,7 @@ export default {
     if (!(request.headers.get("Content-Type") || "").toLowerCase().includes("application/json")) {
       return json({ ok: false, message: "Pedido invalido." }, 415, origin);
     }
-    if (!accessPassword || accessPassword.length < 20) {
+    if (!env.ACCESS_PASSWORD || env.ACCESS_PASSWORD.length < 20) {
       return json({ ok: false, message: "Configuracao incompleta do painel." }, 503, origin);
     }
 
@@ -242,7 +240,7 @@ export default {
       return json({ ok: false, message: "Pedido invalido." }, 400, origin);
     }
     if (!body || typeof body.password !== "string" ||
-        !constantTimeEqual(body.password, accessPassword)) {
+        !constantTimeEqual(body.password, env.ACCESS_PASSWORD)) {
       return json({ ok: false, message: "Palavra-passe incorreta." }, 401, origin);
     }
 
@@ -258,7 +256,7 @@ export default {
       if (!stored) return json({ ok: false, pending: true }, 202, origin);
       await env.STATUS_KV.delete(key);
       try {
-        const result = await decryptStatus(JSON.parse(stored), accessPassword);
+        const result = await decryptStatus(JSON.parse(stored), env.ACCESS_PASSWORD);
         return json({ ok: true, result }, 200, origin);
       } catch {
         return json({ ok: false, message: "Nao foi possivel ler o resultado." }, 500, origin);
@@ -359,7 +357,7 @@ export default {
       }
     }
 
-    if (!(env.GITHUB_TOKEN_SECRET || env.GITHUB_TOKEN)) {
+    if (!env.GITHUB_TOKEN) {
       return json({ ok: false, message: "Configuracao incompleta do painel." }, 503, origin);
     }
     const response = await dispatchWorkflow(env, file, inputs);
