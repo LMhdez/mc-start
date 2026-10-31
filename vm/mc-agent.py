@@ -222,14 +222,14 @@ def read_technical():
         loaded_entries = []
         lines = logs.splitlines()
         for index, line in enumerate(lines):
-            header = re.search(r"Loading (\\d+) mods:", line)
+            header = re.search(r"Loading (\d+) mods:", line)
             if not header:
                 continue
             entries = []
             for candidate in lines[index + 1:]:
-                if re.match(r"^\\[\\d{2}:\\d{2}:\\d{2}\\]", candidate):
+                if re.match(r"^\[\d{2}:\d{2}:\d{2}\]", candidate):
                     break
-                root = re.match(r"^\\s{8}- ([^\\s]+) ([^\\s]+)\\s*$", candidate)
+                root = re.match(r"^\s{8}- ([^\s]+) ([^\s]+)\s*$", candidate)
                 if root:
                     mod_id, runtime_version = root.groups()
                     if mod_id not in {"fabricloader", "java", "minecraft"}:
