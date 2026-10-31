@@ -166,13 +166,13 @@ def read_technical():
 
         for folder, key in [("/data/mods", "mods"), ("/data/plugins", "plugins")]:
             check = run_command(["docker", "exec", CONTAINER, "sh", "-lc",
-                                 "find " + folder + " -maxdepth 1 -type f 2>/dev/null | wc -l"], timeout=5)
+                                 "find " + folder + " -maxdepth 1 -type f -name '*.jar' 2>/dev/null | wc -l"], timeout=5)
             if check.returncode == 0:
                 count = check.stdout.strip()
                 if key == "mods":
-                    mods = count + " ficheiro(s)" if count.isdigit() else "Não verificado"
+                    mods = count + " .jar" if count.isdigit() else "Não verificado"
                 else:
-                    plugins = count + " ficheiro(s)" if count.isdigit() else "Não verificado"
+                    plugins = count + " .jar" if count.isdigit() else "Não verificado"
 
     return {
         "os": os_name,
