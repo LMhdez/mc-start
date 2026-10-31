@@ -75,3 +75,15 @@ O workflow instala `cloudflared` e `vm/mc-agent.py` na VM, usando os secrets SSH
 - Se o Tunnel estiver desligado, o Worker continua a recorrer ao workflow de estado antigo.
 - Se o Azure nao aceitar a operacao direta de ligar/desligar, o Worker tenta o workflow GitHub Actions existente.
 - Nao apagues os workflows antigos enquanto a nova ligacao nao tiver sido testada.
+
+### Proteger as credenciais do Worker
+
+Antes de considerar a migração concluida, converte estes tres valores de **Plaintext variable** para **Secret** no Worker:
+
+- `ACCESS_PASSWORD`
+- `AZURE_CLIENT_SECRET`
+- `GITHUB_TOKEN`
+
+No painel Cloudflare, abre **Workers & Pages > mc-start-control > Settings > Variables and Secrets**. Copia cada valor para um gestor de passwords/local seguro, remove a variavel em texto simples e cria uma entrada do tipo **Secret** com exatamente o mesmo nome e valor. Faz **Deploy** depois de criar os tres secrets. O codigo continua a ler os mesmos nomes em `env`; nao e preciso alterar o JavaScript.
+
+Nao partilhes estes valores no chat, no repositorio ou em capturas de ecra. Os restantes identificadores Azure podem continuar como variaveis normais.
