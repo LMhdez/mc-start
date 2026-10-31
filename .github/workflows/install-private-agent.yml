@@ -37,6 +37,7 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
+          trap 'rm -f "$HOME/.ssh/id_rsa" "$RUNNER_TEMP/cloudflare-tunnel-token"' EXIT
 
       - name: Instalar o agente e reparar o Cloudflare Tunnel
         shell: bash
@@ -84,6 +85,7 @@ jobs:
           ssh $SSH_OPTS "azureuser@$IP" 'sudo bash -s' <<'REMOTE'
           set -euo pipefail
           export DEBIAN_FRONTEND=noninteractive
+          trap 'rm -f /tmp/mc-tunnel-token /tmp/mc-agent.py' EXIT
 
           chmod 0600 /tmp/mc-tunnel-token
           apt-get update
