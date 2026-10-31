@@ -33,7 +33,7 @@ jobs:
           set -euo pipefail
 
           AGENT_B64="$(base64 -w0 vm/mc-agent.py)"
-          SCRIPT="set -euo pipefail
+          SCRIPT="set -eu
           install -d -m 0755 /opt/mc-agent
           printf '%s' '$AGENT_B64' | base64 -d > /opt/mc-agent/mc-agent.py
           chmod 0755 /opt/mc-agent/mc-agent.py
