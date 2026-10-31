@@ -25,10 +25,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          IP=$(az vm list-ip-addresses \\
-            --resource-group "$AZURE_RESOURCE_GROUP" \\
-            --name "$AZURE_VM_NAME" \\
-            --query "[0].virtualMachine.network.publicIpAddresses[0].ipAddress" \\
+          IP=$(az vm list-ip-addresses \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_VM_NAME" \
+            --query "[0].virtualMachine.network.publicIpAddresses[0].ipAddress" \
             -o tsv)
 
           if [ -z "$IP" ] || [ "$IP" = "None" ]; then
@@ -53,14 +53,14 @@ jobs:
             exit 1
           fi
 
-          PAYLOAD=$(jq -cn \\
-            --arg password "$ACCESS_PASSWORD" \\
-            --arg ip "$IP" \\
+          PAYLOAD=$(jq -cn \
+            --arg password "$ACCESS_PASSWORD" \
+            --arg ip "$IP" \
             '{password:$password,ip:$ip}')
 
-          curl --fail --silent --show-error --retry 3 --retry-delay 2 \\
-            -X POST "$WORKER_URL/api/ip-result" \\
-            -H "Content-Type: application/json" \\
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 \
+            -X POST "$WORKER_URL/api/ip-result" \
+            -H "Content-Type: application/json" \
             --data "$PAYLOAD" >/dev/null
 
           echo "IP publico sincronizado no Worker."
