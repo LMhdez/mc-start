@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import ipaddress
 import os
 import json
 import re
@@ -27,23 +26,8 @@ def run_command(args, timeout=10):
 
 
 def get_public_ip():
-    # Azure IMDS: read the instance network data using a stable API version.
-    url = "http://169.254.169.254/metadata/instance?api-version=2021-02-01"
-    request = urllib.request.Request(url, headers={"Metadata": "true"})
-    try:
-        with urllib.request.urlopen(request, timeout=3) as response:
-            metadata = json.loads(response.read().decode("utf-8"))
-
-        interfaces = metadata.get("network", {}).get("interface", [])
-        for interface in interfaces:
-            addresses = interface.get("ipv4", {}).get("ipAddress", [])
-            for address in addresses:
-                public_ip = (address.get("publicIpAddress") or "").strip()
-                if public_ip:
-                    # Do not return malformed or unexpected metadata values.
-                    return str(ipaddress.IPv4Address(public_ip))
-    except Exception:
-        pass
+    # O IMDS desta VM nao disponibiliza o IP publico.
+    # O Worker consulta o IP associado a NIC diretamente na API do Azure.
     return ""
 
 
