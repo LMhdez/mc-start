@@ -317,8 +317,8 @@ function setLanguage(language) {
     feedback.setAttribute("aria-busy", String(lastFeedbackLoading));
   }
   if (languageSelect) languageSelect.value = currentLanguage;
-  document.title = currentLanguage === "pt" ? "Minecraft Server | Painel" :
-    currentLanguage === "es" ? "Minecraft Server | Panel" : "Minecraft Server | Dashboard";
+  document.title = currentLanguage === "pt" ? "Minecraft Server | O teu servidor" :
+    currentLanguage === "es" ? "Minecraft Server | Tu servidor" : "Minecraft Server | Your server";
   const metaDescription = document.querySelector('meta[name="description"]');
   if (metaDescription) metaDescription.content = dictionary.pageCopy;
   try { localStorage.setItem("mc-server-language", currentLanguage); } catch {}
