@@ -126,13 +126,13 @@ function azureVmResource(env) {
   ].join("/");
 }
 
-async function getAzureVmPowerState(env) {
-  const accessToken = await getAzureAccessToken(env);
-  if (!accessToken) return null;
+async function getAzureVmPowerState(env, accessToken = null) {
+  const token = accessToken || await getAzureAccessToken(env);
+  if (!token) return null;
 
   const vmResponse = await fetch(
     "https://management.azure.com/" + azureVmResource(env) + "/instanceView?api-version=2024-07-01",
-    { headers: { "Authorization": "Bearer " + accessToken } }
+    { headers: { "Authorization": "Bearer " + token } }
   );
   if (!vmResponse.ok) throw new Error("Azure VM status request failed");
   const vmData = await vmResponse.json();
@@ -151,56 +151,80 @@ async function getAzureVmPowerState(env) {
   return states[power.code] || null;
 }
 
-async function getAzureVmPublicIp(env) {
-  const accessToken = await getAzureAccessToken(env);
-  if (!accessToken) return "";
+async function getAzureVmPublicIp(env, accessToken = null) {
+  const cacheKey = "azure:public-ip";
+  try {
+    const cached = await env.STATUS_KV.get(cacheKey);
+    if (cached) return cached;
+  } catch (error) {
+    console.warn("Azure IP cache unavailable:", error.message);
+  }
 
-  const headers = { "Authorization": "Bearer " + accessToken };
+  const token = accessToken || await getAzureAccessToken(env);
+  if (!token) return "";
+  const headers = { "Authorization": "Bearer " + token };
 
-  // O perfil de rede da VM está dentro de properties.networkProfile.
-  const vmResponse = await fetch(
-    "https://management.azure.com/" + azureVmResource(env) + "?api-version=2024-07-01",
-    { headers }
-  );
+  // Consultar a VM e os IPs públicos em paralelo, sem repetir o pedido do token.
+  const publicIpPath = [
+    "subscriptions", encodeURIComponent(env.AZURE_SUBSCRIPTION_ID),
+    "resourceGroups", encodeURIComponent(env.AZURE_RESOURCE_GROUP),
+    "providers/Microsoft.Network/publicIPAddresses"
+  ].join("/");
+  const [vmResponse, ipResponse] = await Promise.all([
+    fetch(
+      "https://management.azure.com/" + azureVmResource(env) + "?api-version=2024-07-01",
+      { headers }
+    ),
+    fetch(
+      "https://management.azure.com/" + publicIpPath + "?api-version=2025-05-01",
+      { headers }
+    )
+  ]);
+
   if (!vmResponse.ok) {
     throw new Error("Azure VM network lookup failed with status " + vmResponse.status);
   }
-  const vmData = await vmResponse.json();
+  if (!ipResponse.ok) {
+    throw new Error("Azure public IP list failed with status " + ipResponse.status);
+  }
 
+  const [vmData, ipData] = await Promise.all([vmResponse.json(), ipResponse.json()]);
   const interfaces = vmData.properties?.networkProfile?.networkInterfaces || [];
-  const nicReference =
-    interfaces.find(item => item.properties?.primary === true) || interfaces[0];
-  const nicId = nicReference?.id;
-  if (!nicId || !nicId.startsWith("/subscriptions/")) return "";
+  const nicIds = interfaces
+    .map(item => item.id)
+    .filter(id => typeof id === "string" && id.startsWith("/subscriptions/"))
+    .map(id => id.toLowerCase());
 
-  const nicResponse = await fetch(
-    "https://management.azure.com" + nicId + "?api-version=2025-05-01",
-    { headers }
-  );
-  if (!nicResponse.ok) {
-    throw new Error("Azure NIC lookup failed with status " + nicResponse.status);
-  }
-  const nicData = await nicResponse.json();
+  const publicIps = Array.isArray(ipData.value) ? ipData.value : [];
+  const attached = publicIps.filter(item => {
+    const configurationId = item.properties?.ipConfiguration?.id;
+    if (typeof configurationId !== "string") return false;
+    const normalized = configurationId.toLowerCase();
+    return nicIds.some(nicId => normalized.startsWith(nicId + "/ipconfigurations/"));
+  });
 
-  const configurations = nicData.properties?.ipConfigurations || [];
-  const publicIpIds = configurations
-    .map(item => item.properties?.publicIPAddress?.id)
-    .filter(id => typeof id === "string" && id.startsWith("/subscriptions/"));
+  const match = attached.find(item => {
+    const value = item.properties?.ipAddress;
+    return typeof value === "string" && value.trim();
+  });
+  const ip = match?.properties?.ipAddress?.trim() || "";
 
-  for (const publicIpId of publicIpIds) {
-    const publicIpResponse = await fetch(
-      "https://management.azure.com" + publicIpId + "?api-version=2025-05-01",
-      { headers }
-    );
-    if (!publicIpResponse.ok) {
-      throw new Error("Azure public IP lookup failed with status " + publicIpResponse.status);
-    }
-    const publicIpData = await publicIpResponse.json();
-    const ip = publicIpData.properties?.ipAddress;
-    if (typeof ip === "string" && ip.trim()) return ip.trim();
+  if (!ip) {
+    console.warn("Azure public IP not found for VM NIC", {
+      nicCount: nicIds.length,
+      publicIpCount: publicIps.length,
+      attachedPublicIpCount: attached.length
+    });
+    return "";
   }
 
-  return "";
+  // Cache curto para evitar novas consultas ARM a cada clique no painel.
+  try {
+    await env.STATUS_KV.put(cacheKey, ip, { expirationTtl: 60 });
+  } catch (error) {
+    console.warn("Could not cache Azure public IP:", error.message);
+  }
+  return ip;
 }
 
 async function performAzureVmAction(env, action) {
@@ -393,7 +417,9 @@ export default {
 
       // Primeiro consulta diretamente Azure. Se a VM estiver ligada, tenta o agente privado.
       try {
-        const vmState = await getAzureVmPowerState(env);
+        // Obter o token uma vez e reutilizá-lo nas consultas Azure desta operação.
+        const accessToken = await getAzureAccessToken(env);
+        const vmState = await getAzureVmPowerState(env, accessToken);
         if (vmState && vmState !== "VM running") {
           return json({
             ok: true,
@@ -408,17 +434,18 @@ export default {
 
         if (vmState === "VM running") {
           try {
-            const agent = await callPrivateAgent(env, "/status");
+            // O agente privado e a consulta do IP são independentes: executá-los em paralelo.
+            const [agent, azureIp] = await Promise.all([
+              callPrivateAgent(env, "/status"),
+              getAzureVmPublicIp(env, accessToken).catch(ipError => {
+                console.error("IP publico Azure indisponivel:", ipError.message);
+                return "";
+              })
+            ]);
             if (agent.result && typeof agent.result === "object") {
               const result = { ...agent.result };
-              if (!result.ip) {
-                try {
-                  result.ip = await getAzureVmPublicIp(env);
-                } catch (ipError) {
-                  console.error("IP publico Azure indisponivel:", ipError.message);
-                  result.ip = "";
-                }
-              }
+              result.ip = (typeof result.ip === "string" && result.ip.trim()) ?
+                result.ip.trim() : azureIp;
               return json({ ok: true, immediate: true, result }, 200, origin);
             }
             throw new Error("Private MC agent returned an invalid status payload");
