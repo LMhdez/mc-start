@@ -159,103 +159,6 @@ async function getAzureVmPowerState(env, accessToken = null) {
   return states[power.code] || null;
 }
 
-async function getAzureVmPublicIp(env, accessToken = null) {
-  const cacheKey = "azure:public-ip";
-
-  // Reutilizar um IP confirmado para evitar chamadas ARM em todos os cliques.
-  try {
-    const cached = await env.STATUS_KV.get(cacheKey);
-    if (cached && /^\\d{1,3}(?:\\.\\d{1,3}){3}$/.test(cached)) return cached;
-  } catch (error) {
-    console.warn("Azure IP cache unavailable:", error.message);
-  }
-
-  const token = accessToken || await getAzureAccessToken(env);
-  if (!token) return "";
-  const headers = { "Authorization": "Bearer " + token };
-  const vmUrl =
-    "https://management.azure.com/" + azureVmResource(env) + "?api-version=2024-07-01";
-
-  const vmResponse = await fetch(vmUrl, { headers });
-  if (!vmResponse.ok) {
-    throw new Error("Azure VM network lookup failed with status " + vmResponse.status);
-  }
-
-  const vmData = await vmResponse.json();
-  const interfaces = vmData.properties?.networkProfile?.networkInterfaces || [];
-  const nicIds = interfaces
-    .map(item => item.id)
-    .filter(id => typeof id === "string" && id.startsWith("/subscriptions/"));
-
-  if (!nicIds.length) {
-    console.warn("Azure VM returned no network interface references");
-    return "";
-  }
-
-  // Consultar as NICs associadas à VM diretamente; não listar todos os IPs do grupo.
-  const nicResponses = await Promise.all(nicIds.map(id =>
-    fetch("https://management.azure.com" + id + "?api-version=2025-05-01", { headers })
-  ));
-
-  const publicIpIds = [];
-  let ipConfigurationCount = 0;
-  for (const response of nicResponses) {
-    if (!response.ok) {
-      console.warn("Azure NIC lookup failed with status", response.status);
-      continue;
-    }
-    const nicData = await response.json();
-    const configurations = nicData.properties?.ipConfigurations || [];
-    ipConfigurationCount += configurations.length;
-    for (const configuration of configurations) {
-      const publicIpId = configuration.properties?.publicIPAddress?.id;
-      if (typeof publicIpId === "string" &&
-          publicIpId.startsWith("/subscriptions/") &&
-          !publicIpIds.includes(publicIpId)) {
-        publicIpIds.push(publicIpId);
-      }
-    }
-  }
-
-  if (!publicIpIds.length) {
-    console.warn("Azure NIC has no public IP reference", {
-      nicCount: nicIds.length,
-      ipConfigurationCount
-    });
-    return "";
-  }
-
-  // Resolver diretamente cada referência de IP público encontrada na NIC.
-  const publicIpResponses = await Promise.all(publicIpIds.map(id =>
-    fetch("https://management.azure.com" + id + "?api-version=2025-05-01", { headers })
-  ));
-
-  for (const response of publicIpResponses) {
-    if (!response.ok) {
-      console.warn("Azure public IP lookup failed with status", response.status);
-      continue;
-    }
-    const publicIpData = await response.json();
-    const ip = publicIpData.properties?.ipAddress;
-    if (typeof ip === "string" && ip.trim()) {
-      const confirmedIp = ip.trim();
-      try {
-        await env.STATUS_KV.put(cacheKey, confirmedIp, { expirationTtl: 60 });
-      } catch (error) {
-        console.warn("Could not cache Azure public IP:", error.message);
-      }
-      return confirmedIp;
-    }
-  }
-
-  console.warn("Azure public IP resources returned no assigned address", {
-    nicCount: nicIds.length,
-    ipConfigurationCount,
-    publicIpReferenceCount: publicIpIds.length
-  });
-  return "";
-}
-
 async function performAzureVmAction(env, action) {
   if (!["start", "deallocate"].includes(action)) {
     throw new Error("Azure VM action is not allowed");
@@ -288,35 +191,14 @@ async function callPrivateAgent(env, path, method = "GET") {
   return data;
 }
 
-async function requestAzurePublicIpSync(env) {
-  const lockKey = "azure:public-ip-sync";
-  const existing = await env.STATUS_KV.get(lockKey);
-  if (existing) return false;
-
-  await env.STATUS_KV.put(lockKey, "1", { expirationTtl: 90 });
-  try {
-    if (!env.GITHUB_TOKEN) throw new Error("GitHub token unavailable for IP sync");
-    const response = await dispatchWorkflow(env, "sync-public-ip.yml", {});
-    if (!response.ok) {
-      await env.STATUS_KV.delete(lockKey);
-      throw new Error("GitHub IP sync dispatch failed with status " + response.status);
-    }
-    return true;
-  } catch (error) {
-    await env.STATUS_KV.delete(lockKey);
-    throw error;
-  }
-}
-
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const origin = request.headers.get("Origin");
     const isStatusCallback = url.pathname === "/api/status-result";
-    const isIpCallback = url.pathname === "/api/ip-result";
 
     // Callbacks do GitHub Actions não vêm do navegador; autenticam-se pela palavra-passe.
-    if (isStatusCallback || isIpCallback) {
+    if (isStatusCallback) {
       if (request.method !== "POST") return json({ ok: false }, 405);
       if (!env.ACCESS_PASSWORD || !env.STATUS_KV) return json({ ok: false }, 503);
       let body;
@@ -324,17 +206,6 @@ export default {
       if (!body || typeof body.password !== "string" ||
           !constantTimeEqual(body.password, env.ACCESS_PASSWORD)) {
         return json({ ok: false }, 401);
-      }
-
-      if (isIpCallback) {
-        if (!validIPv4(body.ip)) return json({ ok: false, message: "IP invalido." }, 400);
-        await env.STATUS_KV.put(
-          "azure:public-ip",
-          body.ip.trim(),
-          { expirationTtl: 600 }
-        );
-        await env.STATUS_KV.delete("azure:public-ip-sync");
-        return json({ ok: true }, 200);
       }
 
       if (!validRequestId(body.request_id) || !body.envelope ||
@@ -442,14 +313,6 @@ export default {
       return json({ ok: false, message: "Palavra-passe incorreta." }, 401, origin);
     }
 
-    if (url.pathname === "/api/ip-read" && request.method === "POST") {
-      if (!(await checkRateLimit(env, request, "ip-read", 30))) {
-        return json({ ok: false, message: "Demasiados pedidos." }, 429, origin);
-      }
-      const ip = await env.STATUS_KV.get("azure:public-ip") || "";
-      return json({ ok: true, ip }, 200, origin);
-    }
-
     if (url.pathname === "/api/status/read") {
       if (!env.STATUS_KV || !validRequestId(body.request_id)) {
         return json({ ok: false, message: "Pedido invalido." }, 400, origin);
@@ -504,28 +367,10 @@ export default {
 
         if (vmState === "VM running") {
           try {
-            // O agente privado e a consulta do IP são independentes: executá-los em paralelo.
-            const [agent, azureIp] = await Promise.all([
-              callPrivateAgent(env, "/status"),
-              getAzureVmPublicIp(env, accessToken).catch(ipError => {
-                console.error("IP publico Azure indisponivel:", ipError.message);
-                return "";
-              })
-            ]);
+            const agent = await callPrivateAgent(env, "/status");
             if (agent.result && typeof agent.result === "object") {
               const result = { ...agent.result };
-              result.ip = (typeof result.ip === "string" && result.ip.trim()) ?
-                result.ip.trim() : azureIp;
-
-              // A identidade do Worker pode não ter permissão para ler NICs.
-              // Nesse caso, pedir ao GitHub Actions que consulte o IP via Azure CLI.
-              if (!result.ip) {
-                try {
-                  await requestAzurePublicIpSync(env);
-                } catch (syncError) {
-                  console.error("Nao foi possivel iniciar a sincronizacao do IP:", syncError.message);
-                }
-              }
+              result.ip = validIPv4(result.ip) ? result.ip.trim() : "";
               return json({ ok: true, immediate: true, result }, 200, origin);
             }
             throw new Error("Private MC agent returned an invalid status payload");
