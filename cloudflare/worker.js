@@ -274,6 +274,7 @@ export default {
         let result = {
           vm: vm || "Unknown",
           players: vm === "VM running" ? null : 0,
+          player_names: vm === "VM running" ? null : [],
           docker: "unknown",
           container: "unknown",
           port_open: vm === "VM running" ? null : false,
@@ -286,6 +287,7 @@ export default {
             result = {
               vm: "VM running",
               players: live.players !== null && live.players !== undefined && Number.isFinite(Number(live.players)) ? Number(live.players) : null,
+              player_names: Array.isArray(live.player_names) ? live.player_names : null,
               docker: live.docker || "unknown",
               container: live.container || "unknown",
               port_open: typeof live.port_open === "boolean" ? live.port_open : null,
