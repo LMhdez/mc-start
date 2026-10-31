@@ -117,10 +117,13 @@ jobs:
             exit 1
           fi
 
-          if systemctl list-unit-files | grep -q '^cloudflared.service'; then
-            cloudflared service uninstall || true
+          # Se o Tunnel ja estiver instalado, preserva a configuracao existente.
+          # Isto evita substituir um servico que ja pode estar ligado ao tunnel correto.
+          if [ ! -f /etc/systemd/system/cloudflared.service ]; then
+            cloudflared service install "$TOKEN"
+          else
+            echo "Cloudflare Tunnel ja tem um servico instalado; a configuracao existente sera mantida."
           fi
-          cloudflared service install "$TOKEN"
           unset TOKEN
 
           systemctl daemon-reload
