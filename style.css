@@ -418,3 +418,20 @@ h2 { margin: 0; font-size: clamp(1.4rem, 3vw, 2rem); letter-spacing: -.04em; }
 .mod-icon{width:54px;height:54px;flex:0 0 54px;display:grid;place-items:center;overflow:hidden;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.055);color:var(--green);font-size:1.25rem;font-weight:850}
 .mod-icon img{display:block;width:100%;height:100%;object-fit:contain}
 .mod-content{min-width:0;flex:1}
+
+
+/* Arquitetura e versões numa única secção integrada. */
+.stack-section { padding-top: 48px; }
+.stack-subsection + .stack-subsection { margin-top: 34px; padding-top: 28px; border-top: 1px solid var(--border); }
+.stack-subheading { margin-bottom: 16px; }
+.stack-subheading h3 { margin: 0; color: var(--text); font-size: 1.08rem; letter-spacing: -.025em; }
+.stack-subheading p { margin: 7px 0 0; color: var(--muted); font-size: .82rem; line-height: 1.55; }
+.architecture-node { gap: 9px; }
+.architecture-logos { display: flex; align-items: center; gap: 8px; min-height: 42px; margin-bottom: 2px; }
+.brand-logo { width: 38px; height: 38px; flex: 0 0 38px; display: grid; place-items: center; border-radius: 10px; }
+.brand-logo svg { width: 25px; height: 25px; display: block; }
+.detected-top .brand-logo { width: 34px; height: 34px; flex-basis: 34px; }
+.detected-top .brand-logo svg { width: 23px; height: 23px; }
+.java-logo { background: #392d24; color: #e76f00; }
+@media(max-width:800px) { .architecture-flow { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:560px) { .architecture-flow { grid-template-columns: 1fr; } }
