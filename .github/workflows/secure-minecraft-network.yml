@@ -107,7 +107,7 @@ jobs:
               '- No IP addresses, CIDRs, credentials, or raw configuration were included in this report.',
               '',
               'The rules were applied to the VM NIC network security group. Subnet-level rules were not changed.'
-            ].join('\\n');
+            ].join('\n');
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
