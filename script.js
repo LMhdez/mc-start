@@ -73,6 +73,8 @@ const translations = {
     passwordLabel: "PALAVRA-PASSE DE ACESSO AO PAINEL", passwordPlaceholder: "Palavra-passe partilhada",
     start: "Ligar VM", stop: "Desligar VM", check: "Atualizar estado",
     initialFeedback: "Introduz a palavra-passe para gerir a infraestrutura.",
+    confirmStop: "Tens a certeza de que queres desligar o servidor? Os jogadores serão desconectados.",
+    skipToContent: "Saltar para o conteúdo",
     howTo: "COMO ENTRAR", joinAdventure: "Junta-te à aventura.",
     step1Title: "Espera que o servidor ligue", step1Copy: "Quando o servidor estiver online, podes avançar.",
     step2Title: "Abre o Minecraft", step2Copy: "Escolhe Multijogador e adiciona o endereço do servidor.",
@@ -160,6 +162,8 @@ const translations = {
     passwordLabel: "CONTRASEÑA DE ACCESO AL PANEL", passwordPlaceholder: "Contraseña compartida",
     start: "Iniciar VM", stop: "Apagar VM", check: "Actualizar estado",
     initialFeedback: "Introduce la contraseña para gestionar la infraestructura.",
+    confirmStop: "¿Seguro que quieres apagar el servidor? Se desconectará a los jugadores.",
+    skipToContent: "Saltar al contenido",
     howTo: "CÓMO ENTRAR", joinAdventure: "Únete a la aventura.",
     step1Title: "Espera a que se inicie el servidor", step1Copy: "Cuando el servidor esté en línea, podrás continuar.",
     step2Title: "Abre Minecraft", step2Copy: "Elige Multijugador y añade la dirección del servidor.",
@@ -247,6 +251,8 @@ const translations = {
     passwordLabel: "DASHBOARD ACCESS PASSWORD", passwordPlaceholder: "Shared password",
     start: "Start VM", stop: "Stop VM", check: "Refresh status",
     initialFeedback: "Enter the password to manage the infrastructure.",
+    confirmStop: "Are you sure you want to stop the server? Players will be disconnected.",
+    skipToContent: "Skip to content",
     howTo: "HOW TO JOIN", joinAdventure: "Join the adventure.",
     step1Title: "Wait for the server to start", step1Copy: "Once the server is online, you can continue.",
     step2Title: "Open Minecraft", step2Copy: "Choose Multiplayer and add the server address.",
@@ -752,7 +758,9 @@ passwordInput?.addEventListener("keydown", event => {
 });
 languageSelect?.addEventListener("change", event => setLanguage(event.target.value));
 document.querySelector("#start-button")?.addEventListener("click", () => requestAction("start"));
-document.querySelector("#stop-button")?.addEventListener("click", () => requestAction("stop"));
+document.querySelector("#stop-button")?.addEventListener("click", () => {
+  if (window.confirm(translations[currentLanguage].confirmStop)) requestAction("stop");
+});
 document.querySelector("#status-button")?.addEventListener("click", () => requestPublicStatus(true));
 document.querySelector("#private-status-button")?.addEventListener("click", () => requestAction("status"));
 
