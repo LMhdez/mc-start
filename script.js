@@ -7,7 +7,8 @@ const languageSelect = document.querySelector("#language-select");
 const buttons = [
   document.querySelector("#start-button"),
   document.querySelector("#stop-button"),
-  document.querySelector("#status-button")
+  document.querySelector("#status-button"),
+  document.querySelector("#private-status-button")
 ];
 
 let lastTechnicalData = null;
@@ -328,12 +329,14 @@ function renderStatus(result) {
       address.textContent = t.addressProtected;
     }
   }
-  if (count) count.textContent = String(result.players ?? 0);
-  if (names) names.textContent = result.player_names?.length ? result.player_names.join(", ") : t.noPlayers;
+  if (count) count.textContent = result.players == null ? "—" : String(result.players);
+  if (names) names.textContent = Array.isArray(result.player_names)
+    ? (result.player_names.length ? result.player_names.join(", ") : t.noPlayers)
+    : (result.players == null ? t.unknownStatus : t.noPlayers);
 
   if (details) {
     const values = [
-      [t.portState, result.port_open ? t.portOpen : t.portClosed],
+      [t.portState, result.port_open == null ? t.unknownStatus : result.port_open ? t.portOpen : t.portClosed],
       [t.checkedAt, result.checked_at ? new Date(result.checked_at).toLocaleString(currentLanguage === "pt" ? "pt-PT" : currentLanguage === "es" ? "es-ES" : "en-GB") : "—"]
     ];
     details.replaceChildren();
@@ -654,6 +657,12 @@ async function requestAction(action) {
     buttons.forEach(button => button.disabled = false);
   }
 }
+passwordInput?.addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    requestAction("status");
+  }
+});
 languageSelect?.addEventListener("change", event => setLanguage(event.target.value));
 document.querySelector("#start-button")?.addEventListener("click", () => requestAction("start"));
 document.querySelector("#stop-button")?.addEventListener("click", () => requestAction("stop"));
