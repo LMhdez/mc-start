@@ -22,33 +22,33 @@ jobs:
       - name: Login na Azure
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          creds: \${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Preparar SSH
         shell: bash
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.MC_VM_SSH_PRIVATE_KEY }}
+          SSH_PRIVATE_KEY: \${{ secrets.MC_VM_SSH_PRIVATE_KEY }}
         run: |
           set -euo pipefail
-          if [ -z "${SSH_PRIVATE_KEY:-}" ]; then
+          if [ -z "\${SSH_PRIVATE_KEY:-}" ]; then
             echo "Falta o secret MC_VM_SSH_PRIVATE_KEY."
             exit 1
           fi
           install -m 700 -d ~/.ssh
-          printf '%s\\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
       - name: Atualizar agente na VM
         shell: bash
         env:
-          AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
-          AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
+          AZURE_RESOURCE_GROUP: \${{ secrets.AZURE_RESOURCE_GROUP }}
+          AZURE_VM_NAME: \${{ secrets.AZURE_VM_NAME }}
         run: |
           set -euo pipefail
-          IP=$(az vm list-ip-addresses \\
-            --resource-group "$AZURE_RESOURCE_GROUP" \\
-            --name "$AZURE_VM_NAME" \\
-            --query "[0].virtualMachine.network.publicIpAddresses[0].ipAddress" \\
+          IP=$(az vm list-ip-addresses \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_VM_NAME" \
+            --query "[0].virtualMachine.network.publicIpAddresses[0].ipAddress" \
             -o tsv)
 
           if [ -z "$IP" ] || [ "$IP" = "None" ]; then
