@@ -35,7 +35,7 @@ const translations = {
     notConfirmed: "Não confirmado; requer compatibilidade própria",
     compatNote: "Não apresentamos números de versão nem compatibilidade Bedrock sem confirmação técnica. Para clientes Java, Windows, macOS e Linux são plataformas suportadas pelo próprio jogo; a versão exata tem de corresponder à do servidor.",
     serverAddress: "ENDEREÇO DE LIGAÇÃO", addressUnavailable: "Indisponível enquanto a VM está desligada", addressLookupFailed: "Não foi possível obter o IP público", addressProtected: "Protegido — introduz a palavra-passe", revealAddress: "Mostrar endereço",
-    liveTechHeading: "ESPECIFICAÇÕES DETETADAS", liveTechTitle: "Software e mods instalados", liveTechNote: "Leitura automática em cache durante 10 minutos. Esta secção não apresenta endereços de rede nem credenciais.", techLoading: "A carregar especificações", techChecked: "Recolhido", techOS: "Sistema operativo", techArch: "Arquitetura", techKernel: "Kernel", techDocker: "Docker", techImage: "Imagem do contentor", techJava: "Java", techMinecraft: "Minecraft", techType: "Tipo de servidor", techMods: "Mods", techPlugins: "Plugins", techUnavailable: "Especificações dinâmicas indisponíveis.",
+    liveTechHeading: "ESPECIFICAÇÕES DETETADAS", liveTechTitle: "Software e mods carregados", liveTechNote: "Leitura automática em cache durante 10 minutos. Esta secção não apresenta endereços de rede nem credenciais.", techLoading: "A carregar especificações", techChecked: "Recolhido", techOS: "Sistema operativo", techArch: "Arquitetura", techKernel: "Kernel", techDocker: "Docker", techImage: "Imagem do contentor", techJava: "Java", techMinecraft: "Minecraft", techType: "Tipo de servidor", techMods: "Mods", techPlugins: "Plugins", techUnavailable: "Especificações dinâmicas indisponíveis.",
     playersOnline: "JOGADORES ONLINE", manualCheck: "Consulta manual", viaActions: "via Cloudflare / Actions",
     passwordLabel: "PALAVRA-PASSE DE ACESSO AO PAINEL", passwordPlaceholder: "Palavra-passe partilhada",
     start: "Ligar VM", stop: "Desligar VM", check: "Atualizar estado",
@@ -87,7 +87,7 @@ const translations = {
     notConfirmed: "No confirmado; requiere compatibilidad específica",
     compatNote: "No mostramos versiones ni compatibilidad Bedrock sin confirmación técnica. Para clientes Java, Windows, macOS y Linux son plataformas compatibles con el propio juego; la versión debe coincidir con la del servidor.",
     serverAddress: "DIRECCIÓN DE CONEXIÓN", addressUnavailable: "No disponible cuando la VM está apagada", addressLookupFailed: "No se pudo obtener la IP pública", addressProtected: "Protegida — introduce la contraseña", revealAddress: "Mostrar dirección",
-    liveTechHeading: "ESPECIFICACIONES DETECTADAS", liveTechTitle: "Software y mods instalados", liveTechNote: "Lectura automática en caché durante 10 minutos. Esta sección no muestra direcciones de red ni credenciales.", techLoading: "Cargando especificaciones", techChecked: "Recopilado", techOS: "Sistema operativo", techArch: "Arquitectura", techKernel: "Kernel", techDocker: "Docker", techImage: "Imagen del contenedor", techJava: "Java", techMinecraft: "Minecraft", techType: "Tipo de servidor", techMods: "Mods", techPlugins: "Plugins", techUnavailable: "Especificaciones dinámicas no disponibles.",
+    liveTechHeading: "ESPECIFICACIONES DETECTADAS", liveTechTitle: "Software y mods cargados", liveTechNote: "Lectura automática en caché durante 10 minutos. Esta sección no muestra direcciones de red ni credenciales.", techLoading: "Cargando especificaciones", techChecked: "Recopilado", techOS: "Sistema operativo", techArch: "Arquitectura", techKernel: "Kernel", techDocker: "Docker", techImage: "Imagen del contenedor", techJava: "Java", techMinecraft: "Minecraft", techType: "Tipo de servidor", techMods: "Mods", techPlugins: "Plugins", techUnavailable: "Especificaciones dinámicas no disponibles.",
     playersOnline: "JUGADORES EN LÍNEA", manualCheck: "Consulta manual", viaActions: "via Cloudflare / Actions",
     passwordLabel: "CONTRASEÑA DE ACCESO AL PANEL", passwordPlaceholder: "Contraseña compartida",
     start: "Iniciar VM", stop: "Apagar VM", check: "Actualizar estado",
@@ -139,7 +139,7 @@ const translations = {
     notConfirmed: "Not confirmed; requires specific compatibility",
     compatNote: "We do not publish version numbers or Bedrock compatibility without technical confirmation. For Java clients, Windows, macOS and Linux are supported by the game itself; the client version must match the server.",
     serverAddress: "CONNECTION ADDRESS", addressUnavailable: "Unavailable while the VM is powered off", addressLookupFailed: "Could not retrieve the public IP", addressProtected: "Protected — enter the password", revealAddress: "Show address",
-    liveTechHeading: "DETECTED SPECIFICATIONS", liveTechTitle: "Installed software and mods", liveTechNote: "Automatically collected and cached for 10 minutes. This section does not expose network addresses or credentials.", techLoading: "Loading specifications", techChecked: "Collected", techOS: "Operating system", techArch: "Architecture", techKernel: "Kernel", techDocker: "Docker", techImage: "Container image", techJava: "Java", techMinecraft: "Minecraft", techType: "Server type", techMods: "Mods", techPlugins: "Plugins", techUnavailable: "Dynamic specifications unavailable.",
+    liveTechHeading: "DETECTED SPECIFICATIONS", liveTechTitle: "Loaded software and mods", liveTechNote: "Automatically collected and cached for 10 minutes. This section does not expose network addresses or credentials.", techLoading: "Loading specifications", techChecked: "Collected", techOS: "Operating system", techArch: "Architecture", techKernel: "Kernel", techDocker: "Docker", techImage: "Container image", techJava: "Java", techMinecraft: "Minecraft", techType: "Server type", techMods: "Mods", techPlugins: "Plugins", techUnavailable: "Dynamic specifications unavailable.",
     playersOnline: "PLAYERS ONLINE", manualCheck: "Manual check", viaActions: "via Cloudflare / Actions",
     passwordLabel: "DASHBOARD ACCESS PASSWORD", passwordPlaceholder: "Shared password",
     start: "Start VM", stop: "Stop VM", check: "Refresh status",
@@ -406,12 +406,15 @@ async function loadTechnicalSpecs() {
     });
     const mods=Array.isArray(d.mods)?d.mods:[];
     const plugins=Array.isArray(d.plugins)?d.plugins:[];
-    const modTitle=es?"Mods instalados":en?"Installed mods":"Mods instalados";
-    const modIntro=es?"Cada mod se identifica por sus metadatos. La descripción procede del propio archivo cuando está disponible.":en?"Each mod is identified from its metadata. Descriptions come from the mod file when available.":"Cada mod é identificado pelos seus metadados. A descrição é lida do próprio ficheiro quando existe.";
+    const modTitle=es?"Mods cargados":en?"Loaded mods":"Mods carregados";
+    const modIntro=es?"Lista basada en el último arranque de Fabric; las versiones proceden del registro. Las descripciones se leen de los archivos cuando están disponibles.":en?"List based on the latest Fabric startup; versions come from the runtime log. Descriptions are read from files when available.":"Lista baseada no último arranque do Fabric; as versões vêm do registo de execução. As descrições são lidas dos ficheiros quando disponíveis.";
     const section=document.createElement("section");section.className="mods-panel";
     const heading=document.createElement("div");heading.className="mods-heading";
     const title=document.createElement("h3");title.textContent=modTitle+" · "+(d.mod_count??mods.length);
-    const intro=document.createElement("p");intro.textContent=modIntro;
+    const intro=document.createElement("p");
+    const totalNote=d.fabric_total? (es?"Fabric informa "+d.fabric_total+" módulos, incluidas dependencias internas.":en?"Fabric reports "+d.fabric_total+" modules, including internal dependencies.":"O Fabric reporta "+d.fabric_total+" módulos, incluindo dependências internas.") : "";
+    const lastLoaded=d.mods_status==="last_loaded"?(es?" (último arranque)":en?" (last startup)":" (último arranque)"):"";
+    intro.textContent=modIntro+totalNote+lastLoaded;
     heading.append(title,intro);section.append(heading);
     if(mods.length){
       const list=document.createElement("div");list.className="mods-list";
