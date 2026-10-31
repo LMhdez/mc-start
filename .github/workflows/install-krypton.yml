@@ -78,7 +78,7 @@ jobs:
           fi
 
           SCRIPT=$(cat <<'REMOTE'
-          set -euo pipefail
+          set -eu
           CONTAINER="mc-server"
           VERSION_ID="UugdIYJw"
           WORKDIR=$(mktemp -d /tmp/mc-krypton.XXXXXX)
@@ -96,7 +96,8 @@ jobs:
           PLAYERS=$(docker exec "$CONTAINER" rcon-cli list 2>/dev/null || true)
           COUNT=$(printf '%s' "$PLAYERS" | sed -nE 's/.*There are ([0-9]+) of.*/\1/p' | head -n1)
           COUNT=${COUNT:-0}
-          if [[ "$COUNT" =~ ^[0-9]+$ ]] && (( COUNT > 0 )); then
+          case "$COUNT" in *[!0-9]*|'') COUNT=0 ;; esac
+          if [ "$COUNT" -gt 0 ]; then
             echo "Instalação adiada: existem $COUNT jogador(es) online. Nenhum jogador foi desligado."
             exit 2
           fi
@@ -129,7 +130,7 @@ jobs:
 
           if find /data -maxdepth 1 -type d -name mods >/dev/null 2>&1; then :; fi
           EXISTING=$(docker exec "$CONTAINER" sh -lc "find /data/mods -maxdepth 1 -type f -iname '*krypton*.jar' -print -quit" 2>/dev/null || true)
-          if [[ -n "$EXISTING" ]]; then
+          if [ -n "$EXISTING" ]; then
             echo "Krypton já existe em /data/mods; não será criada uma cópia duplicada."
             exit 0
           fi
@@ -142,18 +143,18 @@ jobs:
           READY=0
           for i in $(seq 1 90); do
             STATE=$(docker inspect -f '{{.State.Status}}' "$CONTAINER" 2>/dev/null || true)
-            if [[ "$STATE" == "running" ]]; then
+            if [ "$STATE" = "running" ]; then
               LOGS=$(docker logs --tail 250 "$CONTAINER" 2>&1 || true)
-              if grep -qE 'Done \(' <<< "$LOGS"; then
+              if printf '%s\n' "$LOGS" | grep -qE 'Done \('; then
                 READY=1
                 break
               fi
-              if grep -qiE 'Incompatible mods found|Failed to load|Mod resolution encountered an incompatible mod set|Exception in server' <<< "$LOGS"; then
+              if printf '%s\n' "$LOGS" | grep -qiE 'Incompatible mods found|Failed to load|Mod resolution encountered an incompatible mod set|Exception in server'; then
                 echo "O servidor apresentou um erro de arranque após a instalação. Backup preservado em $BACKUP."
                 echo "$LOGS" | tail -n 80
                 exit 1
               fi
-            elif [[ "$STATE" == "exited" ]]; then
+            elif [ "$STATE" = "exited" ]; then
               echo "O container terminou durante o arranque. Backup preservado em $BACKUP."
               docker logs --tail 100 "$CONTAINER" 2>&1 || true
               exit 1
@@ -161,7 +162,7 @@ jobs:
             sleep 2
           done
 
-          if (( READY != 1 )); then
+          if [ "$READY" -ne 1 ]; then
             echo "O servidor não confirmou o arranque dentro do tempo limite. Backup preservado em $BACKUP."
             docker logs --tail 100 "$CONTAINER" 2>&1 || true
             exit 1
