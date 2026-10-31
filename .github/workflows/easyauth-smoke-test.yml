@@ -2,10 +2,6 @@ name: EasyAuth Fabric 26.3 smoke test
 
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [main]
-    paths:
-      - '.github/workflows/easyauth-smoke-test.yml'
 
 permissions:
   contents: read
@@ -22,8 +18,8 @@ jobs:
 
           cleanup() {
             docker logs easyauth-smoke-test 2>&1 \
-              | grep -Ei 'EasyAuth|Geyser|Floodgate|Done \(|ERROR|Exception' \
-              | sed -E 's/(password|token|secret|key)([=: ]+)[^ ,"]+/\1\2[REDACTED]/Ig' \
+              | grep -Ei 'EasyAuth|Geyser|Floodgate|Done \\(|ERROR|Exception' \
+              | sed -E 's/(password|token|secret|key)([=: ]+)[^ ,"]+/\\1\\2[REDACTED]/Ig' \
               | tail -n 80 || true
             docker rm -f easyauth-smoke-test >/dev/null 2>&1 || true
           }
@@ -37,7 +33,7 @@ jobs:
             -e ONLINE_MODE=FALSE \
             -e MEMORY=2G \
             -e MODRINTH_DOWNLOAD_DEPENDENCIES=required \
-            -e MODRINTH_PROJECTS=$'fabric-api\neasyauth:Qd0CWVQP\ngeyser\nfloodgate' \
+            -e MODRINTH_PROJECTS=$'fabric-api\\neasyauth:Qd0CWVQP\\ngeyser:beta\\nfloodgate' \
             itzg/minecraft-server:java25
 
           ready=0
@@ -61,7 +57,7 @@ jobs:
           docker exec easyauth-smoke-test sh -lc '
             test -f /data/config/EasyAuth/main.conf
             test -d /data/config/Geyser-Fabric
-            find /data/mods -maxdepth 1 -type f -printf "%f\n" | sort
+            find /data/mods -maxdepth 1 -type f -printf "%f\\n" | sort
           '
 
           echo 'PASS: Minecraft 26.3 / Fabric 0.20.1 started with EasyAuth 3.4.4, Geyser and Floodgate.'
