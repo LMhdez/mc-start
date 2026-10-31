@@ -1,0 +1,45 @@
+name: Consultar estado da VM MC
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  status:
+    if: github.event.issue.user.login == 'LMhdez' && startsWith(github.event.issue.title, '[MC-INFO]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - id: status
+        shell: bash
+        env:
+          RG: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          VM: ${{ secrets.AZURE_VM_NAME }}
+        run: |
+          set -euo pipefail
+          STATE=$(az vm get-instance-view -g "$RG" -n "$VM" --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus | [0]" -o tsv)
+          echo "state=$STATE" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const state = '${{ steps.status.outputs.state }}';
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: 'Estado atual da VM: **' + state + '**'
+            });
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              state: 'closed'
+            });
