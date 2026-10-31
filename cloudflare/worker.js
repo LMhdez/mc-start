@@ -91,9 +91,28 @@ async function readJsonBody(request, maxBytes = MAX_JSON_BYTES) {
 async function checkRateLimit(env, request, scope = "action", limit = RATE_LIMIT) {
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
   const key = "rate:" + scope + ":" + ip;
-  const current = Number(await env.STATUS_KV.get(key) || "0");
-  if (current >= limit) return false;
-  await env.STATUS_KV.put(key, String(current + 1), { expirationTtl: RATE_WINDOW });
+  const now = Math.floor(Date.now() / 1000);
+  const stored = await env.STATUS_KV.get(key);
+  let record = null;
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (parsed && Number.isFinite(parsed.count) && Number.isFinite(parsed.startedAt)) {
+        record = parsed;
+      } else if (Number.isFinite(Number(stored))) {
+        // Migrate counters written by the previous implementation.
+        record = { count: Number(stored), startedAt: now };
+      }
+    } catch {}
+  }
+  if (!record || now - record.startedAt >= RATE_WINDOW || now < record.startedAt) {
+    record = { count: 0, startedAt: now };
+  }
+  if (record.count >= limit) return false;
+  record.count += 1;
+  // Workers KV is eventually consistent; this is a best-effort per-IP fixed window.
+  // startedAt, rather than the KV TTL, defines the window so each request cannot extend it.
+  await env.STATUS_KV.put(key, JSON.stringify(record), { expirationTtl: RATE_WINDOW });
   return true;
 }
 
@@ -246,6 +265,9 @@ export default {
 
     // Endpoints publicos: nunca devolvem IP, nomes de jogadores ou dados de acesso.
     if (url.pathname === "/api/public/status" && request.method === "GET") {
+      if (!env.STATUS_KV || !(await checkRateLimit(env, request, "public-status", 30))) {
+        return json({ ok: false, message: "Demasiados pedidos. Aguarda um minuto." }, 429, origin);
+      }
       try {
         const vm = await getAzureVmPowerState(env);
         let result = {
@@ -281,6 +303,9 @@ export default {
 
     if (url.pathname === "/api/technical" && request.method === "GET") {
       if (!env.STATUS_KV) return json({ ok: false, message: "Cache indisponivel." }, 503, origin);
+      if (!(await checkRateLimit(env, request, "technical", 10))) {
+        return json({ ok: false, message: "Demasiados pedidos. Aguarda um minuto." }, 429, origin);
+      }
       const cacheKey = "technical:public";
       let cached = null;
       const stored = await env.STATUS_KV.get(cacheKey);
