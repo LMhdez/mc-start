@@ -161,7 +161,7 @@ def read_technical():
         filenames = [name.strip() for name in result.stdout.splitlines() if name.strip()][:limit]
         found = []
         with tempfile.TemporaryDirectory(prefix="mc-metadata-") as temp_dir:
-            # Copiar a pasta numa unica operacao evita uma chamada Docker por cada JAR.
+            # Copia em lote: uma operacao por pasta, em vez de uma chamada Docker por ficheiro JAR.
             copied = run_command(["docker", "cp", f"{CONTAINER}:{folder}/.", temp_dir], timeout=30)
             if copied.returncode != 0:
                 return []
