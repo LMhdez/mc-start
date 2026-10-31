@@ -62,6 +62,8 @@ jobs:
             else
               stage="Azure rejected Java NSG rule update"
             fi
+            echo "operation_status=failed" >> "$GITHUB_OUTPUT"
+            echo "failure_stage=$stage" >> "$GITHUB_OUTPUT"
             exit 1
           fi
 
