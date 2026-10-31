@@ -355,10 +355,15 @@ function renderStatus(result) {
       address.textContent = t.addressProtected;
     }
   }
-  if (count) count.textContent = result.players == null ? "—" : String(result.players);
+  const playersKnown = result.players != null && (
+    result.vm !== "VM running" ||
+    result.docker === "inactive" ||
+    (result.docker === "active" && result.container !== "unknown")
+  );
+  if (count) count.textContent = playersKnown ? String(result.players) : "—";
   if (names) names.textContent = Array.isArray(result.player_names)
     ? (result.player_names.length ? result.player_names.join(", ") : t.noPlayers)
-    : (result.players === 0 ? t.noPlayers : t.unknownStatus);
+    : (playersKnown && result.players === 0 ? t.noPlayers : t.unknownStatus);
 
   if (details) {
     const values = [
