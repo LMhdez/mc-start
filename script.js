@@ -34,7 +34,7 @@ const translations = {
     notConfirmed: "Não confirmado; requer compatibilidade própria",
     compatNote: "Não apresentamos números de versão nem compatibilidade Bedrock sem confirmação técnica. Para clientes Java, Windows, macOS e Linux são plataformas suportadas pelo próprio jogo; a versão exata tem de corresponder à do servidor.",
     serverAddress: "ENDEREÇO DE LIGAÇÃO", addressUnavailable: "Indisponível enquanto a VM está desligada", addressProtected: "Protegido — introduz a palavra-passe", revealAddress: "Mostrar endereço",
-    liveTechHeading: "ESPECIFICAÇÕES DETETADAS", liveTechTitle: "Software instalado", liveTechNote: "Leitura automática em cache durante 10 minutos. Esta secção não apresenta endereços de rede nem credenciais.", techLoading: "A carregar especificações", techChecked: "Recolhido", techOS: "Sistema operativo", techArch: "Arquitetura", techKernel: "Kernel", techDocker: "Docker", techImage: "Imagem do contentor", techJava: "Java", techMinecraft: "Minecraft", techType: "Tipo de servidor", techMods: "Mods", techPlugins: "Plugins", techUnavailable: "Dynamic specifications unavailable.", techUnavailable: "Especificações dinámicas no disponibles.", techUnavailable: "Especificações dinâmicas indisponíveis.",
+    liveTechHeading: "ESPECIFICAÇÕES DETETADAS", liveTechTitle: "Software instalado", liveTechNote: "Leitura automática em cache durante 10 minutos. Esta secção não apresenta endereços de rede nem credenciais.", techLoading: "A carregar especificações", techChecked: "Recolhido", techOS: "Sistema operativo", techArch: "Arquitetura", techKernel: "Kernel", techDocker: "Docker", techImage: "Imagem do contentor", techJava: "Java", techMinecraft: "Minecraft", techType: "Tipo de servidor", techMods: "Mods", techPlugins: "Plugins", techUnavailable: "Especificações dinâmicas indisponíveis.",
     playersOnline: "JOGADORES ONLINE", manualCheck: "Consulta manual", viaActions: "via Cloudflare / Actions",
     passwordLabel: "PALAVRA-PASSE DE ACESSO AO PAINEL", passwordPlaceholder: "Palavra-passe partilhada",
     start: "Ligar VM", stop: "Desligar VM", check: "Atualizar estado",
@@ -75,7 +75,7 @@ const translations = {
     notConfirmed: "No confirmado; requiere compatibilidad específica",
     compatNote: "No mostramos versiones ni compatibilidad Bedrock sin confirmación técnica. Para clientes Java, Windows, macOS y Linux son plataformas compatibles con el propio juego; la versión debe coincidir con la del servidor.",
     serverAddress: "DIRECCIÓN DE CONEXIÓN", addressUnavailable: "No disponible cuando la VM está apagada", addressProtected: "Protegida — introduce la contraseña", revealAddress: "Mostrar dirección",
-    liveTechHeading: "ESPECIFICACIONES DETECTADAS", liveTechTitle: "Software instalado", liveTechNote: "Lectura automática en caché durante 10 minutos. Esta sección no muestra direcciones de red ni credenciales.", techLoading: "Cargando especificaciones", techChecked: "Recopilado", techOS: "Sistema operativo", techArch: "Arquitectura", techKernel: "Kernel", techDocker: "Docker", techImage: "Imagen del contenedor", techJava: "Java", techMinecraft: "Minecraft", techType: "Tipo de servidor", techMods: "Mods", techPlugins: "Plugins",
+    liveTechHeading: "ESPECIFICACIONES DETECTADAS", liveTechTitle: "Software instalado", liveTechNote: "Lectura automática en caché durante 10 minutos. Esta sección no muestra direcciones de red ni credenciales.", techLoading: "Cargando especificaciones", techChecked: "Recopilado", techOS: "Sistema operativo", techArch: "Arquitectura", techKernel: "Kernel", techDocker: "Docker", techImage: "Imagen del contenedor", techJava: "Java", techMinecraft: "Minecraft", techType: "Tipo de servidor", techMods: "Mods", techPlugins: "Plugins", techUnavailable: "Especificaciones dinámicas no disponibles.",
     playersOnline: "JUGADORES EN LÍNEA", manualCheck: "Consulta manual", viaActions: "via Cloudflare / Actions",
     passwordLabel: "CONTRASEÑA DE ACCESO AL PANEL", passwordPlaceholder: "Contraseña compartida",
     start: "Iniciar VM", stop: "Apagar VM", check: "Actualizar estado",
@@ -116,7 +116,7 @@ const translations = {
     notConfirmed: "Not confirmed; requires specific compatibility",
     compatNote: "We do not publish version numbers or Bedrock compatibility without technical confirmation. For Java clients, Windows, macOS and Linux are supported by the game itself; the client version must match the server.",
     serverAddress: "CONNECTION ADDRESS", addressUnavailable: "Unavailable while the VM is powered off", addressProtected: "Protected — enter the password", revealAddress: "Show address",
-    liveTechHeading: "DETECTED SPECIFICATIONS", liveTechTitle: "Installed software", liveTechNote: "Automatically collected and cached for 10 minutes. This section does not expose network addresses or credentials.", techLoading: "Loading specifications", techChecked: "Collected", techOS: "Operating system", techArch: "Architecture", techKernel: "Kernel", techDocker: "Docker", techImage: "Container image", techJava: "Java", techMinecraft: "Minecraft", techType: "Server type", techMods: "Mods", techPlugins: "Plugins",
+    liveTechHeading: "DETECTED SPECIFICATIONS", liveTechTitle: "Installed software", liveTechNote: "Automatically collected and cached for 10 minutes. This section does not expose network addresses or credentials.", techLoading: "Loading specifications", techChecked: "Collected", techOS: "Operating system", techArch: "Architecture", techKernel: "Kernel", techDocker: "Docker", techImage: "Container image", techJava: "Java", techMinecraft: "Minecraft", techType: "Server type", techMods: "Mods", techPlugins: "Plugins", techUnavailable: "Dynamic specifications unavailable.",
     playersOnline: "PLAYERS ONLINE", manualCheck: "Manual check", viaActions: "via Cloudflare / Actions",
     passwordLabel: "DASHBOARD ACCESS PASSWORD", passwordPlaceholder: "Shared password",
     start: "Start VM", stop: "Stop VM", check: "Refresh status",
@@ -194,7 +194,7 @@ function renderStatus(result) {
     };
     state.textContent = vmStates[result.vm] || t.vmUnknown;
   }
-  if (address) address.textContent = result.ip || (result.private ? t.addressUnavailable : t.addressProtected);
+  if (address) address.textContent = result.private ? (result.ip || t.addressUnavailable) : t.addressProtected;
   if (count) count.textContent = String(result.players ?? 0);
   if (names) names.textContent = result.player_names?.length ? result.player_names.join(", ") : t.noPlayers;
 
@@ -309,7 +309,7 @@ async function requestAction(action) {
     }
 
     if (result.immediate && result.result) {
-      renderStatus(result.result);
+      renderStatus({ ...result.result, private: true });
       showFeedback("statusReady");
       return;
     }
@@ -333,7 +333,7 @@ async function requestAction(action) {
         showFeedback("requestError");
         return;
       }
-      renderStatus(statusResult.result);
+      renderStatus({ ...statusResult.result, private: true });
       showFeedback("statusReady");
       return;
     }
