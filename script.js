@@ -34,7 +34,7 @@ const translations = {
     modDescChunky:"Gera antecipadamente chunks para preparar áreas do mundo.",
     modDescGeyser:"Permite que jogadores Bedrock entrem num servidor Minecraft Java.",
     pluginsLabel:"Plugins", noModsDetected:"Não foram detetados mods carregados.", updatedAtLabel:"Atualizado",
-    techUnavailable:"Não foi possível obter as especificações técnicas."
+    techUnavailable:"Não foi possível obter as especificações técnicas.",
 
     azureShort:"Máquina virtual · infraestrutura cloud", linuxShort:"Sistema operativo · APT · systemd", dockerShort:"Contentorização · mc-server", minecraftShort:"Servidor de jogo · RCON", pythonShort:"Agente privado de monitorização", tunnelShort:"Comunicação privada com o agente", internalAdmin:"Administração interna", remoteManagement:"Gestão remota", compatibility:"Compatibilidade",
     languageLabel: "IDIOMA", panelLabel: "PAINEL TÉCNICO",
@@ -108,7 +108,7 @@ const translations = {
     modDescChunky:"Genera chunks por adelantado para preparar zonas del mundo.",
     modDescGeyser:"Permite que jugadores de Bedrock entren en un servidor Minecraft Java.",
     pluginsLabel:"Plugins", noModsDetected:"No se detectaron mods cargados.", updatedAtLabel:"Actualizado",
-    techUnavailable:"No se pudieron obtener las especificaciones técnicas."
+    techUnavailable:"No se pudieron obtener las especificaciones técnicas.",
 
     azureShort:"Máquina virtual · infraestructura cloud", linuxShort:"Sistema operativo · APT · systemd", dockerShort:"Contenedores · mc-server", minecraftShort:"Servidor de juego · RCON", pythonShort:"Agente privado de monitorización", tunnelShort:"Comunicación privada con el agente", internalAdmin:"Administración interna", remoteManagement:"Gestión remota", compatibility:"Compatibilidad",
     languageLabel: "IDIOMA", panelLabel: "PANEL TÉCNICO",
@@ -182,7 +182,7 @@ const translations = {
     modDescChunky:"Pre-generates chunks to prepare areas of the world.",
     modDescGeyser:"Allows Bedrock players to join a Minecraft Java server.",
     pluginsLabel:"Plugins", noModsDetected:"No loaded mods were detected.", updatedAtLabel:"Updated",
-    techUnavailable:"Unable to retrieve technical specifications."
+    techUnavailable:"Unable to retrieve technical specifications.",
 
     azureShort:"Virtual machine · cloud infrastructure", linuxShort:"Operating system · APT · systemd", dockerShort:"Containerization · mc-server", minecraftShort:"Game server · RCON", pythonShort:"Private monitoring agent", tunnelShort:"Private connection to the agent", internalAdmin:"Internal administration", remoteManagement:"Remote management", compatibility:"Compatibility",
     languageLabel: "LANGUAGE", panelLabel: "TECHNICAL DASHBOARD",
