@@ -238,7 +238,7 @@ def read_technical():
 
         # O Fabric anuncia a versão do jogo e do loader durante o arranque.
         fabric_match = re.search(
-            r"Loading Minecraft ([^\\s]+) with Fabric Loader ([0-9.]+)",
+            r"Loading Minecraft ([^\s]+) with Fabric Loader ([0-9.]+)",
             logs,
             re.IGNORECASE,
         )
