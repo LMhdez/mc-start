@@ -88,12 +88,26 @@ jobs:
 
           docker inspect "$CONTAINER" >/dev/null
           STATE=$(docker inspect -f '{{.State.Status}}' "$CONTAINER")
-          if [[ "$STATE" != "running" ]]; then
+          if [ "$STATE" != "running" ]; then
             echo "Container Minecraft não está em execução: $STATE"
             exit 1
           fi
 
-          PLAYERS=$(docker exec "$CONTAINER" rcon-cli list 2>/dev/null || true)
+          PLAYERS=""
+          RCON_READY=0
+          for i in $(seq 1 90); do
+            PLAYERS=$(docker exec "$CONTAINER" rcon-cli list 2>/dev/null || true)
+            if printf '%s\n' "$PLAYERS" | grep -qE 'There are [0-9]+ of'; then
+              RCON_READY=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$RCON_READY" -ne 1 ]; then
+            echo "RCON não ficou disponível após o arranque da VM; nenhum ficheiro foi alterado."
+            exit 1
+          fi
+
           COUNT=$(printf '%s' "$PLAYERS" | sed -nE 's/.*There are ([0-9]+) of.*/\1/p' | head -n1)
           COUNT=${COUNT:-0}
           case "$COUNT" in *[!0-9]*|'') COUNT=0 ;; esac
@@ -138,13 +152,14 @@ jobs:
           docker exec "$CONTAINER" rcon-cli save-all flush
           docker stop --time 60 "$CONTAINER" >/dev/null
           docker cp "$WORKDIR/$FILENAME" "$CONTAINER:/data/mods/$FILENAME"
+          STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           docker start "$CONTAINER" >/dev/null
 
           READY=0
           for i in $(seq 1 90); do
             STATE=$(docker inspect -f '{{.State.Status}}' "$CONTAINER" 2>/dev/null || true)
             if [ "$STATE" = "running" ]; then
-              LOGS=$(docker logs --tail 250 "$CONTAINER" 2>&1 || true)
+              LOGS=$(docker logs --since "$STARTED_AT" --tail 250 "$CONTAINER" 2>&1 || true)
               if printf '%s\n' "$LOGS" | grep -qE 'Done \('; then
                 READY=1
                 break
