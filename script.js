@@ -492,7 +492,7 @@ async function requestAction(action) {
           await new Promise(resolve => setTimeout(resolve, 2500));
           try {
             const ipResponse = await fetchWithTimeout(
-              WORKER_URL.replace(/\\/$/, "") + "/api/ip-read",
+              WORKER_URL.replace(/\/$/, "") + "/api/ip-read",
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
