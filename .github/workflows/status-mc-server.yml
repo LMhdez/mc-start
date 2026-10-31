@@ -115,7 +115,10 @@ jobs:
                 sed -n 's/.*players online: *//p' |
                 tail -n1)
 
-              [ -z "$PLAYER_COUNT" ] && PLAYER_COUNT="0"
+              if [ -z "$PLAYER_COUNT" ]; then
+                PLAYER_COUNT="null"
+                PLAYER_NAMES="null"
+              fi
 
             fi
           fi
@@ -166,7 +169,10 @@ jobs:
                         sed -n "s/.*players online: *//p" |
                         tail -n1)
 
-                      [ -z "$PLAYER_COUNT" ] && PLAYER_COUNT="0"
+                      if [ -z "$PLAYER_COUNT" ]; then
+                PLAYER_COUNT="null"
+                PLAYER_NAMES="null"
+              fi
                     fi
                   fi
 
@@ -195,8 +201,8 @@ jobs:
             # Ler os dados JSON
             DOCKER=$(echo "$REMOTE_STATUS" | jq -r '.docker // "unknown"')
             CONTAINER=$(echo "$REMOTE_STATUS" | jq -r '.container // "unknown"')
-            PLAYER_COUNT=$(echo "$REMOTE_STATUS" | jq -r '.players // 0')
-            PLAYER_NAMES=$(echo "$REMOTE_STATUS" | jq -c '.player_names // []')
+            PLAYER_COUNT=$(echo "$REMOTE_STATUS" | jq -r '.players // "null"')
+            PLAYER_NAMES=$(echo "$REMOTE_STATUS" | jq -c '.player_names // null')
           fi
 
           RESULT=$(jq -cn \
