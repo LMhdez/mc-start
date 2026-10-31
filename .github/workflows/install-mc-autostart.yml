@@ -61,6 +61,19 @@ jobs:
               fi
               docker compose -f "$COMPOSE_FILE" config --quiet
 
+              # Atualiza o agente privado com a correção de rcon_ready.
+              curl -fsSL "https://raw.githubusercontent.com/LMhdez/mc-start/3e12adea2615bb60ceccf4b9194b922fd5c8a098/vm/mc-agent.py" -o /tmp/mc-agent.py
+              install -d -m 0755 /opt/mc-agent
+              install -m 0755 /tmp/mc-agent.py /opt/mc-agent/mc-agent.py
+              rm -f /tmp/mc-agent.py
+              if systemctl cat mc-private-agent.service >/dev/null 2>&1; then
+                systemctl restart mc-private-agent.service
+                systemctl is-active --quiet mc-private-agent.service
+              else
+                echo "MC_AUTOSTART_ERROR: private agent service not found"
+                exit 1
+              fi
+
               cat > "$UNIT_FILE" <<'"'"'SERVICE'"'"'
               [Unit]
               Description=Minecraft server Docker Compose service
