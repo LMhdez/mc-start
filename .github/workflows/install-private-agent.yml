@@ -31,7 +31,7 @@ jobs:
             exit 1
           fi
           install -m 700 -d ~/.ssh
-          printf '%s\\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
       - name: Instalar o agente e reparar o Cloudflare Tunnel
@@ -48,10 +48,10 @@ jobs:
             exit 1
           fi
 
-          IP=$(az vm list-ip-addresses \\
-            --resource-group "$AZURE_RESOURCE_GROUP" \\
-            --name "$AZURE_VM_NAME" \\
-            --query "[0].virtualMachine.network.publicIpAddresses[0].ipAddress" \\
+          IP=$(az vm list-ip-addresses \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_VM_NAME" \
+            --query "[0].virtualMachine.network.publicIpAddresses[0].ipAddress" \
             -o tsv)
 
           if [ -z "$IP" ] || [ "$IP" = "None" ]; then
@@ -75,10 +75,10 @@ jobs:
           apt-get install -y ca-certificates curl
 
           install -d -m 0755 /usr/share/keyrings
-          curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg \\
+          curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg \
             -o /usr/share/keyrings/cloudflare-main.gpg
           chmod 0644 /usr/share/keyrings/cloudflare-main.gpg
-          echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main" \\
+          echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main" \
             > /etc/apt/sources.list.d/cloudflared.list
 
           apt-get update
