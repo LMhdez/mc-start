@@ -103,6 +103,77 @@ def read_status():
     }
 
 
+
+def read_technical():
+    """Recolhe apenas especificacoes tecnicas; nunca inclui IPs ou dados de ligacao."""
+    def output(args, timeout=5):
+        result = run_command(args, timeout=timeout)
+        return result.stdout.strip() if result.returncode == 0 else ""
+
+    os_name = "Linux"
+    os_version = ""
+    try:
+        with open("/etc/os-release", "r", encoding="utf-8") as file:
+            values = {}
+            for line in file:
+                if "=" in line:
+                    key, value = line.rstrip().split("=", 1)
+                    values[key] = value.strip().strip('"')
+            os_name = values.get("PRETTY_NAME", os_name)
+    except OSError:
+        pass
+
+    docker_version = output(["docker", "--version"])
+    image = output(["docker", "inspect", "-f", "{{.Config.Image}}", CONTAINER])
+    java_version = ""
+    minecraft_version = ""
+    server_type = "Não identificado"
+    mods = "Não verificado"
+    plugins = "Não verificado"
+
+    if output(["docker", "inspect", CONTAINER]):
+        java_result = run_command(["docker", "exec", CONTAINER, "sh", "-lc", "java -version"], timeout=8)
+        java_text = (java_result.stderr or java_result.stdout).strip()
+        match = re.search(r'version "([^"]+)"', java_text)
+        if match:
+            java_version = match.group(1)
+
+        logs = output(["docker", "logs", "--tail", "300", CONTAINER], timeout=8)
+        match = re.search(r"Starting minecraft server version ([0-9.]+)", logs, re.IGNORECASE)
+        if match:
+            minecraft_version = match.group(1)
+
+        image_lower = image.lower()
+        if "itzg/minecraft-server" in image_lower:
+            server_type = "itzg/minecraft-server (tipo configurado por variáveis)"
+        elif image:
+            server_type = image
+
+        for folder, key in [("/data/mods", "mods"), ("/data/plugins", "plugins")]:
+            check = run_command(["docker", "exec", CONTAINER, "sh", "-lc",
+                                 "find " + folder + " -maxdepth 1 -type f 2>/dev/null | wc -l"], timeout=5)
+            if check.returncode == 0:
+                count = check.stdout.strip()
+                if key == "mods":
+                    mods = count + " ficheiro(s)" if count.isdigit() else "Não verificado"
+                else:
+                    plugins = count + " ficheiro(s)" if count.isdigit() else "Não verificado"
+
+    return {
+        "os": os_name,
+        "architecture": output(["uname", "-m"]) or "Não identificada",
+        "kernel": output(["uname", "-r"]) or "Não identificado",
+        "docker": docker_version or "Não identificado",
+        "container_image": image or "Não identificado",
+        "java": java_version or "Não identificado",
+        "minecraft": minecraft_version or "Não identificado nos logs",
+        "server_type": server_type,
+        "mods": mods,
+        "plugins": plugins,
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 def stop_server():
     inspect = run_command(["docker", "inspect", CONTAINER], timeout=5)
     if inspect.returncode != 0:
@@ -134,6 +205,12 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
+        if self.path == "/technical":
+            try:
+                self.send_json({"ok": True, "result": read_technical()})
+            except Exception:
+                self.send_json({"ok": False, "message": "Technical check failed"}, 500)
+            return
         if self.path != "/status":
             self.send_json({"ok": False, "message": "Not found"}, 404)
             return
