@@ -88,21 +88,39 @@ jobs:
           REMOTE
           )
 
+          TMP_DIR=$(mktemp -d)
+          trap 'rm -rf "$TMP_DIR"' EXIT
           set +e
-          AZURE_RESULT=$(az vm run-command invoke --resource-group "$RESOURCE_GROUP" --name "$VM_NAME" --command-id RunShellScript --scripts "$REMOTE_SCRIPT" -o json 2>&1)
+          AZURE_RESULT=$(az vm run-command invoke --resource-group "$RESOURCE_GROUP" --name "$VM_NAME" --command-id RunShellScript --scripts "$REMOTE_SCRIPT" -o json 2>"$TMP_DIR/azure-stderr")
           AZURE_EXIT=$?
           set -e
 
-          REMOTE_OUTPUT=$(printf '%s' "$AZURE_RESULT" | jq -r '.value[]?.message // empty' 2>/dev/null || true)
-          if [[ "$AZURE_EXIT" -ne 0 ]] || ! grep -q "MC_AUTOSTART_OK" <<< "$REMOTE_OUTPUT"; then
-            echo "A VM não confirmou a instalação e o arranque automático. Diagnóstico remoto filtrado:"
-            printf '%s\n' "$REMOTE_OUTPUT" |
-              grep -iE 'MC_AUTOSTART_(OK|ERROR)|error|failed|failure|not found|permission denied|inactive|activating|exit code' |
-              sed -E 's/(password|secret|token|client[_-]?secret|authorization)([^:=]*[:=])[[:space:]]*[^[:space:]]+/\1\2 [REDACTED]/Ig' |
-              tail -n 30 || true
-            if [[ "$AZURE_EXIT" -ne 0 ]]; then
-              echo "Azure CLI terminou com código $AZURE_EXIT (detalhes omitidos por segurança)."
+          if ! jq -e '.value | type == "array"' >/dev/null 2>&1 <<< "$AZURE_RESULT"; then
+            echo "Resposta do Azure Run Command não veio em JSON no formato esperado."
+            echo "Azure CLI exit code: $AZURE_EXIT"
+            echo "Resposta omitida por segurança; tamanho da resposta: ${#AZURE_RESULT} bytes."
+            if [[ -s "$TMP_DIR/azure-stderr" ]]; then
+              echo "Azure CLI produziu mensagens de diagnóstico (conteúdo ocultado)."
             fi
             exit 1
           fi
-          echo "Serviço de arranque automático instalado e contentor iniciado."
+
+          REMOTE_OUTPUT=$(jq -r '.value[]? | .message? // empty' <<< "$AZURE_RESULT")
+          if [[ "$AZURE_EXIT" -ne 0 ]] || ! grep -q "MC_AUTOSTART_OK" <<< "$REMOTE_OUTPUT"; then
+            echo "A VM não confirmou a instalação e o arranque automático."
+            SAFE_MARKERS=$(grep -Eo 'MC_AUTOSTART_ERROR: remote script failed at line [0-9]+ \(exit [0-9]+\)|MC_AUTOSTART_ERROR: [A-Za-z0-9 _-]+|MC_AUTOSTART_OK' <<< "$REMOTE_OUTPUT" | tail -n 10 || true)
+            if [[ -n "$SAFE_MARKERS" ]]; then
+              printf '%s\n' "$SAFE_MARKERS"
+            else
+              echo "O Azure não devolveu um marcador de diagnóstico do script remoto."
+              jq -r '"Azure response entries: " + ((.value // []) | length | tostring), (.value[]? | "level=" + (.level // "unknown") + ", code=" + (.code // "unknown") + ", message_present=" + ((.message? // "") | length > 0 | tostring))' <<< "$AZURE_RESULT"
+            fi
+            if [[ "$AZURE_EXIT" -ne 0 ]]; then
+              echo "Azure CLI exit code: $AZURE_EXIT (detalhes ocultados)."
+            fi
+            if [[ -s "$TMP_DIR/azure-stderr" ]]; then
+              echo "Azure CLI produziu mensagens de diagnóstico (conteúdo ocultado)."
+            fi
+            exit 1
+          fi
+          echo "MC_AUTOSTART_OK: serviço instalado e contentor iniciado."
