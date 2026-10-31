@@ -46,7 +46,7 @@
       <div class="server-info">
         <div class="info-block">
           <span class="info-label" data-i18n="serverAddress">IP PÚBLICO</span>
-          <strong id="server-address" data-i18n="addressUnavailable">Indisponível enquanto a VM está desligada</strong>
+          <strong id="server-address" data-i18n="addressProtected">Protegido — introduz a palavra-passe</strong>
         </div>
         <div class="info-block">
           <span class="info-label" data-i18n="playersOnline">JOGADORES ONLINE</span>
@@ -67,7 +67,8 @@
       <div class="actions">
         <button id="start-button" class="button button-primary" type="button"><span aria-hidden="true">▶</span> <span data-i18n="start">Ligar VM</span></button>
         <button id="stop-button" class="button button-secondary" type="button" data-i18n="stop">Desligar VM</button>
-        <button id="status-button" class="button button-secondary" type="button" data-i18n="check">Atualizar estado</button>
+        <button id="status-button" class="button button-secondary" type="button" data-i18n="check">Atualizar estado público</button>
+        <button id="private-status-button" class="button button-secondary" type="button" data-i18n="revealAddress">Mostrar endereço</button>
       </div>
       <p id="feedback" class="feedback" role="status" aria-live="polite" data-i18n="initialFeedback">Introduz a palavra-passe para gerir a infraestrutura.</p>
     </section>
@@ -140,6 +141,17 @@
         <div class="spec-row"><span data-i18n="bedrockSupport">Minecraft Bedrock</span><strong data-i18n="notConfirmed">Não confirmado; requer compatibilidade própria</strong></div>
       </div>
       <p class="section-copy compatibility-note" data-i18n="compatNote">Não apresentamos números de versão nem compatibilidade Bedrock sem confirmação técnica. Para clientes Java, Windows, macOS e Linux são plataformas suportadas pelo próprio jogo; a versão exata tem de corresponder à do servidor.</p>
+    </section>
+
+    <section class="technical-section" aria-labelledby="live-tech-title">
+      <div class="section-heading">
+        <p class="card-kicker" data-i18n="liveTechHeading">ESPECIFICAÇÕES DETETADAS</p>
+        <h2 id="live-tech-title" data-i18n="liveTechTitle">Software instalado</h2>
+        <p class="section-copy" data-i18n="liveTechNote">Leitura automática em cache durante 10 minutos. Esta secção não apresenta endereços de rede nem credenciais.</p>
+      </div>
+      <div id="technical-specs" class="spec-list">
+        <div class="spec-row"><span data-i18n="techLoading">A carregar especificações</span><strong>—</strong></div>
+      </div>
     </section>
 
     <footer class="footer">
