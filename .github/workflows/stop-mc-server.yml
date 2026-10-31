@@ -20,7 +20,7 @@ concurrency:
 jobs:
   stop-azure-vm:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
 
     steps:
       - name: Login na Azure
