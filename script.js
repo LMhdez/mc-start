@@ -12,6 +12,7 @@ const buttons = [
 
 const translations = {
   pt: {
+    azureShort:"Máquina virtual · infraestrutura cloud", linuxShort:"Sistema operativo · APT · systemd", dockerShort:"Contentorização · mc-server", minecraftShort:"Servidor de jogo · RCON", pythonShort:"Agente privado de monitorização", tunnelShort:"Comunicação privada com o agente", internalAdmin:"Administração interna", remoteManagement:"Gestão remota", compatibility:"Compatibilidade",
     languageLabel: "IDIOMA", panelLabel: "PAINEL TÉCNICO",
     eyebrow: "INFRAESTRUTURA E MONITORIZAÇÃO", pageTitle: "Informação do servidor",
     pageCopy: "Estado operacional, componentes identificados e detalhes de compatibilidade. Os dados não confirmados são assinalados como tal.",
@@ -53,6 +54,7 @@ const translations = {
     vmState: "Estado da VM", vmDeallocated: "Servidor desligado", vmRunning: "Servidor online", vmStopped: "Servidor parado", vmStarting: "A iniciar", vmStopping: "A desligar", vmUnknown: "Estado desconhecido", notChecked: "Não verificado (VM desligada)", dockerActive: "Ativo", dockerInactive: "Inativo", containerRunning: "Em execução", containerExited: "Parado", containerNotFound: "Não encontrado", dockerState: "Docker", containerState: "Contentor", portState: "Porta 25565", playerNames: "Jogadores", checkedAt: "Verificado", noPlayers: "Ninguém online", statusReady: "Estado atualizado.", statusTimeout: "A verificação ainda não terminou. Tenta consultar novamente daqui a pouco.", portOpen: "Acessível", portClosed: "Inacessível"
   },
   es: {
+    azureShort:"Máquina virtual · infraestructura cloud", linuxShort:"Sistema operativo · APT · systemd", dockerShort:"Contenedores · mc-server", minecraftShort:"Servidor de juego · RCON", pythonShort:"Agente privado de monitorización", tunnelShort:"Comunicación privada con el agente", internalAdmin:"Administración interna", remoteManagement:"Gestión remota", compatibility:"Compatibilidad",
     languageLabel: "IDIOMA", panelLabel: "PANEL TÉCNICO",
     eyebrow: "INFRAESTRUCTURA Y MONITORIZACIÓN", pageTitle: "Información del servidor",
     pageCopy: "Estado operativo, componentes identificados y compatibilidad. Los datos no confirmados se indican como tales.",
@@ -94,6 +96,7 @@ const translations = {
     vmState: "Estado de la VM", vmDeallocated: "Servidor apagado", vmRunning: "Servidor en línea", vmStopped: "Servidor detenido", vmStarting: "Iniciando", vmStopping: "Apagando", vmUnknown: "Estado desconocido", notChecked: "No comprobado (VM apagada)", dockerActive: "Activo", dockerInactive: "Inactivo", containerRunning: "En ejecución", containerExited: "Detenido", containerNotFound: "No encontrado", dockerState: "Docker", containerState: "Contenedor", portState: "Puerto 25565", playerNames: "Jugadores", checkedAt: "Comprobado", noPlayers: "Nadie conectado", statusReady: "Estado actualizado.", statusTimeout: "La comprobación aún no ha terminado. Vuelve a consultar dentro de un momento.", portOpen: "Accesible", portClosed: "Inaccesible"
   },
   en: {
+    azureShort:"Virtual machine · cloud infrastructure", linuxShort:"Operating system · APT · systemd", dockerShort:"Containerization · mc-server", minecraftShort:"Game server · RCON", pythonShort:"Private monitoring agent", tunnelShort:"Private connection to the agent", internalAdmin:"Internal administration", remoteManagement:"Remote management", compatibility:"Compatibility",
     languageLabel: "LANGUAGE", panelLabel: "TECHNICAL DASHBOARD",
     eyebrow: "INFRASTRUCTURE AND MONITORING", pageTitle: "Server information",
     pageCopy: "Operational status, identified components and compatibility details. Unverified information is clearly marked.",
@@ -290,7 +293,7 @@ async function loadTechnicalSpecs() {
     entries.forEach(([icon,label,value,sub]) => {
       const card=document.createElement("article");
       const normalized=String(value||"").toLowerCase();
-      const stateField=["docker","mc-private-agent","cloudflared"].includes(label.toLowerCase());
+      const stateField=/serviço|service|agente|agent|tunnel/i.test(label);
       card.className="detected-card"+(stateField&&normalized==="active"?" is-ok":stateField&&normalized!=="active"?" is-bad":"");
       const top=document.createElement("div");top.className="detected-top";
       const symbol=document.createElement("span");symbol.className="detected-icon";symbol.textContent=icon;
