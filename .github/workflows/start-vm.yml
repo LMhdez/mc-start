@@ -78,7 +78,7 @@ jobs:
           echo "A aguardar que a VM fique operacional..."
           for i in {1..90}; do
             STATUS=$(get_status)
-            echo "Verificação $i/30: $STATUS"
+            echo "Verificação $i/90: $STATUS"
             if [[ "$STATUS" == "VM running" ]]; then
               echo "SUCESSO: VM ligada e confirmada!"
               exit 0
