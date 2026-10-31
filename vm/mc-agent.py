@@ -385,6 +385,9 @@ def read_technical():
 
         installed_mods, mods_inventory_available = inspect_jars("/data/mods", "mod")
         plugins, _ = inspect_jars("/data/plugins", "plugin")
+        installed_ids = {str(item.get("id", "")).lower() for item in installed_mods}
+        if server_type != "Fabric" and installed_ids.intersection({"fabric-api", "geyser-fabric", "lithium", "ferritecore"}):
+            server_type = "Fabric"
 
         # O bloco Fabric e a fonte de verdade: considera apenas entradas principais
         # do ultimo arranque e ignora dependencias indentadas (|-- / \\--).
