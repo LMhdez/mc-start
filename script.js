@@ -482,7 +482,36 @@ async function requestAction(action) {
     }
 
     if (result.immediate && result.result) {
-      renderStatus({ ...result.result, private: true });
+      const privateResult = { ...result.result, private: true };
+      renderStatus(privateResult);
+
+      // Se o Worker ainda não tiver o IP, espera pela sincronização feita via Azure CLI.
+      if (!privateResult.ip) {
+        showFeedback("searchingPrivate", true);
+        for (let attempt = 0; attempt < 12; attempt++) {
+          await new Promise(resolve => setTimeout(resolve, 2500));
+          try {
+            const ipResponse = await fetchWithTimeout(
+              WORKER_URL.replace(/\\/$/, "") + "/api/ip-read",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password })
+              }
+            );
+            const ipData = await ipResponse.json();
+            if (ipResponse.ok && ipData.ok && ipData.ip) {
+              privateResult.ip = ipData.ip;
+              renderStatus(privateResult);
+              showFeedback("statusReady");
+              return;
+            }
+          } catch {
+            // A sincronização continua em segundo plano; tenta novamente.
+          }
+        }
+      }
+
       showFeedback("statusReady");
       return;
     }
