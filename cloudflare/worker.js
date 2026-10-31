@@ -94,7 +94,7 @@ async function dispatchWorkflow(env, file, inputs) {
   );
 }
 
-async function getAzureVmPowerState(env) {
+async function getAzureAccessToken(env) {
   const required = ["AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID",
     "AZURE_SUBSCRIPTION_ID", "AZURE_RESOURCE_GROUP", "AZURE_VM_NAME"];
   if (required.some(name => !env[name])) return null;
@@ -115,16 +115,24 @@ async function getAzureVmPowerState(env) {
   if (!tokenResponse.ok) throw new Error("Azure token request failed");
   const tokenData = await tokenResponse.json();
   if (!tokenData.access_token) throw new Error("Azure token missing");
+  return tokenData.access_token;
+}
 
-  const resource = [
+function azureVmResource(env) {
+  return [
     "subscriptions", encodeURIComponent(env.AZURE_SUBSCRIPTION_ID),
     "resourceGroups", encodeURIComponent(env.AZURE_RESOURCE_GROUP),
-    "providers/Microsoft.Compute/virtualMachines", encodeURIComponent(env.AZURE_VM_NAME),
-    "instanceView"
+    "providers/Microsoft.Compute/virtualMachines", encodeURIComponent(env.AZURE_VM_NAME)
   ].join("/");
+}
+
+async function getAzureVmPowerState(env) {
+  const accessToken = await getAzureAccessToken(env);
+  if (!accessToken) return null;
+
   const vmResponse = await fetch(
-    "https://management.azure.com/" + resource + "?api-version=2024-07-01",
-    { headers: { "Authorization": "Bearer " + tokenData.access_token } }
+    "https://management.azure.com/" + azureVmResource(env) + "/instanceView?api-version=2024-07-01",
+    { headers: { "Authorization": "Bearer " + accessToken } }
   );
   if (!vmResponse.ok) throw new Error("Azure VM status request failed");
   const vmData = await vmResponse.json();
@@ -141,6 +149,38 @@ async function getAzureVmPowerState(env) {
     "PowerState/running": "VM running"
   };
   return states[power.code] || null;
+}
+
+async function performAzureVmAction(env, action) {
+  if (!["start", "deallocate"].includes(action)) {
+    throw new Error("Azure VM action is not allowed");
+  }
+  const accessToken = await getAzureAccessToken(env);
+  if (!accessToken) throw new Error("Azure credentials are incomplete");
+
+  const response = await fetch(
+    "https://management.azure.com/" + azureVmResource(env) + "/" + action + "?api-version=2024-07-01",
+    {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + accessToken }
+    }
+  );
+  if (!response.ok && response.status !== 202) {
+    throw new Error("Azure VM action failed with status " + response.status);
+  }
+  return response.status;
+}
+
+async function callPrivateAgent(env, path, method = "GET") {
+  if (!env.MC_AGENT) throw new Error("Private MC agent binding is missing");
+  const response = await env.MC_AGENT.fetch(new Request(
+    "http://localhost:8765" + path,
+    { method, headers: { "Accept": "application/json" } }
+  ));
+  if (!response.ok) throw new Error("Private MC agent returned status " + response.status);
+  const data = await response.json();
+  if (!data || data.ok !== true) throw new Error("Private MC agent rejected the request");
+  return data;
 }
 
 export default {
@@ -224,7 +264,6 @@ export default {
     }
 
     if (url.pathname !== "/api/action") return json({ ok: false, message: "Endereco nao encontrado." }, 404, origin);
-    if (!env.GITHUB_TOKEN) return json({ ok: false, message: "Configuracao incompleta do painel." }, 503, origin);
     if (!["start", "stop", "status"].includes(body.action)) {
       return json({ ok: false, message: "Acao nao permitida." }, 400, origin);
     }
@@ -240,7 +279,7 @@ export default {
       if (!validRequestId(body.request_id)) return json({ ok: false, message: "Pedido invalido." }, 400, origin);
       await env.STATUS_KV.delete("status:" + body.request_id);
 
-      // A VM desligada ou em transicao nao precisa de iniciar GitHub Actions.
+      // Primeiro consulta diretamente Azure. Se a VM estiver ligada, tenta o agente privado.
       try {
         const vmState = await getAzureVmPowerState(env);
         if (vmState && vmState !== "VM running") {
@@ -253,6 +292,18 @@ export default {
               checked_at: new Date().toISOString()
             }
           }, 200, origin);
+        }
+
+        if (vmState === "VM running") {
+          try {
+            const agent = await callPrivateAgent(env, "/status");
+            if (agent.result && typeof agent.result === "object") {
+              return json({ ok: true, immediate: true, result: agent.result }, 200, origin);
+            }
+            throw new Error("Private MC agent returned an invalid status payload");
+          } catch (error) {
+            console.error("Agente privado indisponivel; a usar GitHub Actions:", error.message);
+          }
         }
       } catch (error) {
         console.error("Consulta direta Azure falhou; a usar GitHub Actions:", error.message);
@@ -268,6 +319,47 @@ export default {
       message = workflow.message;
     }
 
+    // Ligar e desligar diretamente pela API do Azure. As Actions ficam como fallback.
+    if (body.action === "start") {
+      try {
+        const vmState = await getAzureVmPowerState(env);
+        if (vmState === "VM running" || vmState === "VM starting") {
+          return json({ ok: true, message: "O servidor ja esta ligado ou a iniciar." }, 200, origin);
+        }
+        await performAzureVmAction(env, "start");
+        return json({ ok: true, message: "Pedido para ligar o servidor enviado diretamente ao Azure." }, 202, origin);
+      } catch (error) {
+        console.error("Arranque direto Azure falhou; a usar GitHub Actions:", error.message);
+        file = WORKFLOWS.start.file;
+        inputs = WORKFLOWS.start.inputs;
+        message = WORKFLOWS.start.message;
+      }
+    } else if (body.action === "stop") {
+      try {
+        const vmState = await getAzureVmPowerState(env);
+        if (vmState === "VM deallocated") {
+          return json({ ok: true, message: "O servidor ja esta desligado." }, 200, origin);
+        }
+        if (vmState === "VM starting" || vmState === "VM stopping") {
+          throw new Error("A VM esta numa transicao; a usar o workflow existente.");
+        }
+        if (vmState === "VM running") {
+          // Parar o Minecraft de forma graciosa antes de desalocar a VM.
+          await callPrivateAgent(env, "/stop", "POST");
+        }
+        await performAzureVmAction(env, "deallocate");
+        return json({ ok: true, message: "Pedido para desligar o servidor enviado diretamente ao Azure." }, 202, origin);
+      } catch (error) {
+        console.error("Desligamento direto nao concluido; a usar GitHub Actions:", error.message);
+        file = WORKFLOWS.stop.file;
+        inputs = WORKFLOWS.stop.inputs;
+        message = WORKFLOWS.stop.message;
+      }
+    }
+
+    if (!env.GITHUB_TOKEN) {
+      return json({ ok: false, message: "Configuracao incompleta do painel." }, 503, origin);
+    }
     const response = await dispatchWorkflow(env, file, inputs);
     if (!response.ok) {
       return json({ ok: false, message: "O GitHub nao aceitou o pedido. Tenta novamente mais tarde." }, 502, origin);
