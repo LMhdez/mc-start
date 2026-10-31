@@ -5,7 +5,6 @@ const passwordInput = document.querySelector("#access-password");
 const feedback = document.querySelector("#feedback");
 const languageSelect = document.querySelector("#language-select");
 const startButton = document.querySelector("#start-button");
-const stopButton = document.querySelector("#stop-button");
 const statusButton = document.querySelector("#status-button");
 const privateStatusButton = document.querySelector("#private-status-button");
 
@@ -297,16 +296,11 @@ let lastPrivateIp = "";
 let lastFeedbackLoading = false;
 let actionInProgress = false;
 let publicStatusInFlight = false;
-let adminAuthenticated = false;
 
 function updateActionButtons() {
   const hasPassword = Boolean(passwordInput?.value);
   if (startButton) startButton.disabled = actionInProgress || !hasPassword;
   if (privateStatusButton) privateStatusButton.disabled = actionInProgress || !hasPassword;
-  if (stopButton) {
-    stopButton.hidden = !adminAuthenticated;
-    stopButton.disabled = actionInProgress || !adminAuthenticated;
-  }
   if (statusButton) statusButton.disabled = actionInProgress || publicStatusInFlight;
 }
 
@@ -744,17 +738,12 @@ async function requestAction(action) {
 
     if (!response.ok || !result.ok) {
       if (response.status === 401) {
-        adminAuthenticated = false;
-        updateActionButtons();
         showFeedback("wrongPassword");
       } else if (response.status === 403) showFeedback("notAllowed");
       else if (response.status === 503) showFeedback("incomplete");
       else showFeedback("requestError");
       return;
     }
-
-    adminAuthenticated = true;
-    updateActionButtons();
 
     if (action !== "status") {
       await waitForVmAction(action);
@@ -801,7 +790,6 @@ async function requestAction(action) {
   }
 }
 passwordInput?.addEventListener("input", () => {
-  adminAuthenticated = false;
   updateActionButtons();
 });
 passwordInput?.addEventListener("keydown", event => {
@@ -812,9 +800,6 @@ passwordInput?.addEventListener("keydown", event => {
 });
 languageSelect?.addEventListener("change", event => setLanguage(event.target.value));
 document.querySelector("#start-button")?.addEventListener("click", () => requestAction("start"));
-document.querySelector("#stop-button")?.addEventListener("click", () => {
-  if (window.confirm(translations[currentLanguage].confirmStop)) requestAction("stop");
-});
 document.querySelector("#status-button")?.addEventListener("click", () => requestPublicStatus(true));
 document.querySelector("#private-status-button")?.addEventListener("click", () => requestAction("status"));
 
