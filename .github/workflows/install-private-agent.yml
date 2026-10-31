@@ -6,6 +6,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: mc-server-vm-operations
+  cancel-in-progress: false
+
 jobs:
   install-private-agent:
     runs-on: ubuntu-latest
