@@ -75,7 +75,7 @@ Não coloques valores destes secrets no repositório, nos logs ou em URLs. A aut
 
 1. **GitHub Pages:** o website é publicado automaticamente quando as alterações chegam a `main`.
 2. **Cloudflare Worker:** o código de referência está em `cloudflare/worker.js). A implementação atual não tem um workflow de deploy automático; é necessário publicar o código no Worker e preservar todos os bindings e secrets existentes.
-3. **Agente privado:** depois de publicar o Worker compatível, executa manualmente **Atualizar agente privado MC** com a VM ligada. O workflow não atualiza automaticamente uma VM desligada.
+3. **Agente privado:** depois de publicar o Worker compatível, as alterações a `vm/mc-agent.py` acionam automaticamente **Atualizar agente privado MC**. Também pode ser executado manualmente. O workflow exige que a VM esteja ligada e não aplica alterações se estiver desligada.
 4. **Instalação inicial:** executa **Instalar agente privado MC** apenas quando a VM estiver ligada. O workflow valida a fingerprint SSH através da Azure antes de confiar na ligação.
 5. **Krypton:** executa **Instalar Krypton no servidor Minecraft** manualmente. O workflow verifica RCON/jogadores, compatibilidade, hash SHA-512, backup e arranque do servidor. Não é acionado por um simples push ao ficheiro do workflow.
 
