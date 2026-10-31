@@ -1,10 +1,7 @@
 name: Diagnosticar NetherNet (Geyser)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/diagnose-nethernet.yml
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -77,12 +74,6 @@ jobs:
           done
           [[ "$CURRENT" == "VM running" ]] || { echo "VM não iniciou."; exit 1; }
 
-          echo "=== AZURE NETWORK ==="
-          PUBLIC_IP="$(az vm show -g "$AZURE_RESOURCE_GROUP" -n "$AZURE_VM_NAME" -d --query publicIps -o tsv)"
-          echo "PUBLIC_IP=$PUBLIC_IP"
-          if [[ -n "$PUBLIC_IP" && "$PUBLIC_IP" != "None" ]]; then
-            curl --silent --show-error --output /dev/null --write-out "TCP_19132_HTTP_STATUS=%{http_code} CONNECT=%{time_connect}s\\n" --connect-timeout 6 --max-time 10 "http://$PUBLIC_IP:19132/" || echo "TCP_19132_EXTERNAL_CHECK_FAILED"
-          fi
           VM_JSON="$(az vm show -g "$AZURE_RESOURCE_GROUP" -n "$AZURE_VM_NAME" -d -o json)"
           printf '%s' "$VM_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); print("PUBLIC_IP="+str(d.get("publicIps") or "none")); print("PRIVATE_IP="+str(d.get("privateIps") or "none")); print("VM_ID="+str(d.get("id") or "unknown"))'
           NIC_IDS="$(az vm show -g "$AZURE_RESOURCE_GROUP" -n "$AZURE_VM_NAME" --query "networkProfile.networkInterfaces[].id" -o tsv)"
@@ -110,21 +101,21 @@ jobs:
           echo "=== GEYSER JARS ==="
           docker exec "$C" sh -lc 'find /data/mods -maxdepth 1 -type f -iname "*geyser*.jar" -printf "%f\n" 2>/dev/null || true'
           echo "=== GEYSER CONFIG (BEDROCK/SIGNALING ONLY) ==="
-          docker exec "$C" sh -lc '
-            F=/data/config/Geyser-Fabric/config.yml
-            if [ ! -f "$F" ]; then
-              F=$(find /data/config -maxdepth 3 -type f -path "*/Geyser-Fabric/config.yml" -print -quit 2>/dev/null || true)
-            fi
-            if [ -z "$F" ] || [ ! -f "$F" ]; then echo "GEYSER_CONFIG_NOT_FOUND"; exit 0; fi
+          F=$(docker exec "$C" sh -lc 'find /data/config -maxdepth 3 -type f -path "*/Geyser-Fabric/config.yml" -print -quit 2>/dev/null || true')
+          if [ -n "$F" ]; then
             echo "CONFIG_PATH=$F"
-            awk "
-              /^bedrock:/ {show=1; count=0}
-              show {print; count++}
-              show && count>0 && /^[^[:space:]#][^:]*:/ && \$0 !~ /^bedrock:/ {exit}
-            " "$F" | head -n 100
-          '
-          echo "=== HOST LISTENERS ==="
-          ss -lntup 2>/dev/null | grep -E '(:19132|:25565)([[:space:]]|$)' || true
+            docker exec "$C" sh -lc '
+              awk "
+                /^bedrock:/ {show=1; count=0}
+                show {print; count++}
+                show && count>0 && /^[^[:space:]#][^:]*:/ && \$0 !~ /^bedrock:/ {exit}
+              " "$1" | head -n 100
+            ' sh "$F"
+          else
+            echo "GEYSER_CONFIG_NOT_FOUND"
+          fi
+          echo "=== HOST UDP LISTENERS ==="
+          ss -lunp 2>/dev/null | grep -E '(:19132)([[:space:]]|$)' || true
           echo "=== HOST FIREWALL ==="
           if command -v ufw >/dev/null 2>&1; then ufw status verbose 2>&1 | head -n 35; else echo "UFW_NOT_INSTALLED"; fi
           echo "=== DOCKER NETWORK PORTS ==="
