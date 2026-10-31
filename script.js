@@ -362,42 +362,75 @@ async function loadTechnicalSpecs() {
     if (!response.ok || !data.ok) throw new Error("Technical data unavailable");
     const d = data.result || {};
     const services = d.services || {};
-    const unknown = currentLanguage === "es" ? "No disponible" : currentLanguage === "en" ? "Unavailable" : "Indisponível";
+    const es = currentLanguage === "es", en = currentLanguage === "en";
+    const unknown = es ? "No disponible" : en ? "Unavailable" : "Indisponível";
+    const descriptions = es ? {
+      os:"Sistema operativo de la máquina virtual.", architecture:"Arquitectura del procesador y versión del kernel.", python:"Ejecuta el agente que recoge datos técnicos del servidor.", apt:"Instala y actualiza paquetes de Ubuntu.", systemd:"Inicia y supervisa servicios en segundo plano.", docker:"Ejecuta el servidor Minecraft en un contenedor aislado.", cloudflared:"Mantiene el túnel privado hacia el agente.", dockerService:"Servicio que mantiene Docker disponible.", agent:"Proceso que consulta el estado y los componentes de la VM.", tunnel:"Servicio local que mantiene la conexión con Cloudflare.", image:"Plantilla usada para crear el contenedor del servidor.", java:"Entorno necesario para ejecutar Minecraft Java.", minecraft:"Versión del juego detectada en los registros.", mods:"Modificaciones instaladas que añaden o cambian contenido y mecánicas del juego.", plugins:"Extensiones del servidor que añaden funciones administrativas o de juego."
+    } : en ? {
+      os:"Operating system running the virtual machine.", architecture:"Processor architecture and Linux kernel version.", python:"Runs the agent that collects server diagnostics.", apt:"Installs and updates Ubuntu packages.", systemd:"Starts and supervises background services.", docker:"Runs Minecraft inside an isolated container.", cloudflared:"Maintains the private tunnel to the agent.", dockerService:"Service that keeps Docker available.", agent:"Process that reads VM status and installed components.", tunnel:"Local service that maintains the Cloudflare connection.", image:"Template used to create the Minecraft server container.", java:"Runtime required to run Minecraft Java.", minecraft:"Game version detected in the server logs.", mods:"Installed modifications that add or change game content and mechanics.", plugins:"Server extensions that add administrative or gameplay features."
+    } : {
+      os:"Sistema operativo onde funciona a máquina virtual.", architecture:"Arquitetura do processador e versão do kernel Linux.", python:"Executa o agente que recolhe informação técnica do servidor.", apt:"Instala e atualiza programas no Ubuntu.", systemd:"Inicia e monitoriza serviços em segundo plano.", docker:"Executa o Minecraft num contentor isolado.", cloudflared:"Mantém o túnel privado até ao agente.", dockerService:"Serviço que mantém o Docker disponível.", agent:"Processo que consulta o estado e os componentes da VM.", tunnel:"Serviço local que mantém a ligação à Cloudflare.", image:"Imagem usada para criar o contentor do servidor Minecraft.", java:"Ambiente necessário para executar o Minecraft Java.", minecraft:"Versão do jogo detetada nos registos do servidor.", mods:"Modificações instaladas que acrescentam ou alteram conteúdo e mecânicas do jogo.", plugins:"Extensões do servidor que acrescentam funções administrativas ou de jogo."
+    };
     const entries = [
-      ["🐧", t.techOS, d.os, d.os_version],
-      ["⌘", currentLanguage==="es"?"Arquitectura":currentLanguage==="en"?"Architecture":"Arquitetura", d.architecture, d.kernel ? "Kernel "+d.kernel : ""],
-      ["🐍", "Python", d.python],
-      ["📦", "APT", d.apt],
-      ["⚙", "systemd", d.systemd],
-      ["🐳", "Docker", d.docker, d.docker_server ? "Engine "+d.docker_server : ""],
-      ["☁", "cloudflared", d.cloudflared],
-      ["🟢", currentLanguage==="es"?"Servicio Docker":currentLanguage==="en"?"Docker service":"Serviço Docker", services.docker],
-      ["🔒", currentLanguage==="es"?"Agente privado":currentLanguage==="en"?"Private agent":"Agente privado", services.mc_private_agent],
-      ["🌐", "Cloudflare Tunnel", services.cloudflared],
-      ["🧱", t.techImage, d.container_image],
-      ["☕", t.techJava, d.java],
-      ["🎮", t.techMinecraft, d.minecraft],
-      ["🧩", t.techMods, d.mods],
-      ["🔌", t.techPlugins, d.plugins]
+      ["🐧",t.techOS,d.os,d.os_version,descriptions.os],
+      ["⌘",es?"Arquitectura":en?"Architecture":"Arquitetura",d.architecture,d.kernel?"Kernel "+d.kernel:"",descriptions.architecture],
+      ["🐍","Python",d.python,"",descriptions.python],
+      ["📦","APT",d.apt,"",descriptions.apt],
+      ["⚙","systemd",d.systemd,"",descriptions.systemd],
+      ["🐳","Docker",d.docker,d.docker_server?"Engine "+d.docker_server:"",descriptions.docker],
+      ["☁","cloudflared",d.cloudflared,"",descriptions.cloudflared],
+      ["🟢",es?"Servicio Docker":en?"Docker service":"Serviço Docker",services.docker,"",descriptions.dockerService],
+      ["🔒",es?"Agente privado":en?"Private agent":"Agente privado",services.mc_private_agent,"",descriptions.agent],
+      ["🌐","Cloudflare Tunnel",services.cloudflared,"",descriptions.tunnel],
+      ["🧱",t.techImage,d.container_image,"",descriptions.image],
+      ["☕",t.techJava,d.java,"",descriptions.java],
+      ["🎮",t.techMinecraft,d.minecraft,"",descriptions.minecraft]
     ];
     target.replaceChildren();
-    entries.forEach(([icon,label,value,sub]) => {
-      const card=document.createElement("article");
-      const normalized=String(value||"").toLowerCase();
-      const stateField=/serviço|service|agente|agent|tunnel/i.test(label);
-      card.className="detected-card"+(stateField&&normalized==="active"?" is-ok":stateField&&normalized!=="active"?" is-bad":"");
+    function addCard(icon,label,value,sub,description,modifier="") {
+      const card=document.createElement("article");card.className="detected-card "+modifier;
       const top=document.createElement("div");top.className="detected-top";
       const symbol=document.createElement("span");symbol.className="detected-icon";symbol.textContent=icon;
       const name=document.createElement("span");name.className="detected-label";name.textContent=label;
       top.append(symbol,name);
-      const strong=document.createElement("strong");strong.className="detected-value";
-      strong.textContent=value&&value!=="Não identificado"&&value!=="Não identificada"&&value!=="Não identificado nos logs"?value:unknown;
-      card.append(top,strong);
+      const strong=document.createElement("strong");strong.className="detected-value";strong.textContent=value||unknown;
+      const copy=document.createElement("p");copy.className="detected-description";copy.textContent=description||"";
+      card.append(top,strong,copy);
       if(sub){const small=document.createElement("small");small.className="detected-sub";small.textContent=sub;card.append(small);}
       target.append(card);
+    }
+    entries.forEach(([icon,label,value,sub,description]) => {
+      const stateField=/serviço|service|agente|agent|tunnel/i.test(label);
+      const stateClass=stateField&&String(value).toLowerCase()==="active"?"is-ok":stateField?"is-bad":"";
+      addCard(icon,label,value&&value!=="Não identificado"&&value!=="Não identificada"&&value!=="Não identificado nos logs"?value:"",sub,description,stateClass);
     });
+    const mods=Array.isArray(d.mods)?d.mods:[];
+    const plugins=Array.isArray(d.plugins)?d.plugins:[];
+    const modTitle=es?"Mods instalados":en?"Installed mods":"Mods instalados";
+    const modIntro=es?"Cada mod se identifica por sus metadatos. La descripción procede del propio archivo cuando está disponible.":en?"Each mod is identified from its metadata. Descriptions come from the mod file when available.":"Cada mod é identificado pelos seus metadados. A descrição é lida do próprio ficheiro quando existe.";
+    const section=document.createElement("section");section.className="mods-panel";
+    const heading=document.createElement("div");heading.className="mods-heading";
+    const title=document.createElement("h3");title.textContent=modTitle+" · "+(d.mod_count??mods.length);
+    const intro=document.createElement("p");intro.textContent=modIntro;
+    heading.append(title,intro);section.append(heading);
+    if(mods.length){
+      const list=document.createElement("div");list.className="mods-list";
+      mods.forEach(mod=>{
+        const item=document.createElement("article");item.className="mod-item";
+        const name=document.createElement("strong");name.textContent=mod.name||mod.file||"Mod";
+        const version=document.createElement("span");version.className="mod-version";version.textContent=mod.version? "v"+mod.version : (mod.file||"");
+        const desc=document.createElement("p");desc.textContent=mod.description||(es?"El archivo no incluye una descripción legible.":en?"The file does not include a readable description.":"O ficheiro não inclui uma descrição legível.");
+        item.append(name,version,desc);list.append(item);
+      });
+      section.append(list);
+    } else {
+      const empty=document.createElement("p");empty.className="mods-empty";empty.textContent=es?"No se han detectado mods en /data/mods.":en?"No mods detected in /data/mods.":"Não foram detetados mods em /data/mods.";section.append(empty);
+    }
+    const pluginSummary=document.createElement("p");pluginSummary.className="mods-plugin-summary";
+    pluginSummary.textContent=(es?"Plugins del servidor: ":en?"Server plugins: ":"Plugins do servidor: ")+(d.plugin_count??plugins.length)+(plugins.length?" · "+plugins.map(x=>x.name||x.file).join(", "):"");
+    section.append(pluginSummary);target.append(section);
     const checked=document.createElement("p");checked.className="section-copy";checked.style.gridColumn="1 / -1";
-    checked.textContent=(currentLanguage==="es"?"Última lectura: ":currentLanguage==="en"?"Last read: ":"Última leitura: ")+(d.checked_at?new Date(d.checked_at).toLocaleString(currentLanguage==="pt"?"pt-PT":currentLanguage==="es"?"es-ES":"en-GB"):unknown);
+    checked.textContent=(es?"Última lectura: ":en?"Last read: ":"Última leitura: ")+(d.checked_at?new Date(d.checked_at).toLocaleString(es?"es-ES":en?"en-GB":"pt-PT"):unknown);
     target.append(checked);
   } catch {
     target.textContent = t.techUnavailable || "Especificações dinâmicas indisponíveis.";
