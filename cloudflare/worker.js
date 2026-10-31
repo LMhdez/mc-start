@@ -273,9 +273,24 @@ export default {
         return json({ ok: true, result: cached, cached: true }, 200, origin);
       }
       try {
+        // A VM desligada nunca invalida nem impede a leitura do ultimo inventario publico.
+        const vmState = await getAzureVmPowerState(env);
+        if (vmState !== "VM running") {
+          if (cached) return json({ ok: true, result: cached, cached: true, stale: true }, 200, origin);
+          return json({ ok: false, message: "Ainda nao existe um inventario tecnico sincronizado." }, 503, origin);
+        }
+
         const agent = await callPrivateAgent(env, "/technical");
         const technical = agent.result || {};
-        await env.STATUS_KV.put(cacheKey, JSON.stringify(technical), { expirationTtl: 604800 });
+
+        // Nao substituir um inventario valido por uma resposta incompleta durante o arranque.
+        if (!technical.checked_at || technical.mods_inventory_available !== true) {
+          if (cached) return json({ ok: true, result: cached, cached: true, stale: true }, 200, origin);
+          return json({ ok: false, message: "Inventario tecnico ainda nao esta pronto." }, 503, origin);
+        }
+
+        // Sem expirationTtl: a ultima fotografia permanece disponivel mesmo apos longos periodos offline.
+        await env.STATUS_KV.put(cacheKey, JSON.stringify(technical));
         return json({ ok: true, result: technical, cached: false }, 200, origin);
       } catch (error) {
         console.error("Consulta tecnica indisponivel:", error.message);
