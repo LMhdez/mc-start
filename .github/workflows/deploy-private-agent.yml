@@ -24,46 +24,33 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Preparar SSH
-        shell: bash
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.MC_VM_SSH_PRIVATE_KEY }}
-        run: |
-          set -euo pipefail
-          if [ -z "${SSH_PRIVATE_KEY:-}" ]; then
-            echo "Falta o secret MC_VM_SSH_PRIVATE_KEY."
-            exit 1
-          fi
-          install -m 700 -d ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-
-      - name: Atualizar agente na VM
+      - name: Atualizar agente pela Azure Run Command
         shell: bash
         env:
           AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
           AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
         run: |
           set -euo pipefail
-          IP=$(az vm list-ip-addresses \
-            --resource-group "$AZURE_RESOURCE_GROUP" \
-            --name "$AZURE_VM_NAME" \
-            --query "[0].virtualMachine.network.publicIpAddresses[0].ipAddress" \
-            -o tsv)
 
-          if [ -z "$IP" ] || [ "$IP" = "None" ]; then
-            echo "Não foi possível obter o IP público da VM."
-            exit 1
-          fi
-
-          SSH_OPTS="-i $HOME/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10"
-          scp $SSH_OPTS vm/mc-agent.py "azureuser@$IP:/tmp/mc-agent.py"
-          ssh $SSH_OPTS "azureuser@$IP" 'sudo bash -s' <<'REMOTE'
-          set -euo pipefail
+          AGENT_B64="$(base64 -w0 vm/mc-agent.py)"
+          SCRIPT="set -euo pipefail
           install -d -m 0755 /opt/mc-agent
-          install -m 0755 /tmp/mc-agent.py /opt/mc-agent/mc-agent.py
-          rm -f /tmp/mc-agent.py
+          printf '%s' '$AGENT_B64' | base64 -d > /opt/mc-agent/mc-agent.py
+          chmod 0755 /opt/mc-agent/mc-agent.py
           systemctl restart mc-private-agent.service
           systemctl is-active --quiet mc-private-agent.service
-          echo "Agente privado atualizado e ativo."
-          REMOTE
+          echo AGENT_DEPLOY_OK"
+
+          RESULT=$(az vm run-command invoke \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_VM_NAME" \
+            --command-id RunShellScript \
+            --scripts "$SCRIPT" \
+            --query "value[].message" \
+            -o tsv)
+
+          printf '%s\n' "$RESULT"
+          if ! grep -q "AGENT_DEPLOY_OK" <<< "$RESULT"; then
+            echo "A VM nao confirmou a atualizacao do agente."
+            exit 1
+          fi
