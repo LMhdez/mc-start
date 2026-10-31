@@ -1,0 +1,50 @@
+name: Azure network and Geyser audit
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: write
+jobs:
+  audit:
+    if: github.event.issue.user.login == 'LMhdez' && startsWith(github.event.issue.title, '[MC-AUDIT]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Read effective Azure network rules and guest configuration
+        id: diag
+        shell: bash
+        env:
+          RG: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          VM: ${{ secrets.AZURE_VM_NAME }}
+        run: |
+          set -eu
+          echo '=== EFFECTIVE AZURE INBOUND RULES ===' > report.txt
+          NIC_IDS=$(az vm show -g "$RG" -n "$VM" --query 'networkProfile.networkInterfaces[].id' -o tsv)
+          for NIC in $NIC_IDS; do
+            echo "NIC: $(basename "$NIC")" >> report.txt
+            az network nic list-effective-nsg --ids "$NIC" -o json > nsg.json
+            python3 -c "import json; d=json.load(open('nsg.json')); a=d if isinstance(d,list) else d.get('value',[]); r=[x for i in a for x in i.get('effectiveSecurityRules',[]) if x.get('direction')=='Inbound' and ('19132' in str(x.get('destinationPortRange',x.get('destinationPortRanges',''))) or str(x.get('destinationPortRange',x.get('destinationPortRanges',''))) in ('*','[*]'))]; [print('INBOUND name=%s access=%s proto=%s priority=%s dest=%s' % (x.get('name'),x.get('access'),x.get('protocol'),x.get('priority'),x.get('destinationPortRange',x.get('destinationPortRanges','')))) for x in r]; print('Relevant rules:',len(r))" >> report.txt
+            PUB=$(az network nic show --ids "$NIC" --query 'ipConfigurations[?publicIpAddress!=null].name' -o tsv)
+            if [ -n "$PUB" ]; then echo 'Public IP association: YES' >> report.txt; else echo 'Public IP association: NO' >> report.txt; fi
+          done
+          SCRIPT=$(cat <<'EOS'
+          echo '=== GEYSER CONFIG FILE DISCOVERY ==='
+          docker exec mc-server sh -c 'find /data /config /plugins /opt -type f 2>/dev/null | grep -Ei "geyser|config\\.(yml|yaml)$" | head -60' || true
+          echo '=== GEYSER EFFECTIVE CONFIG KEYS ==='
+          docker exec mc-server sh -c 'find /data /config /plugins /opt -type f \( -iname "*.yml" -o -iname "*.yaml" \) 2>/dev/null | while read f; do if echo "$f" | grep -qi geyser || grep -qi geyser "$f" 2>/dev/null; then echo "FILE=$f"; grep -nEi "^[[:space:]]*(bedrock:|port:|clone-remote-port:|broadcast-port:|address:|transport:|webrtc-port:|signaling:|mode:|use-direct-connection:)" "$f" 2>/dev/null || true; fi; done' 2>&1 | sed -E 's/[0-9]{1,3}(\.[0-9]{1,3}){3}/[IP REDACTED]/g'
+          echo '=== PUBLISHED PORTS ==='
+          docker port mc-server 2>&1 || true
+          EOS
+          )
+          az vm run-command invoke -g "$RG" -n "$VM" --command-id RunShellScript --scripts "$SCRIPT" --query 'value[0].message' -o tsv > guest.txt
+          { echo 'report<<EOF'; cat report.txt; cat guest.txt; echo EOF; } >> "$GITHUB_OUTPUT"
+      - uses: actions/github-script@v7
+        env:
+          REPORT: ${{ steps.diag.outputs.report }}
+        with:
+          script: |
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:context.issue.number,body:'## Azure / Geyser read-only audit\n\n```text\n'+(process.env.REPORT||'No report')+'\n```'});
+            await github.rest.issues.update({owner:context.repo.owner,repo:context.repo.repo,issue_number:context.issue.number,state:'closed'});
