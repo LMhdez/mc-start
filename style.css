@@ -435,3 +435,21 @@ h2 { margin: 0; font-size: clamp(1.4rem, 3vw, 2rem); letter-spacing: -.04em; }
 .java-logo { background: #392d24; color: #e76f00; }
 @media(max-width:800px) { .architecture-flow { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media(max-width:560px) { .architecture-flow { grid-template-columns: 1fr; } }
+
+
+/* Unified architecture + versions grid: visible, consistently sized technology marks. */
+.stack-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; align-items:stretch; }
+.stack-grid .detected-card { min-height:132px; padding:18px; }
+.stack-grid .detected-top { display:flex; align-items:center; gap:11px; margin-bottom:12px; }
+.stack-grid .brand-logo { width:38px; height:38px; flex:0 0 38px; display:grid; place-items:center; border-radius:10px; border:1px solid rgba(255,255,255,.08); }
+.stack-grid .brand-logo svg { display:block; width:25px; height:25px; }
+.stack-grid .azure-logo { background:#12334b; color:#50b9ff; }
+.stack-grid .ubuntu-logo, .stack-grid .linux-logo { background:#442a23; color:#f47735; }
+.stack-grid .docker-logo { background:#123747; color:#2496ed; }
+.stack-grid .java-logo { background:#392d24; color:#e76f00; }
+.stack-grid .python-logo { background:#25374a; color:#ffd343; }
+.stack-grid .cloudflare-logo { background:#49391f; color:#f6a623; }
+.stack-grid .minecraft-logo { background:#38432b; color:#a7d66f; }
+.stack-grid .mods-panel { grid-column:1/-1; }
+@media(max-width:800px) { .stack-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:560px) { .stack-grid { grid-template-columns:1fr; } }
