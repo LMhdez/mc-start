@@ -236,10 +236,23 @@ def read_technical():
         if match:
             minecraft_version = match.group(1)
 
+        # O Fabric anuncia a versão do jogo e do loader durante o arranque.
+        fabric_match = re.search(
+            r"Loading Minecraft ([^\\s]+) with Fabric Loader ([0-9.]+)",
+            logs,
+            re.IGNORECASE,
+        )
+        if fabric_match:
+            minecraft_version = minecraft_version or fabric_match.group(1)
+            fabric_loader_version = fabric_match.group(2)
+            server_type = "Fabric"
+        else:
+            fabric_loader_version = "Não identificado"
+
         image_lower = image.lower()
-        if "itzg/minecraft-server" in image_lower:
-            server_type = "itzg/minecraft-server (tipo configurado por variáveis)"
-        elif image:
+        if server_type != "Fabric" and "itzg/minecraft-server" in image_lower:
+            server_type = "Não identificado (imagem itzg/minecraft-server)"
+        elif server_type != "Fabric" and image:
             server_type = image
 
         installed_mods = inspect_jars("/data/mods", "mod")
@@ -294,6 +307,7 @@ def read_technical():
         "container_image": image or "Não identificado",
         "java": java_version or "Não identificado",
         "minecraft": minecraft_version or "Não identificado nos logs",
+        "fabric_loader": fabric_loader_version if "fabric_loader_version" in locals() else "Não identificado",
         "server_type": server_type,
         "mods": mods,
         "mod_count": mod_count if "mod_count" in locals() else len(mods),
