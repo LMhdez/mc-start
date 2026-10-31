@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import ipaddress
+import os
 import json
 import re
 import socket
@@ -196,9 +197,9 @@ def read_technical():
                         elif "plugin.yml" in names:
                             metadata = archive.read("plugin.yml").decode("utf-8", errors="replace")
                             for key, target in [("name", "name"), ("version", "version"), ("description", "description")]:
-                                match = re.search(r"(?m)^" + key + r":\\s*(.+)$", metadata)
+                                match = re.search(r"(?m)^" + key + r":\s*(.+)$", metadata)
                                 if match:
-                                    item[target] = match.group(1).strip().strip('"\\'')
+                                    item[target] = match.group(1).strip().strip('"').strip("'")
                 except Exception:
                     pass
                 item["description"] = item["description"][:400]
