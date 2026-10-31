@@ -63,11 +63,7 @@ jobs:
           EOS
           )
           REPORT=$(az vm run-command invoke -g "$RG" -n "$VM" --command-id RunShellScript --scripts "$SCRIPT" --query "value[0].message" -o tsv)
-          {
-            echo 'report<<EOF'
-            printf 'report=%s\n' "$(printf '%s' "$REPORT" | base64 -w0)"
-            echo EOF
-          } >> "$GITHUB_OUTPUT"
+          echo "report=$(printf '%s' "$REPORT" | base64 -w0)" >> "$GITHUB_OUTPUT"
       - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
         env:
           REPORT_B64: ${{ steps.diag.outputs.report }}
