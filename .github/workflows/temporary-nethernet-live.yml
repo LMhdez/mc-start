@@ -25,20 +25,7 @@ jobs:
           for NIC in $NIC_IDS; do
             echo "NIC: $(basename "$NIC")" >> network.txt
             if az network nic list-effective-nsg --ids "$NIC" -o json > effective.json 2>error.txt; then
-              python3 - <<'PY' >> network.txt
-import json
-data=json.load(open('effective.json'))
-items=data if isinstance(data,list) else data.get('value',[])
-n=0
-for item in items:
-  for r in item.get('effectiveSecurityRules',[]):
-    if r.get('direction') != 'Inbound': continue
-    dest=str(r.get('destinationPortRange',r.get('destinationPortRanges','')))
-    if '19132' in dest or dest in ('*','[*]'):
-      print('INBOUND name=%s access=%s protocol=%s priority=%s destination=%s' % (r.get('name'),r.get('access'),r.get('protocol'),r.get('priority'),dest))
-      n+=1
-print('Relevant inbound effective rules:',n)
-PY
+              python3 -c "import json; d=json.load(open('effective.json')); items=d if isinstance(d,list) else d.get('value',[]); rules=[r for i in items for r in i.get('effectiveSecurityRules',[]) if r.get('direction')=='Inbound' and ('19132' in str(r.get('destinationPortRange',r.get('destinationPortRanges',''))) or str(r.get('destinationPortRange',r.get('destinationPortRanges',''))) in ('*','[*]'))]; [print('INBOUND name=%s access=%s protocol=%s priority=%s destination=%s' % (r.get('name'),r.get('access'),r.get('protocol'),r.get('priority'),r.get('destinationPortRange',r.get('destinationPortRanges','')))) for r in rules]; print('Relevant inbound effective rules:',len(rules))" >> network.txt
             else
               echo 'Effective NSG query failed' >> network.txt
               sed -n '1,5p' error.txt >> network.txt
