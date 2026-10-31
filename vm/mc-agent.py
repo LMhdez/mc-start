@@ -112,10 +112,44 @@ def read_status():
     except OSError:
         port_open = False
 
+    # A porta Java pode abrir antes de o Minecraft aceitar comandos RCON.
+    rcon_ready = players is not None
+
+    # O estado do Geyser e do NetherNet é confirmado pelos registos do arranque
+    # atual do contentor; uma porta TCP/UDP aberta, por si só, não é suficiente.
+    geyser_ready = False
+    geyser_state = "not_ready"
+    if container_state == "running":
+        started = run_command(
+            ["docker", "inspect", "-f", "{{.State.StartedAt}}", CONTAINER],
+            timeout=5,
+        )
+        if started.returncode == 0 and started.stdout.strip():
+            log_check = run_command(
+                [
+                    "bash", "-lc",
+                    "docker logs --since \"$1\" \"$2\" 2>&1 | "
+                    "grep -Ei 'Loading Geyser version|Built-in signaling started' | tail -n 30",
+                    "_", started.stdout.strip(), CONTAINER,
+                ],
+                timeout=10,
+            )
+            geyser_logs = log_check.stdout + "\n" + log_check.stderr
+            geyser_loaded = re.search(r"Loading Geyser version", geyser_logs, re.IGNORECASE)
+            signaling_ready = re.search(r"Built-in signaling started", geyser_logs, re.IGNORECASE)
+            if geyser_loaded:
+                geyser_state = "initializing"
+            if geyser_loaded and signaling_ready:
+                geyser_ready = True
+                geyser_state = "ready"
+
     return {
         "vm": "VM running",
         "ip": get_public_ip(),
         "port_open": port_open,
+        "rcon_ready": rcon_ready,
+        "geyser_ready": geyser_ready,
+        "geyser_state": geyser_state,
         "docker": docker_state,
         "container": container_state,
         "players": players,
