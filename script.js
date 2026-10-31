@@ -16,6 +16,8 @@ let lastTechnicalData = null;
 const translations = {
   pt: {
     hostedOnAzureLabel:"ALOJADO NA AZURE",
+    stackLabel:"ARQUITETURA E SOFTWARE", stackTitle:"Arquitetura e versões", stackIntro:"Visão integrada dos componentes que executam e suportam o servidor, com as versões detetadas.",
+    architectureIntro:"Percurso desde a infraestrutura cloud até ao servidor de jogo e à monitorização.",
     vmStatusLabel:"ESTADO DA MÁQUINA VIRTUAL",
     connectionSectionLabel:"LIGAÇÃO AO SERVIDOR", connectionTitleShort:"Endereços e plataformas",
     javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Bedrock · Geyser necessário; UDP não verificado",
@@ -94,6 +96,8 @@ const translations = {
   },
   es: {
     hostedOnAzureLabel:"ALOJADO EN AZURE",
+    stackLabel:"ARQUITECTURA Y SOFTWARE", stackTitle:"Arquitectura y versiones", stackIntro:"Vista integrada de los componentes que ejecutan y soportan el servidor, con las versiones detectadas.",
+    architectureIntro:"Desde la infraestructura cloud hasta el servidor de juego y la monitorización.",
     vmStatusLabel:"ESTADO DE LA MÁQUINA VIRTUAL",
     connectionSectionLabel:"CONEXIÓN AL SERVIDOR", connectionTitleShort:"Direcciones y plataformas",
     javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Bedrock · requiere Geyser; UDP no verificado",
@@ -172,6 +176,8 @@ const translations = {
   },
   en: {
     hostedOnAzureLabel:"HOSTED ON AZURE",
+    stackLabel:"ARCHITECTURE & SOFTWARE", stackTitle:"Architecture and versions", stackIntro:"An integrated view of the components running and supporting the server, with detected versions.",
+    architectureIntro:"From cloud infrastructure to the game server and monitoring.",
     vmStatusLabel:"VIRTUAL MACHINE STATUS",
     connectionSectionLabel:"SERVER CONNECTION", connectionTitleShort:"Addresses and platforms",
     javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Bedrock · requires Geyser; UDP unverified",
@@ -465,11 +471,26 @@ function renderTechnicalSpecs(d) {
     return value && !/^não identificado|^not identified|^no identificado|^unavailable$/i.test(String(value))
       ? String(value) : unknown;
   }
-  function addCard(label, value, detail) {
+  const brandMarks = {
+    linux: '<svg viewBox="0 0 24 24"><path d="M12 2.5c-3.8 0-5.5 3.4-5.5 7.2 0 2.1-1.4 3.1-2 4.8-.5 1.5.2 2.7 1.5 2.7 1.1 0 1.6-1.2 2.4-1.2h7.2c.8 0 1.3 1.2 2.4 1.2 1.3 0 2-1.2 1.5-2.7-.6-1.7-2-2.7-2-4.8 0-3.8-1.7-7.2-5.5-7.2Z" fill="currentColor"/><circle cx="9.5" cy="8.5" r="1" fill="#172015"/><circle cx="14.5" cy="8.5" r="1" fill="#172015"/><path d="m10 12 2 1.4 2-1.4" fill="none" stroke="#172015" stroke-width="1.2" stroke-linecap="round"/></svg>',
+    docker: '<svg viewBox="0 0 24 24"><path d="M2 13h19c-.7 4.1-3.3 6.2-7.5 6.2H8.1C4.8 19.2 2.7 17.2 2 13Zm3-4h3v3H5V9Zm4 0h3v3H9V9Zm4 0h3v3h-3V9Zm-4-4h3v3H9V5Zm4 4h3v3h-3V9Zm4 1.2c1.5-1.4 3.1-1.5 4.7-.4-.7 1.1-2.1 1.6-4.2 1.3l-.5-.9Z" fill="currentColor"/></svg>',
+    java: '<svg viewBox="0 0 24 24"><path d="M7 13h11l-1 5H9l-2-5Zm11 1h2.2a2 2 0 0 1-2 2H18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 10c-1-1 1-1.5 0-2.5m4 2.5c-1-1 1-1.5 0-2.5M7 20h13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    python: '<svg viewBox="0 0 24 24"><path d="M12 2.5c-4.3 0-4.1 1.9-4.1 1.9v3.1h4.2v1H6.3S3 8.1 3 12.4s2.9 4.2 2.9 4.2h1.7v-2.3s-.1-2.8 2.8-2.8h4.7s2.6 0 2.6-2.6V5.1s.4-2.6-5.7-2.6ZM9.7 5a.9.9 0 1 1 0-1.8.9.9 0 0 1 0 1.8Z" fill="currentColor"/><path d="M12 21.5c4.3 0 4.1-1.9 4.1-1.9v-3.1h-4.2v-1h5.8s3.3.4 3.3-3.9-2.9-4.2-2.9-4.2h-1.7v2.3s.1 2.8-2.8 2.8H8.9s-2.6 0-2.6 2.6v3.8s-.4 2.6 5.7 2.6Z" fill="currentColor"/></svg>',
+    cloudflare: '<svg viewBox="0 0 24 24"><path d="M6 18.5h12.2a3.2 3.2 0 0 0 .3-6.4 6.8 6.8 0 0 0-13.1-1.5A4 4 0 0 0 6 18.5Z" fill="currentColor"/><path d="M4 19.5h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    minecraft: '<svg viewBox="0 0 24 24"><path d="M3 6.5 12 2l9 4.5v11L12 22l-9-4.5v-11Z" fill="currentColor"/><path d="m3 6.5 9 4.6 9-4.6M12 11.1V22" fill="none" stroke="#172015" stroke-width="1.5"/><path d="M6 7.8 8 8.8v2L6 9.8Zm7 3.5 2 1v2l-2-1Zm4-3.5 2-1v2l-2 1Z" fill="#172015"/></svg>'
+  };
+  function addCard(label, value, detail, brand) {
     const card = document.createElement("article");
     card.className = "detected-card";
     const top = document.createElement("div");
     top.className = "detected-top";
+    if (brand && brandMarks[brand]) {
+      const logo = document.createElement("span");
+      logo.className = "brand-logo " + brand + "-logo";
+      logo.setAttribute("aria-hidden", "true");
+      logo.innerHTML = brandMarks[brand];
+      top.append(logo);
+    }
     const name = document.createElement("span");
     name.className = "detected-label";
     name.textContent = label;
@@ -500,12 +521,12 @@ function renderTechnicalSpecs(d) {
   const tunnelState = services.cloudflared === "active" ? t.activeStatus :
     services.cloudflared === "inactive" ? t.inactiveStatus : t.unknownStatus;
 
-  addCard(t.techOS, safe(d.os), [d.architecture, kernel].filter(Boolean).join(" · "));
-  addCard(t.techDocker, dockerCli || dockerEngine, dockerDetails.join(" · "));
-  addCard(t.techJava, versionOnly(d.java));
-  addCard("Python", versionOnly(d.python), t.agentRuntimeLabel);
-  addCard("cloudflared", versionOnly(d.cloudflared), t.tunnelStatusLabel + ": " + tunnelState);
-  addCard(t.techMinecraft, safe(d.minecraft), minecraftDetails.join(" · "));
+  addCard(t.techOS, safe(d.os), [d.architecture, kernel].filter(Boolean).join(" · "), "linux");
+  addCard(t.techDocker, dockerCli || dockerEngine, dockerDetails.join(" · "), "docker");
+  addCard(t.techJava, versionOnly(d.java), "", "java");
+  addCard("Python", versionOnly(d.python), t.agentRuntimeLabel, "python");
+  addCard("cloudflared", versionOnly(d.cloudflared), t.tunnelStatusLabel + ": " + tunnelState, "cloudflare");
+  addCard(t.techMinecraft, safe(d.minecraft), minecraftDetails.join(" · "), "minecraft");
 
   const mods = Array.isArray(d.mods) ? d.mods : [];
   const plugins = Array.isArray(d.plugins) ? d.plugins : [];
