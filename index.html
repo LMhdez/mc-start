@@ -8,7 +8,7 @@
   <title>Minecraft Server | Painel técnico</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
   <link rel="stylesheet" href="style.css?v=20261031-clean">
-  <script src="script.js?v=20261031-clean2" defer></script>
+  <script src="script.js?v=20261031-mods-public" defer></script>
 </head>
 <body>
   <main class="page">
@@ -84,6 +84,45 @@
       <div class="quick-spec-grid connection-grid">
         <div class="quick-spec"><span>JAVA · TCP</span><strong>25565</strong><small data-i18n="javaEditionLabel">Minecraft Java Edition</small></div>
         <div class="quick-spec"><span>BEDROCK · UDP</span><strong>19132</strong><small data-i18n="bedrockEditionLabel">Minecraft Bedrock via Geyser</small></div>
+      </div>
+    </section>
+
+    <section class="technical-section" aria-labelledby="technology-title">
+      <div class="section-heading">
+        <p class="card-kicker" data-i18n="verifiedHeading">COMPONENTES IDENTIFICADOS NO PROJETO</p>
+        <h2 id="technology-title" data-i18n="stackTitle">Infraestrutura e software</h2>
+      </div>
+      <div class="tech-grid">
+        <article class="tech-card brand-card">
+          <img class="brand-logo-img" src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Microsoft_Azure.svg" loading="lazy" alt="Microsoft Azure">
+          <div><h3>Microsoft Azure</h3><p data-i18n="azureShort">Máquina virtual · infraestrutura cloud</p></div>
+          <span class="card-state">CLOUD</span>
+        </article>
+        <article class="tech-card brand-card">
+          <img class="brand-logo-img" src="https://cdn.simpleicons.org/ubuntu/E95420" loading="lazy" alt="Ubuntu">
+          <div><h3>Ubuntu Linux</h3><p data-i18n="linuxShort">Sistema operativo · APT · systemd</p></div>
+          <span class="card-state">OS</span>
+        </article>
+        <article class="tech-card brand-card">
+          <img class="brand-logo-img" src="https://cdn.simpleicons.org/docker/2496ED" loading="lazy" alt="Docker">
+          <div><h3>Docker</h3><p data-i18n="dockerShort">Contentorização · mc-server</p></div>
+          <span class="card-state">CONTAINER</span>
+        </article>
+        <article class="tech-card brand-card">
+          <div class="brand-logo minecraft-logo" role="img" aria-label="Minecraft">▦</div>
+          <div><h3>Minecraft Java</h3><p data-i18n="minecraftShort">Servidor de jogo · RCON</p></div>
+          <span class="card-state">GAME</span>
+        </article>
+        <article class="tech-card brand-card">
+          <img class="brand-logo-img" src="https://cdn.simpleicons.org/python/FFD43B" loading="lazy" alt="Python">
+          <div><h3>Python</h3><p data-i18n="pythonShort">Agente privado de monitorização</p></div>
+          <span class="card-state">AGENT</span>
+        </article>
+        <article class="tech-card brand-card">
+          <img class="brand-logo-img" src="https://cdn.simpleicons.org/cloudflare/F38020" loading="lazy" alt="Cloudflare">
+          <div><h3>Cloudflare Tunnel</h3><p data-i18n="tunnelShort">Comunicação privada com o agente</p></div>
+          <span class="card-state">NETWORK</span>
+        </article>
       </div>
     </section>
 
