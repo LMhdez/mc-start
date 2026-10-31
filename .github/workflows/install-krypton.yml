@@ -28,14 +28,52 @@ jobs:
         run: |
           set -euo pipefail
 
-          STATUS=$(az vm get-instance-view \
-            --resource-group "$AZURE_RESOURCE_GROUP" \
-            --name "$AZURE_VM_NAME" \
-            --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus | [0]" \
-            -o tsv)
+          get_status() {
+            az vm get-instance-view \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
+              --name "$AZURE_VM_NAME" \
+              --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus | [0]" \
+              -o tsv
+          }
 
+          STATUS=$(get_status)
+          STARTED_BY_WORKFLOW=0
+
+          cleanup_vm() {
+            if [[ "$STARTED_BY_WORKFLOW" == "1" ]]; then
+              echo "A repor o estado inicial: a VM será desallocated após a instalação."
+              az vm deallocate --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME" --no-wait
+              for i in {1..90}; do
+                STATUS=$(get_status)
+                if [[ "$STATUS" == "VM deallocated" ]]; then
+                  echo "VM novamente deallocated."
+                  return 0
+                fi
+                sleep 10
+              done
+              echo "Aviso: pedido de deallocation enviado, mas não foi possível confirmar o estado final."
+            fi
+          }
+          trap cleanup_vm EXIT
+
+          if [[ "$STATUS" == "VM deallocated" || "$STATUS" == "VM stopped" ]]; then
+            STARTED_BY_WORKFLOW=1
+            echo "VM estava desligada; a iniciar temporariamente para instalar o mod."
+            az vm start --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME" --no-wait
+          elif [[ "$STATUS" != "VM running" ]]; then
+            echo "A VM está num estado transitório ou inesperado: $STATUS"
+            exit 1
+          fi
+
+          for i in {1..90}; do
+            STATUS=$(get_status)
+            if [[ "$STATUS" == "VM running" ]]; then
+              break
+            fi
+            sleep 10
+          done
           if [[ "$STATUS" != "VM running" ]]; then
-            echo "Instalação cancelada: a VM não está ligada (estado: $STATUS). Não foi iniciada automaticamente para evitar custos inesperados."
+            echo "A VM não ficou operacional dentro do tempo limite (estado: $STATUS)."
             exit 1
           fi
 
