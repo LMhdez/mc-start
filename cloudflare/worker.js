@@ -6,6 +6,7 @@ const RATE_LIMIT = 10;
 const AUTH_RATE_LIMIT = 20;
 const CALLBACK_RATE_LIMIT = 10;
 const MAX_JSON_BYTES = 64 * 1024;
+let rateLimitStorageWarningLogged = false;
 
 const WORKFLOWS = {
   start: {
@@ -117,8 +118,13 @@ async function checkRateLimit(env, request, scope = "action", limit = RATE_LIMIT
   } catch (error) {
     // The public technical inventory contains no credentials or player data.
     // Keep it readable during a KV outage; other routes remain fail-closed.
-    console.error("Rate limit storage unavailable:", error.message);
-    return scope === "technical";
+    if (!rateLimitStorageWarningLogged) {
+      console.error("Rate limit storage unavailable:", error.message);
+      rateLimitStorageWarningLogged = true;
+    }
+    // Public read-only endpoints expose no credentials or player names.
+    // Keep them available when KV write quotas are exhausted; sensitive actions stay fail-closed.
+    return scope === "technical" || scope === "public-status";
   }
 }
 
