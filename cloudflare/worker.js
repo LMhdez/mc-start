@@ -46,6 +46,14 @@ function validRequestId(value) {
   return typeof value === "string" && /^[a-f0-9-]{36}$/i.test(value);
 }
 
+function validIPv4(value) {
+  if (typeof value !== "string") return false;
+  const parts = value.trim().split(".");
+  return parts.length === 4 && parts.every(part =>
+    /^\\d{1,3}$/.test(part) && Number(part) >= 0 && Number(part) <= 255
+  );
+}
+
 async function deriveKey(password, salt) {
   const material = await crypto.subtle.importKey(
     "raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]
@@ -280,14 +288,35 @@ async function callPrivateAgent(env, path, method = "GET") {
   return data;
 }
 
+async function requestAzurePublicIpSync(env) {
+  const lockKey = "azure:public-ip-sync";
+  const existing = await env.STATUS_KV.get(lockKey);
+  if (existing) return false;
+
+  await env.STATUS_KV.put(lockKey, "1", { expirationTtl: 90 });
+  try {
+    if (!env.GITHUB_TOKEN) throw new Error("GitHub token unavailable for IP sync");
+    const response = await dispatchWorkflow(env, "sync-public-ip.yml", {});
+    if (!response.ok) {
+      await env.STATUS_KV.delete(lockKey);
+      throw new Error("GitHub IP sync dispatch failed with status " + response.status);
+    }
+    return true;
+  } catch (error) {
+    await env.STATUS_KV.delete(lockKey);
+    throw error;
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const origin = request.headers.get("Origin");
-    const isCallback = url.pathname === "/api/status-result";
+    const isStatusCallback = url.pathname === "/api/status-result";
+    const isIpCallback = url.pathname === "/api/ip-result";
 
-    // O callback do GitHub Actions nao vem do navegador; autentica-se pela palavra-passe.
-    if (isCallback) {
+    // Callbacks do GitHub Actions não vêm do navegador; autenticam-se pela palavra-passe.
+    if (isStatusCallback || isIpCallback) {
       if (request.method !== "POST") return json({ ok: false }, 405);
       if (!env.ACCESS_PASSWORD || !env.STATUS_KV) return json({ ok: false }, 503);
       let body;
@@ -296,6 +325,18 @@ export default {
           !constantTimeEqual(body.password, env.ACCESS_PASSWORD)) {
         return json({ ok: false }, 401);
       }
+
+      if (isIpCallback) {
+        if (!validIPv4(body.ip)) return json({ ok: false, message: "IP invalido." }, 400);
+        await env.STATUS_KV.put(
+          "azure:public-ip",
+          body.ip.trim(),
+          { expirationTtl: 600 }
+        );
+        await env.STATUS_KV.delete("azure:public-ip-sync");
+        return json({ ok: true }, 200);
+      }
+
       if (!validRequestId(body.request_id) || !body.envelope ||
           !body.envelope.salt || !body.envelope.iv || !body.envelope.data) {
         return json({ ok: false }, 400);
@@ -401,6 +442,14 @@ export default {
       return json({ ok: false, message: "Palavra-passe incorreta." }, 401, origin);
     }
 
+    if (url.pathname === "/api/ip-read" && request.method === "POST") {
+      if (!(await checkRateLimit(env, request, "ip-read", 30))) {
+        return json({ ok: false, message: "Demasiados pedidos." }, 429, origin);
+      }
+      const ip = await env.STATUS_KV.get("azure:public-ip") || "";
+      return json({ ok: true, ip }, 200, origin);
+    }
+
     if (url.pathname === "/api/status/read") {
       if (!env.STATUS_KV || !validRequestId(body.request_id)) {
         return json({ ok: false, message: "Pedido invalido." }, 400, origin);
@@ -467,6 +516,16 @@ export default {
               const result = { ...agent.result };
               result.ip = (typeof result.ip === "string" && result.ip.trim()) ?
                 result.ip.trim() : azureIp;
+
+              // A identidade do Worker pode não ter permissão para ler NICs.
+              // Nesse caso, pedir ao GitHub Actions que consulte o IP via Azure CLI.
+              if (!result.ip) {
+                try {
+                  await requestAzurePublicIpSync(env);
+                } catch (syncError) {
+                  console.error("Nao foi possivel iniciar a sincronizacao do IP:", syncError.message);
+                }
+              }
               return json({ ok: true, immediate: true, result }, 200, origin);
             }
             throw new Error("Private MC agent returned an invalid status payload");
