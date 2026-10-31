@@ -26,6 +26,8 @@ jobs:
           VM: ${{ secrets.AZURE_VM_NAME }}
         run: |
           set -euo pipefail
+          stage="discover VM network interface"
+          trap 'rc=$?; echo "operation_status=failed" >> "$GITHUB_OUTPUT"; echo "failure_stage=$stage" >> "$GITHUB_OUTPUT"; exit "$rc"' ERR
 
           NIC=$(az vm show -g "$RG" -n "$VM" --query 'networkProfile.networkInterfaces[0].id' -o tsv)
           if [ -z "$NIC" ] || [ "$NIC" = "None" ]; then
@@ -33,6 +35,7 @@ jobs:
             exit 1
           fi
 
+          stage="discover NIC network security group"
           NSG_ID=$(az network nic show --ids "$NIC" --query 'networkSecurityGroup.id' -o tsv)
           if [ -z "$NSG_ID" ] || [ "$NSG_ID" = "None" ]; then
             echo "No NIC-level network security group found; refusing to change network rules." >&2
@@ -40,6 +43,7 @@ jobs:
           fi
           NSG=$(basename "$NSG_ID")
 
+          stage="read current Minecraft rule"
           EXISTING=$(az network nsg rule list -g "$RG" --nsg-name "$NSG" --query "[?name=='Minecraft'] | [0].priority" -o tsv)
           if [ -z "$EXISTING" ] || [ "$EXISTING" = "None" ]; then
             echo "Expected Minecraft rule was not found; refusing to create replacement rules blindly." >&2
@@ -47,6 +51,7 @@ jobs:
           fi
 
           # Keep Java publicly reachable, but only over its required TCP transport.
+          stage="update Java TCP rule"
           az network nsg rule update -g "$RG" --nsg-name "$NSG" -n Minecraft \
             --priority "$EXISTING" --direction Inbound --access Allow --protocol Tcp \
             --source-address-prefixes '*' --source-port-ranges '*' \
@@ -54,6 +59,7 @@ jobs:
             --description "Minecraft Java TCP only"
 
           # Select a free priority after the existing Minecraft rule.
+          stage="inspect Bedrock rule and choose priority"
           if az network nsg rule show -g "$RG" --nsg-name "$NSG" -n Minecraft-Bedrock >/dev/null 2>&1; then
             BEDROCK_PRIORITY=$(az network nsg rule show -g "$RG" --nsg-name "$NSG" -n Minecraft-Bedrock --query priority -o tsv)
           else
@@ -71,6 +77,7 @@ jobs:
             fi
           fi
 
+          stage="create or update Bedrock UDP rule"
           BEDROCK_ARGS=(-g "$RG" --nsg-name "$NSG" -n Minecraft-Bedrock
             --priority "$BEDROCK_PRIORITY" --direction Inbound --access Allow --protocol Udp
             --source-address-prefixes '*' --source-port-ranges '*'
@@ -83,40 +90,37 @@ jobs:
           fi
 
           # Emit only a non-sensitive summary; never print IPs, CIDRs, credentials, or raw rule objects.
+          stage="complete"
+          echo "operation_status=success" >> "$GITHUB_OUTPUT"
+          echo "failure_stage=none" >> "$GITHUB_OUTPUT"
           echo "nsg_name=$NSG" >> "$GITHUB_OUTPUT"
           echo "java_rule=TCP/25565" >> "$GITHUB_OUTPUT"
           echo "bedrock_rule=UDP/19132" >> "$GITHUB_OUTPUT"
           echo "bedrock_priority=$BEDROCK_PRIORITY" >> "$GITHUB_OUTPUT"
 
       - name: Report safe summary
+        if: always()
         uses: actions/github-script@v7
         env:
-          NSG: ${{ steps.secure.outputs.nsg_name }}
-          JAVA_RULE: ${{ steps.secure.outputs.java_rule }}
-          BEDROCK_RULE: ${{ steps.secure.outputs.bedrock_rule }}
-          BEDROCK_PRIORITY: ${{ steps.secure.outputs.bedrock_priority }}
+          OPERATION_STATUS: ${{ steps.secure.outputs.operation_status }}
+          FAILURE_STAGE: ${{ steps.secure.outputs.failure_stage }}
         with:
           script: |
-            const body = [
-              '## Minecraft network rules updated',
-              '',
-              '- Java: TCP 25565 only',
-              '- Bedrock: UDP 19132 only',
-              '- Public player access retained.',
-              '- SSH rule was not changed.',
-              '- No IP addresses, CIDRs, credentials, or raw configuration were included in this report.',
-              '',
-              'The rules were applied to the VM NIC network security group. Subnet-level rules were not changed.'
-            ].join('\n');
+            const ok = process.env.OPERATION_STATUS === 'success';
+            const body = ok
+              ? '## Minecraft network rules updated\\n\\n- Java: TCP 25565 only\\n- Bedrock: UDP 19132 only\\n- Public player access retained.\\n- SSH rule unchanged.\\n- No IPs, CIDRs, credentials, or raw configuration included.'
+              : '## Minecraft network hardening did not complete\\n\\nThe workflow stopped at: ' + (process.env.FAILURE_STAGE || 'unknown') + '.\\nNo raw command output or sensitive configuration is included. The rule state must be checked before retrying.';
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
               body
             });
-            await github.rest.issues.update({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              state: 'closed'
-            });
+            if (ok) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                state: 'closed'
+              });
+            }
