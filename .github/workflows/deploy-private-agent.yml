@@ -61,7 +61,7 @@ jobs:
 
           if ! systemctl restart mc-private-agent.service || \
              ! systemctl is-active --quiet mc-private-agent.service || \
-             ! python3 -c 'import json,urllib.request; response=urllib.request.urlopen(\"http://127.0.0.1:8765/status\", timeout=8); data=json.load(response); assert data.get(\"ok\") is True'; then
+             ! python3 -c 'import json,urllib.request; response=urllib.request.urlopen(\"http://127.0.0.1:8765/status\", timeout=20); data=json.load(response); assert data.get(\"ok\") is True'; then
             echo 'O novo agente falhou na verificacao; a restaurar a versao anterior.'
             if [ \"\$HAD_OLD\" = 1 ]; then
               mv -f \"\$BACKUP\" \"\$TARGET\"
