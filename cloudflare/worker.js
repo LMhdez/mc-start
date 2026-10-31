@@ -277,6 +277,9 @@ export default {
           docker: "unknown",
           container: "unknown",
           port_open: vm === "VM running" ? null : false,
+          rcon_ready: null,
+          geyser_ready: vm === "VM running" ? null : false,
+          geyser_state: "unknown",
           checked_at: new Date().toISOString()
         };
         if (vm === "VM running") {
@@ -289,6 +292,9 @@ export default {
               docker: live.docker || "unknown",
               container: live.container || "unknown",
               port_open: typeof live.port_open === "boolean" ? live.port_open : null,
+              rcon_ready: typeof live.rcon_ready === "boolean" ? live.rcon_ready : null,
+              geyser_ready: typeof live.geyser_ready === "boolean" ? live.geyser_ready : null,
+              geyser_state: typeof live.geyser_state === "string" ? live.geyser_state : "unknown",
               checked_at: live.checked_at || result.checked_at
             };
           } catch (error) {
