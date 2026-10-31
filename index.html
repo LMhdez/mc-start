@@ -97,58 +97,8 @@
         <p class="section-copy" data-i18n="stackIntro">Visão integrada dos componentes que executam e suportam o servidor, com as versões detetadas.</p>
       </div>
 
-      <div class="stack-subsection">
-        <div class="stack-subheading">
-          <h3 data-i18n="architectureTitle">Arquitetura</h3>
-          <p data-i18n="architectureIntro">Percurso desde a infraestrutura cloud até ao servidor de jogo e à monitorização.</p>
-        </div>
-        <ol class="architecture-flow">
-          <li class="architecture-node">
-            <div class="architecture-logos">
-              <span class="brand-logo azure-logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M13.1 2h7.2L11.7 22H4.1L13.1 2Zm-1.5 12.2h8.1l-2.1 4.5h-8.1l2.1-4.5Z" fill="currentColor"/></svg></span>
-            </div>
-            <span class="architecture-index">01 · CLOUD</span>
-            <strong data-i18n="architectureAzure">Azure VM</strong>
-            <small data-i18n="architectureAzureCopy">Máquina virtual e recursos cloud</small>
-          </li>
-          <li class="architecture-node">
-            <div class="architecture-logos">
-              <span class="brand-logo ubuntu-logo" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.2" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="3.2" r="2" fill="currentColor"/><circle cx="4.4" cy="16.4" r="2" fill="currentColor"/><circle cx="19.6" cy="16.4" r="2" fill="currentColor"/></svg></span>
-              <span class="brand-logo docker-logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M2 13h19c-.7 4.1-3.3 6.2-7.5 6.2H8.1C4.8 19.2 2.7 17.2 2 13Zm3-4h3v3H5V9Zm4 0h3v3H9V9Zm4 0h3v3h-3V9Zm-4-4h3v3H9V5Zm4 4h3v3h-3V9Zm4 1.2c1.5-1.4 3.1-1.5 4.7-.4-.7 1.1-2.1 1.6-4.2 1.3l-.5-.9Z" fill="currentColor"/></svg></span>
-            </div>
-            <span class="architecture-index">02 · HOST</span>
-            <strong data-i18n="architectureHost">Linux + Docker</strong>
-            <small data-i18n="architectureHostCopy">Sistema operativo e contentor do jogo</small>
-          </li>
-          <li class="architecture-node">
-            <div class="architecture-logos">
-              <span class="brand-logo minecraft-logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6.5 12 2l9 4.5v11L12 22l-9-4.5v-11Z" fill="currentColor"/><path d="m3 6.5 9 4.6 9-4.6M12 11.1V22" fill="none" stroke="#172015" stroke-width="1.5"/><path d="M6 7.8 8 8.8v2L6 9.8Zm7 3.5 2 1v2l-2-1Zm4-3.5 2-1v2l-2 1Z" fill="#172015"/></svg></span>
-              <span class="brand-logo java-logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 13h11l-1 5H9l-2-5Zm11 1h2.2a2 2 0 0 1-2 2H18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 10c-1-1 1-1.5 0-2.5m4 2.5c-1-1 1-1.5 0-2.5M7 20h13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
-            </div>
-            <span class="architecture-index">03 · GAME</span>
-            <strong data-i18n="architectureGame">Minecraft + Java</strong>
-            <small data-i18n="architectureGameCopy">Servidor de jogo e gestão através de RCON</small>
-          </li>
-          <li class="architecture-node">
-            <div class="architecture-logos">
-              <span class="brand-logo cloudflare-logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 18.5h12.2a3.2 3.2 0 0 0 .3-6.4 6.8 6.8 0 0 0-13.1-1.5A4 4 0 0 0 6 18.5Z" fill="currentColor"/><path d="M4 19.5h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-              <span class="brand-logo python-logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2.5c-4.3 0-4.1 1.9-4.1 1.9v3.1h4.2v1H6.3S3 8.1 3 12.4s2.9 4.2 2.9 4.2h1.7v-2.3s-.1-2.8 2.8-2.8h4.7s2.6 0 2.6-2.6V5.1s.4-2.6-5.7-2.6ZM9.7 5a.9.9 0 1 1 0-1.8.9.9 0 0 1 0 1.8Z" fill="currentColor"/><path d="M12 21.5c4.3 0 4.1-1.9 4.1-1.9v-3.1h-4.2v-1h5.8s3.3.4 3.3-3.9-2.9-4.2-2.9-4.2h-1.7v2.3s.1 2.8-2.8 2.8H8.9s-2.6 0-2.6 2.6v3.8s-.4 2.6 5.7 2.6Zm2.3-2.5a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8Z" fill="currentColor"/></svg></span>
-            </div>
-            <span class="architecture-index">04 · CONTROL</span>
-            <strong data-i18n="architectureControl">Cloudflare + Python</strong>
-            <small data-i18n="architectureControlCopy">Túnel privado e agente de monitorização</small>
-          </li>
-        </ol>
-      </div>
-
-      <div class="stack-subsection versions-subsection">
-        <div class="stack-subheading">
-          <h3 data-i18n="versionsTitle">Software e versões</h3>
-          <p data-i18n="versionsIntro">Versões lidas diretamente da VM e dos registos do último arranque.</p>
-        </div>
-        <div id="technical-specs" class="detected-grid">
-          <div class="spec-row"><span data-i18n="techLoading">A carregar especificações</span><strong>—</strong></div>
-        </div>
+      <div id="technical-specs" class="detected-grid stack-grid" aria-live="polite">
+        <div class="spec-row"><span data-i18n="techLoading">A carregar especificações</span><strong>—</strong></div>
       </div>
     </section>
 
