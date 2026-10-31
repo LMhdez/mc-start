@@ -94,7 +94,7 @@ const translations = {
     javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Minecraft Bedrock mediante Geyser",
     versionsHeading:"VERSIONES DETECTADAS", versionsTitle:"Software y versiones",
     versionsIntro:"Versiones obtenidas directamente de la VM y de los registros del último inicio.",
-    kernelLabelShort:"Kernel", dockerEngineLabel:"Engine", containerImageLabel:"Imagen",
+    kernelLabelShort:"Kernel", dockerEngineLabel:"Motor", containerImageLabel:"Imagen",
     fabricLabel:"Fabric Loader", agentRuntimeLabel:"Agente de monitorización",
     tunnelStatusLabel:"Estado del túnel", activeStatus:"Activo", inactiveStatus:"Inactivo",
     unknownStatus:"Desconocido", unavailableValue:"No disponible",
