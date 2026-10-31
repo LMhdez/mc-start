@@ -1,0 +1,117 @@
+name: Alternar auto turn-off do MC Server
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Estado pretendido do desligamento automático
+        required: true
+        type: choice
+        default: disable
+        options:
+          - disable
+          - enable
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mc-server-vm-operations
+  cancel-in-progress: false
+
+jobs:
+  toggle-autostop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Login na Azure
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Ativar ou desativar auto turn-off
+        shell: bash
+        env:
+          AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
+          AUTOSTOP_ACTION: ${{ inputs.action }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$AUTOSTOP_ACTION" != "enable" && "$AUTOSTOP_ACTION" != "disable" ]]; then
+            echo "Ação inválida."
+            exit 1
+          fi
+
+          VM_STATUS=$(az vm get-instance-view \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_VM_NAME" \
+            --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus | [0]" \
+            -o tsv)
+
+          if [[ "$VM_STATUS" != "VM running" ]]; then
+            echo "A VM tem de estar ligada para alterar o cron (estado: $VM_STATUS)."
+            exit 1
+          fi
+
+          REMOTE_SCRIPT=$(cat <<'REMOTE'
+          set -euo pipefail
+
+          CRON_USER="azureuser"
+          AUTOSTOP_SCRIPT="/home/azureuser/autostop.sh"
+          AUTOSTOP_LOG="/home/azureuser/autostop.log"
+          AUTOSTOP_ACTION="__AUTOSTOP_ACTION__"
+          CRON_LINE="*/5 * * * * /bin/bash $AUTOSTOP_SCRIPT >> $AUTOSTOP_LOG 2>&1"
+
+          id "$CRON_USER" >/dev/null
+          systemctl is-active --quiet cron
+
+          CURRENT_CRONTAB=$(crontab -u "$CRON_USER" -l 2>/dev/null || true)
+          FILTERED_CRONTAB=$(printf '%s\n' "$CURRENT_CRONTAB" | grep -Fv "$AUTOSTOP_SCRIPT" || true)
+
+          if [[ "$AUTOSTOP_ACTION" == "enable" ]]; then
+            if [[ ! -f "$AUTOSTOP_SCRIPT" ]]; then
+              echo "O script $AUTOSTOP_SCRIPT não existe. Nenhuma alteração foi aplicada."
+              exit 1
+            fi
+            UPDATED_CRONTAB=$(printf '%s\n%s' "$FILTERED_CRONTAB" "$CRON_LINE")
+          else
+            UPDATED_CRONTAB="$FILTERED_CRONTAB"
+          fi
+
+          printf '%s\n' "$UPDATED_CRONTAB" | crontab -u "$CRON_USER" -
+
+          FINAL_CRONTAB=$(crontab -u "$CRON_USER" -l 2>/dev/null || true)
+          if [[ "$AUTOSTOP_ACTION" == "enable" ]]; then
+            if ! grep -Fqx "$CRON_LINE" <<< "$FINAL_CRONTAB"; then
+              echo "Falha ao confirmar a ativação do auto turn-off."
+              exit 1
+            fi
+            echo "AUTOSTOP_ENABLED: cron configurado para executar a cada 5 minutos."
+          else
+            if grep -Fq "$AUTOSTOP_SCRIPT" <<< "$FINAL_CRONTAB"; then
+              echo "Falha: ainda existe uma entrada de auto turn-off no crontab."
+              exit 1
+            fi
+            echo "AUTOSTOP_DISABLED: entrada de auto turn-off removida; restantes tarefas cron preservadas."
+          fi
+          REMOTE
+          )
+
+          REMOTE_SCRIPT="${REMOTE_SCRIPT/__AUTOSTOP_ACTION__/$AUTOSTOP_ACTION}"
+
+          RESULT=$(az vm run-command invoke \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_VM_NAME" \
+            --command-id RunShellScript \
+            --scripts "$REMOTE_SCRIPT" \
+            --query "value[].message" \
+            -o tsv)
+
+          printf '%s\n' "$RESULT"
+
+          if [[ "$AUTOSTOP_ACTION" == "enable" ]]; then
+            grep -q "AUTOSTOP_ENABLED" <<< "$RESULT"
+          else
+            grep -q "AUTOSTOP_DISABLED" <<< "$RESULT"
+          fi
