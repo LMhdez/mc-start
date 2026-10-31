@@ -7,11 +7,11 @@
   <meta name="color-scheme" content="dark">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://mc-start-control.luismariohernandezsantos.workers.dev; upgrade-insecure-requests">
-  <meta name="description" content="Estado da VM, ligação ao Minecraft e versões do software instalado.">
-  <title>Minecraft Server | Painel técnico</title>
+  <meta name="description" content="Consulta o estado do servidor Minecraft, os jogadores online e os dados de ligação.">
+  <title>Minecraft Server | O teu servidor</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="style.css?v=20261031-unified-grid">
-  <script src="script.js?v=20261031-unified-grid" defer></script>
+  <link rel="stylesheet" href="style.css?v=20261031-ui-audit">
+  <script src="script.js?v=20261031-ui-audit" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main-content" data-i18n="skipToContent">Saltar para o conteúdo</a>
@@ -24,9 +24,9 @@
       <div class="topbar-right">
         <label class="language-label" for="language-select" data-i18n="languageLabel">IDIOMA</label>
         <select id="language-select" aria-label="Language" data-i18n-aria="languageLabel">
-          <option value="pt">🇵🇹 PT</option>
-          <option value="es">🇻🇪 ES</option>
-          <option value="en">🇺🇸 EN</option>
+          <option value="pt">Português</option>
+          <option value="es">Español</option>
+          <option value="en">English</option>
         </select>
         <span class="hosting-provider" title="Microsoft Azure">
           <svg class="azure-mark" viewBox="0 0 24 24" role="img" aria-label="Microsoft Azure"><path d="M22.379 23.343a1.62 1.62 0 0 0 1.536-2.14v.002L17.35 1.76A1.62 1.62 0 0 0 15.816.657H8.184A1.62 1.62 0 0 0 6.65 1.76L.086 21.204a1.62 1.62 0 0 0 1.536 2.139h4.741a1.62 1.62 0 0 0 1.535-1.103l.977-2.892 4.947 3.675c.28.208.618.32.966.32m-3.084-12.531 3.624 10.739a.54.54 0 0 1-.51.713v-.001h-.03a.54.54 0 0 1-.322-.106l-9.287-6.9h4.853m6.313 7.006c.116-.326.13-.694.007-1.058L9.79 1.76a1.722 1.722 0 0 0-.007-.02h6.034a.54.54 0 0 1 .512.366l6.562 19.445a.54.54 0 0 1-.338.684"/></svg>
@@ -36,18 +36,18 @@
     </header>
 
     <section class="page-intro">
-      <p class="eyebrow" data-i18n="eyebrow">INFRAESTRUTURA E MONITORIZAÇÃO</p>
-      <h1 data-i18n="pageTitle">Informação do servidor</h1>
-      <p class="intro-copy" data-i18n="pageCopy">Estado da máquina virtual, ligação ao jogo e versões instaladas.</p>
+      <p class="eyebrow" data-i18n="eyebrow">O TEU MUNDO. À TUA MANEIRA.</p>
+      <h1 data-i18n="pageTitle">O teu servidor. As tuas regras.</h1>
+      <p class="intro-copy" data-i18n="pageCopy">Consulta se o servidor está online, vê quem está a jogar e encontra os dados para te ligares.</p>
     </section>
 
     <section class="server-card" aria-labelledby="server-title">
       <div class="server-card-top">
         <div>
-          <p class="card-kicker" data-i18n="vmStatusLabel">ESTADO DA MÁQUINA VIRTUAL</p>
+          <p class="card-kicker" data-i18n="vmStatusLabel">ESTADO DO SERVIDOR</p>
           <h2 id="server-title">Minecraft Server</h2>
         </div>
-        <span class="status-pill" aria-live="polite" aria-atomic="true"><span class="status-dot status-dot-muted" aria-hidden="true"></span> <span id="server-state">—</span></span>
+        <span class="status-pill"><span class="status-dot status-dot-muted" aria-hidden="true"></span> <span id="server-state">—</span></span>
       </div>
 
       <div class="server-info">
@@ -64,20 +64,29 @@
           <strong id="player-names">—</strong>
         </div>
       </div>
-      <div id="status-details" class="status-details" aria-live="polite"></div>
+      <div id="status-details" class="status-details" aria-live="off"></div>
+      <span id="server-announcement" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></span>
 
+
+    </section>
+
+    <section class="admin-card" aria-labelledby="admin-title">
+      <div class="admin-heading">
+        <p class="card-kicker" data-i18n="adminEyebrow">ADMINISTRAÇÃO</p>
+        <h2 id="admin-title" data-i18n="adminTitle">Controlos do servidor</h2>
+        <p class="section-copy" data-i18n="adminCopy">Ações de gestão protegidas por palavra-passe. Estes controlos não são necessários para jogar.</p>
+      </div>
       <div class="access-panel">
         <label class="info-label" for="access-password" data-i18n="passwordLabel">PALAVRA-PASSE DE ACESSO AO PAINEL</label>
-        <input id="access-password" type="password" autocomplete="current-password" aria-required="true" aria-describedby="feedback"
-          placeholder="Palavra-passe partilhada" data-i18n-placeholder="passwordPlaceholder" required>
+        <input id="access-password" type="password" autocomplete="current-password" aria-describedby="feedback" placeholder="Palavra-passe partilhada" data-i18n-placeholder="passwordPlaceholder" required>
       </div>
       <div class="actions">
-        <button id="start-button" class="button button-primary" type="button"><span aria-hidden="true">▶</span> <span data-i18n="start">Ligar VM</span></button>
-        <button id="stop-button" class="button button-secondary" type="button" data-i18n="stop">Desligar VM</button>
-        <button id="status-button" class="button button-secondary" type="button" data-i18n="check">Atualizar estado público</button>
+        <button id="start-button" class="button button-primary" type="button"><span aria-hidden="true">▶</span> <span data-i18n="start">Ligar servidor</span></button>
+        <button id="stop-button" class="button button-secondary" type="button" data-i18n="stop">Desligar servidor</button>
+        <button id="status-button" class="button button-secondary" type="button" data-i18n="check">Atualizar estado</button>
         <button id="private-status-button" class="button button-secondary" type="button" data-i18n="revealAddress">Mostrar endereço</button>
       </div>
-      <p id="feedback" class="feedback" role="status" aria-live="polite" data-i18n="initialFeedback">Introduz a palavra-passe para gerir a infraestrutura.</p>
+      <p id="feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true" data-i18n="initialFeedback">Introduz a palavra-passe para gerir o servidor.</p>
     </section>
 
     <section class="technical-section">
@@ -98,7 +107,7 @@
         <p class="section-copy" data-i18n="stackIntro">Visão integrada dos componentes que executam e suportam o servidor, com as versões detetadas.</p>
       </div>
 
-      <div id="technical-specs" class="detected-grid stack-grid" aria-live="polite">
+      <div id="technical-specs" class="detected-grid stack-grid" aria-live="off">
         <div class="spec-row"><span data-i18n="techLoading">A carregar especificações</span><strong>—</strong></div>
       </div>
     </section>

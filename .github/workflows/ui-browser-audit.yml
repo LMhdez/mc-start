@@ -1,0 +1,57 @@
+name: Browser UI and accessibility audit
+
+on:
+  pull_request:
+    paths:
+      - "index.html"
+      - "script.js"
+      - "style.css"
+      - "tests/ui-audit.cjs"
+      - ".github/workflows/ui-browser-audit.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-browser-audit-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  browser-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+
+      - name: Install browser test dependencies
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1 @axe-core/playwright@4.10.2
+          npx playwright install --with-deps chromium
+
+      - name: Start local static preview
+        run: |
+          mkdir -p artifacts
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/mc-server-preview.log 2>&1 &
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Local preview did not start."
+          exit 1
+
+      - name: Run responsive, keyboard, language and axe checks
+        run: node tests/ui-audit.cjs
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: mc-server-ui-audit-screenshots
+          path: artifacts/
+          if-no-files-found: ignore
