@@ -456,7 +456,10 @@ export default {
     if (!["start", "stop", "status"].includes(body.action)) {
       return json({ ok: false, message: "Acao nao permitida." }, 400, origin);
     }
-    if (!(await checkRateLimit(env, request))) {
+    const isStatusAction = body.action === "status";
+    const actionScope = isStatusAction ? "status-action" : "action";
+    const actionLimit = isStatusAction ? 30 : RATE_LIMIT;
+    if (!(await checkRateLimit(env, request, actionScope, actionLimit))) {
       return json(
         { ok: false, message: "Demasiados pedidos. Aguarda um minuto." },
         429,
