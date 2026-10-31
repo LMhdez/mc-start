@@ -27,7 +27,7 @@ def run_command(args, timeout=10):
 
 def get_public_ip():
     # O IP publico e resolvido no Worker atraves do Azure ARM; aqui o agente foca-se no estado do Minecraft.
-# Deploy automático acionado após a VM voltar a ficar disponível.
+# Deploy automático acionado após a VM voltar a ficar disponível. Shell remoto compatível com sh.
     # O Worker consulta o IP associado a NIC diretamente na API do Azure.
     return ""
 
