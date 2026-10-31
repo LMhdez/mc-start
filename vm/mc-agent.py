@@ -166,16 +166,42 @@ def read_status():
             if geyser_loaded and signaling_ready:
                 geyser_ready = True
                 geyser_state = "ready"
-                container_ip = run_command(
-                    [
-                        "docker", "inspect", "-f",
-                        "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
-                        CONTAINER,
-                    ],
+                # Testa dentro do network namespace do contentor para evitar
+                # falsos negativos causados pelo encaminhamento da bridge Docker.
+                container_pid = run_command(
+                    ["docker", "inspect", "-f", "{{.State.Pid}}", CONTAINER],
                     timeout=5,
                 )
-                probe_host = container_ip.stdout.strip() if container_ip.returncode == 0 else ""
-                geyser_udp_ready = probe_bedrock_udp(probe_host) if probe_host else probe_bedrock_udp()
+                geyser_udp_ready = False
+                if container_pid.returncode == 0 and container_pid.stdout.strip().isdigit():
+                    namespace_probe = (
+                        "import os,socket,time; "
+                        "magic=bytes.fromhex('00ffff00fefefefefdfdfdfd12345678'); "
+                        "stamp=int(time.time()*1000).to_bytes(8,'big',signed=True); "
+                        "packet=b'\\x01'+stamp+magic+os.urandom(8); "
+                        "s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); "
+                        "s.settimeout(1); s.sendto(packet,('127.0.0.1',19132)); "
+                        "r,_=s.recvfrom(2048); "
+                        "raise SystemExit(0 if len(r)>=35 and r[0]==0x1c and r[1:9]==stamp and r[17:33]==magic else 1)"
+                    )
+                    namespace_result = run_command(
+                        ["nsenter", "--target", container_pid.stdout.strip(), "--net", "python3", "-c", namespace_probe],
+                        timeout=4,
+                    )
+                    geyser_udp_ready = namespace_result.returncode == 0
+
+                # Fallback: testa o IP da bridge diretamente a partir da VM.
+                if not geyser_udp_ready:
+                    container_ip = run_command(
+                        [
+                            "docker", "inspect", "-f",
+                            "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
+                            CONTAINER,
+                        ],
+                        timeout=5,
+                    )
+                    probe_host = container_ip.stdout.strip() if container_ip.returncode == 0 else ""
+                    geyser_udp_ready = probe_bedrock_udp(probe_host) if probe_host else probe_bedrock_udp()
                 geyser_udp_state = "ready" if geyser_udp_ready else "no_response"
 
     return {
@@ -321,22 +347,34 @@ def read_technical():
         if match:
             java_version = match.group(1)
 
-        logs = output(["docker", "logs", "--tail", "1000", CONTAINER], timeout=8)
-        match = re.search(r"Starting minecraft server version ([0-9.]+)", logs, re.IGNORECASE)
-        if match:
-            minecraft_version = match.group(1)
-
-        # O Fabric anuncia a versão do jogo e do loader durante o arranque.
-        fabric_match = re.search(
-            r"Loading Minecraft ([^\s]+) with Fabric Loader ([0-9.]+)",
-            logs,
-            re.IGNORECASE,
+        logs = output(["docker", "logs", "--tail", "3000", CONTAINER], timeout=12)
+        # Remove sequências ANSI antes de analisar logs de diferentes versões do loader.
+        logs = re.sub(r"\\x1B\\[[0-?]*[ -/]*[@-~]", "", logs).replace("\\r", "")
+        version_patterns = (
+            r"Starting minecraft server version\\s+([0-9]+(?:\\.[0-9]+)+)",
+            r"Loading Minecraft\\s+([0-9]+(?:\\.[0-9]+)+)\\s+with Fabric Loader\\s+([0-9]+(?:\\.[0-9]+)+)",
+            r"Minecraft(?: server)? version\\s*[:=]\\s*([0-9]+(?:\\.[0-9]+)+)",
         )
-        if fabric_match:
-            minecraft_version = minecraft_version or fabric_match.group(1)
-            fabric_loader_version = fabric_match.group(2)
-            server_type = "Fabric"
-        else:
+        for pattern in version_patterns:
+            match = re.search(pattern, logs, re.IGNORECASE)
+            if match:
+                minecraft_version = match.group(1)
+                if len(match.groups()) > 1:
+                    fabric_loader_version = match.group(2)
+                    server_type = "Fabric"
+                break
+
+        # Consulta exclusivamente VERSION; nunca despeja o ambiente do contentor.
+        if not minecraft_version:
+            configured_version = run_command(
+                ["docker", "exec", CONTAINER, "sh", "-lc", 'printf "%s" "${VERSION:-}"'],
+                timeout=5,
+            )
+            candidate = configured_version.stdout.strip()
+            if configured_version.returncode == 0 and re.fullmatch(r"[0-9]+(?:\\.[0-9]+)+", candidate):
+                minecraft_version = candidate
+
+        if "fabric_loader_version" not in locals():
             fabric_loader_version = "Não identificado"
 
         image_lower = image.lower()
