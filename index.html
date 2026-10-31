@@ -7,8 +7,8 @@
   <meta name="description" content="Estado real, componentes e compatibilidade da infraestrutura do servidor Minecraft.">
   <title>Minecraft Server | Painel técnico</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="style.css?v=20261031-progress">
-  <script src="script.js?v=20261031-agent-ip" defer></script>
+  <link rel="stylesheet" href="style.css?v=20261031-clean">
+  <script src="script.js?v=20261031-i18n-clean" defer></script>
 </head>
 <body>
   <main class="page">
@@ -24,20 +24,23 @@
           <option value="es">🇻🇪 ES</option>
           <option value="en">🇺🇸 EN</option>
         </select>
-        <span class="topbar-label" data-i18n="panelLabel">PAINEL TÉCNICO</span>
+        <span class="hosting-provider" title="Microsoft Azure">
+          <svg class="azure-mark" viewBox="0 0 24 24" role="img" aria-label="Microsoft Azure"><path d="M22.379 23.343a1.62 1.62 0 0 0 1.536-2.14L17.35 1.76A1.62 1.62 0 0 0 15.816.657H8.184A1.62 1.62 0 0 0 6.65 1.76L.086 21.204a1.62 1.62 0 0 0 1.536 2.139h4.741a1.62 1.62 0 0 0 1.535-1.103l.977-2.892 4.947 3.675c.28.208.618.32.966.32h7.591a1.62 1.62 0 0 0 1.536-2.14ZM17.35 10.812l3.624 10.739a.54.54 0 0 1-.51.713h-.03a.54.54 0 0 1-.322-.106l-9.287-6.9h4.853Z"/></svg>
+          <span data-i18n="hostedOnAzureLabel">ALOJADO NA AZURE</span>
+        </span>
       </div>
     </header>
 
     <section class="page-intro">
       <p class="eyebrow" data-i18n="eyebrow">INFRAESTRUTURA E MONITORIZAÇÃO</p>
       <h1 data-i18n="pageTitle">Informação do servidor</h1>
-      <p class="intro-copy" data-i18n="pageCopy">Estado operacional, componentes identificados e detalhes de compatibilidade. Os dados não confirmados são assinalados como tal.</p>
+      <p class="intro-copy" data-i18n="pageCopy">Estado da máquina virtual, ligação ao jogo e versões instaladas.</p>
     </section>
 
     <section class="server-card" aria-labelledby="server-title">
       <div class="server-card-top">
         <div>
-          <p class="card-kicker" data-i18n="serverStatus">ESTADO EM TEMPO REAL</p>
+          <p class="card-kicker" data-i18n="vmStatusLabel">ESTADO DA MÁQUINA VIRTUAL</p>
           <h2 id="server-title">Minecraft Server</h2>
         </div>
         <span class="status-pill"><span class="status-dot status-dot-muted"></span> <span id="server-state">—</span></span>
@@ -75,37 +78,20 @@
 
     <section class="technical-section">
       <div class="section-heading">
-        <p class="card-kicker" data-i18n="verifiedHeading">TECNOLOGIA</p>
-        <h2 data-i18n="stackTitle">Infraestrutura</h2>
+        <p class="card-kicker" data-i18n="connectionSectionLabel">LIGAÇÃO AO SERVIDOR</p>
+        <h2 data-i18n="connectionTitleShort">Endereços e plataformas</h2>
       </div>
-      <div class="tech-grid">
-        <article class="tech-card brand-card"><img class="brand-logo-img" src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Microsoft_Azure.svg" loading="eager" alt="Microsoft Azure"><div><h3>Microsoft Azure</h3><p data-i18n="azureShort">Máquina virtual · infraestrutura cloud</p></div><span class="card-state">CLOUD</span></article>
-        <article class="tech-card brand-card"><img class="brand-logo-img" src="https://cdn.simpleicons.org/ubuntu/E95420" alt="Ubuntu"><div><h3>Ubuntu Linux</h3><p data-i18n="linuxShort">Sistema operativo · APT · systemd</p></div><span class="card-state">OS</span></article>
-        <article class="tech-card brand-card"><img class="brand-logo-img" src="https://cdn.simpleicons.org/docker/2496ED" alt="Docker"><div><h3>Docker</h3><p data-i18n="dockerShort">Contentorização · mc-server</p></div><span class="card-state">CONTAINER</span></article>
-        <article class="tech-card brand-card"><div class="brand-logo minecraft-logo" aria-label="Minecraft">▦</div><div><h3>Minecraft Java</h3><p data-i18n="minecraftShort">Servidor de jogo · RCON</p></div><span class="card-state">GAME</span></article>
-        <article class="tech-card brand-card"><img class="brand-logo-img" src="https://cdn.simpleicons.org/python/FFD43B" alt="Python"><div><h3>Python</h3><p data-i18n="pythonShort">Agente privado de monitorização</p></div><span class="card-state">AGENT</span></article>
-        <article class="tech-card brand-card"><img class="brand-logo-img" src="https://cdn.simpleicons.org/cloudflare/F38020" alt="Cloudflare"><div><h3>Cloudflare Tunnel</h3><p data-i18n="tunnelShort">Comunicação privada com o agente</p></div><span class="card-state">NETWORK</span></article>
-      </div>
-    </section>
-
-    <section class="technical-section">
-      <div class="section-heading">
-        <p class="card-kicker" data-i18n="networkHeading">REDE</p>
-        <h2 data-i18n="connectionTitle">Rede e acesso</h2>
-      </div>
-      <div class="quick-spec-grid">
-        <div class="quick-spec"><span>TCP</span><strong>25565</strong><small data-i18n="gamePort">Porta do Minecraft</small></div>
-        <div class="quick-spec"><span>RCON</span><strong>Ativo por configuração</strong><small data-i18n="internalAdmin">Administração interna</small></div>
-        <div class="quick-spec"><span>SSH</span><strong>Fallback Azure</strong><small data-i18n="remoteManagement">Gestão remota</small></div>
-        <div class="quick-spec"><span>BEDROCK</span><strong data-i18n="notConfirmed">Não confirmado</strong><small data-i18n="compatibility">Compatibilidade</small></div>
+      <div class="quick-spec-grid connection-grid">
+        <div class="quick-spec"><span>JAVA · TCP</span><strong>25565</strong><small data-i18n="javaEditionLabel">Minecraft Java Edition</small></div>
+        <div class="quick-spec"><span>BEDROCK · UDP</span><strong>19132</strong><small data-i18n="bedrockEditionLabel">Minecraft Bedrock via Geyser</small></div>
       </div>
     </section>
 
     <section class="technical-section" aria-labelledby="live-tech-title">
       <div class="section-heading">
-        <p class="card-kicker" data-i18n="liveTechHeading">ESPECIFICAÇÕES DETETADAS</p>
-        <h2 id="live-tech-title" data-i18n="liveTechTitle">Software e mods instalados</h2>
-        <p class="section-copy" data-i18n="liveTechNote">Dados recolhidos diretamente da VM. Valores não disponíveis são identificados como tal.</p>
+        <p class="card-kicker" data-i18n="versionsHeading">VERSÕES DETETADAS</p>
+        <h2 id="live-tech-title" data-i18n="versionsTitle">Software e versões</h2>
+        <p class="section-copy" data-i18n="versionsIntro">Leitura automática do software em execução e dos mods carregados.</p>
       </div>
       <div id="technical-specs" class="detected-grid">
         <div class="spec-row"><span data-i18n="techLoading">A carregar especificações</span><strong>—</strong></div>
@@ -114,7 +100,7 @@
 
     <footer class="footer">
       <span>MC SERVER</span>
-      <span data-i18n="footer">Dados técnicos baseados na configuração disponível no repositório.</span>
+      <span data-i18n="footer">Alojado na Microsoft Azure.</span>
     </footer>
   </main>
 </body>
