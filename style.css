@@ -407,3 +407,16 @@ h2 { margin: 0; font-size: clamp(1.4rem, 3vw, 2rem); letter-spacing: -.04em; }
 .mods-empty{margin-top:14px}
 .mods-plugin-summary{margin:16px 0 0;padding-top:12px;border-top:1px solid var(--border);color:var(--muted);font-size:.76rem;overflow-wrap:anywhere}
 @media(max-width:560px){.mods-list{grid-template-columns:1fr}}
+
+
+/* Hosting provider mark (inline SVG, no external image dependency). */
+.hosting-provider{display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-size:.66rem;font-weight:850;letter-spacing:.11em;white-space:nowrap}
+.azure-mark{width:23px;height:23px;display:block;fill:#50b9ff;flex:0 0 auto}
+.connection-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.detected-card{padding:17px}
+.detected-top{margin-bottom:10px}
+.detected-description{display:none}
+.detected-sub{display:block;margin-top:7px;line-height:1.45}
+.mods-heading p{margin-top:5px}
+.mod-item p{line-height:1.5}
+@media(max-width:560px){.hosting-provider{font-size:.58rem;letter-spacing:.07em}.azure-mark{width:20px;height:20px}.connection-grid{grid-template-columns:1fr}}
