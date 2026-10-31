@@ -37,21 +37,29 @@ jobs:
           }
 
           STATUS=$(get_status)
+          INITIAL_STATUS="$STATUS"
           STARTED_BY_WORKFLOW=0
 
           cleanup_vm() {
             if [[ "$STARTED_BY_WORKFLOW" == "1" ]]; then
-              echo "A repor o estado inicial: a VM será desallocated após a instalação."
-              az vm deallocate --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME" --no-wait
+              TARGET_STATUS="VM deallocated"
+              if [[ "$INITIAL_STATUS" == "VM stopped" ]]; then
+                TARGET_STATUS="VM stopped"
+                echo "A repor o estado inicial: a VM será parada sem desalocação."
+                az vm stop --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME" --no-wait || true
+              else
+                echo "A repor o estado inicial: a VM será desalocada."
+                az vm deallocate --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME" --no-wait || true
+              fi
               for i in {1..90}; do
                 STATUS=$(get_status)
-                if [[ "$STATUS" == "VM deallocated" ]]; then
-                  echo "VM novamente deallocated."
+                if [[ "$STATUS" == "$TARGET_STATUS" ]]; then
+                  echo "Estado inicial da VM restaurado: $TARGET_STATUS."
                   return 0
                 fi
                 sleep 10
               done
-              echo "Aviso: pedido de deallocation enviado, mas não foi possível confirmar o estado final."
+              echo "Aviso: não foi possível confirmar a reposição do estado inicial ($TARGET_STATUS)."
             fi
           }
           trap cleanup_vm EXIT
@@ -82,8 +90,14 @@ jobs:
           CONTAINER="mc-server"
           VERSION_ID="UugdIYJw"
           WORKDIR=$(mktemp -d /tmp/mc-krypton.XXXXXX)
-          BACKUP="/var/backups/minecraft/mods-krypton-$(date -u +%Y%m%dT%H%M%SZ)"
-          cleanup() { rm -rf "$WORKDIR"; }
+          BACKUP="/var/backups/minecraft/mods-krypton-$(date -u +%Y%m%dT%H%M%SZ)-$"
+          CONTAINER_STOPPED=0
+          cleanup() {
+            if [ "$CONTAINER_STOPPED" = "1" ]; then
+              docker start "$CONTAINER" >/dev/null 2>&1 || true
+            fi
+            rm -rf "$WORKDIR"
+          }
           trap cleanup EXIT
 
           docker inspect "$CONTAINER" >/dev/null
@@ -109,11 +123,25 @@ jobs:
           fi
 
           COUNT=$(printf '%s' "$PLAYERS" | sed -nE 's/.*There are ([0-9]+) of.*/\1/p' | head -n1)
-          COUNT=${COUNT:-0}
-          case "$COUNT" in *[!0-9]*|'') COUNT=0 ;; esac
+          if [ -z "$COUNT" ]; then
+            echo "Não foi possível interpretar a resposta RCON; instalação cancelada."
+            exit 1
+          fi
+          case "$COUNT" in *[!0-9]*)
+            echo "Contagem RCON inválida; instalação cancelada."
+            exit 1
+            ;;
+          esac
           if [ "$COUNT" -gt 0 ]; then
             echo "Instalação adiada: existem $COUNT jogador(es) online. Nenhum jogador foi desligado."
             exit 2
+          fi
+
+          EXISTING=$(docker exec "$CONTAINER" sh -lc "find /data/mods -maxdepth 1 -type f -iname '*krypton*.jar' -print -quit" 2>/dev/null || true)
+          if [ -n "$EXISTING" ]; then
+            echo "Krypton já está instalado em /data/mods: $EXISTING"
+            echo "KRYPTON_INSTALL_OK"
+            exit 0
           fi
 
           mkdir -p "$BACKUP"
@@ -125,7 +153,7 @@ jobs:
             "https://api.modrinth.com/v2/version/$VERSION_ID" \
             -o "$WORKDIR/version.json"
 
-          python3 - "$WORKDIR/version.json" "$WORKDIR/download-url" "$WORKDIR/filename" <<'PY'
+          python3 - "$WORKDIR/version.json" "$WORKDIR/download-url" "$WORKDIR/filename" "$WORKDIR/sha512" <<'PY'
           import json, sys
           data = json.load(open(sys.argv[1], encoding="utf-8"))
           if data.get("version_number") != "0.3.2" or "26.3" not in data.get("game_versions", []) or "fabric" not in data.get("loaders", []):
@@ -134,26 +162,31 @@ jobs:
           primary = next((f for f in files if f.get("primary")), files[0] if files else None)
           if not primary or not primary.get("url", "").startswith("https://cdn.modrinth.com/"):
               raise SystemExit("Ficheiro oficial do Krypton não encontrado.")
+          filename = primary.get("filename", "")
+          sha512 = (primary.get("hashes") or {}).get("sha512", "")
+          if not filename.endswith(".jar") or "/" in filename or "\\" in filename or len(sha512) != 128:
+              raise SystemExit("Metadados do ficheiro Krypton inválidos.")
           open(sys.argv[2], "w").write(primary["url"])
-          open(sys.argv[3], "w").write(primary["filename"])
+          open(sys.argv[3], "w").write(filename)
+          open(sys.argv[4], "w").write(sha512)
           PY
 
           URL=$(cat "$WORKDIR/download-url")
           FILENAME=$(cat "$WORKDIR/filename")
-          curl --fail --location --silent --show-error "$URL" -o "$WORKDIR/$FILENAME"
-
-          if find /data -maxdepth 1 -type d -name mods >/dev/null 2>&1; then :; fi
-          EXISTING=$(docker exec "$CONTAINER" sh -lc "find /data/mods -maxdepth 1 -type f -iname '*krypton*.jar' -print -quit" 2>/dev/null || true)
-          if [ -n "$EXISTING" ]; then
-            echo "Krypton já existe em /data/mods; não será criada uma cópia duplicada."
-            exit 0
-          fi
+          curl --fail --location --silent --show-error --retry 3 --retry-delay 2 --max-time 60 "$URL" -o "$WORKDIR/$FILENAME"
+          EXPECTED_SHA512=$(cat "$WORKDIR/sha512")
+          printf '%s  %s\\n' "$EXPECTED_SHA512" "$WORKDIR/$FILENAME" | sha512sum --check --status || {
+            echo "A verificação SHA-512 do ficheiro falhou; instalação cancelada."
+            exit 1
+          }
 
           docker exec "$CONTAINER" rcon-cli save-all flush
           docker stop --time 60 "$CONTAINER" >/dev/null
+          CONTAINER_STOPPED=1
           docker cp "$WORKDIR/$FILENAME" "$CONTAINER:/data/mods/$FILENAME"
           STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           docker start "$CONTAINER" >/dev/null
+          CONTAINER_STOPPED=0
 
           READY=0
           for i in $(seq 1 90); do
