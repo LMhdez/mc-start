@@ -83,7 +83,8 @@ A publicação do Worker e do agente é deliberadamente separada: publica primei
 
 ## Segurança e operação
 
-- O agente escuta apenas em `127.0.0.1:8765); não abras essa porta no NSG.
+- O agente escuta apenas em `127.0.0.1:8765`; não abras essa porta no NSG.
+- A instalação inicial ainda usa SSH para o IP público da VM. A fingerprint é validada através da Azure, mas a porta TCP 22 continua a ter de estar acessível; restringe-a no NSG e considera migrar para Azure Bastion ou um runner dentro da VNet.
 - O Worker exige palavra-passe para ações privadas e limita pedidos por IP através do KV. Como o KV é eventualmente consistente, este rate limiting é uma proteção de melhor esforço, não um bloqueio atómico contra tráfego distribuído.
 - Os endpoints públicos não devolvem IP privado nem nomes de jogadores.
 - O desligamento tenta parar o contentor Minecraft antes de desalocar a VM.
