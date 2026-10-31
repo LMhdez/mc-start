@@ -164,6 +164,78 @@ def read_technical():
     plugins = []
     mods_inventory_available = False
 
+    modrinth_icon_cache = {}
+
+    def modrinth_icon(item):
+        """Procura o icone oficial do projeto no Modrinth quando o JAR nao inclui um."""
+        mod_id = str(item.get("id") or "").strip()
+        mod_name = str(item.get("name") or "").strip()
+        query = mod_name or mod_id
+        if not query:
+            return ""
+
+        cache_key = (mod_id.lower(), query.lower())
+        if cache_key in modrinth_icon_cache:
+            return modrinth_icon_cache[cache_key]
+
+        try:
+            search_url = "https://api.modrinth.com/v2/search?" + urllib.parse.urlencode({
+                "query": query,
+                "facets": json.dumps([["project_type:mod"]]),
+                "limit": 8,
+            })
+            request = urllib.request.Request(
+                search_url,
+                headers={"User-Agent": "LMhdez/mc-start/1.0 (Minecraft server dashboard)"},
+            )
+            with urllib.request.urlopen(request, timeout=5) as response:
+                results = json.loads(response.read(512 * 1024).decode("utf-8"))
+
+            def normalise(value):
+                return re.sub(r"[^a-z0-9]", "", str(value or "").lower())
+
+            wanted_name = normalise(mod_name)
+            wanted_id = normalise(mod_id)
+            selected = None
+            for hit in results.get("hits", []):
+                title_match = wanted_name and normalise(hit.get("title")) == wanted_name
+                slug_match = wanted_id and normalise(hit.get("slug")) == wanted_id
+                if title_match or slug_match:
+                    selected = hit
+                    break
+
+            icon_url = (selected or {}).get("icon_url") or ""
+            if not icon_url.startswith("https://cdn.modrinth.com/"):
+                modrinth_icon_cache[cache_key] = ""
+                return ""
+
+            image_request = urllib.request.Request(
+                icon_url,
+                headers={"User-Agent": "LMhdez/mc-start/1.0"},
+            )
+            with urllib.request.urlopen(image_request, timeout=5) as response:
+                image_bytes = response.read(131073)
+                content_type = response.headers.get_content_type()
+
+            mime_types = {
+                "image/png": "png",
+                "image/jpeg": "jpg",
+                "image/webp": "webp",
+                "image/gif": "gif",
+            }
+            extension = mime_types.get(content_type)
+            if not extension or not image_bytes or len(image_bytes) > 131072:
+                modrinth_icon_cache[cache_key] = ""
+                return ""
+
+            encoded = "data:" + content_type + ";base64," + base64.b64encode(image_bytes).decode("ascii")
+            modrinth_icon_cache[cache_key] = encoded
+            return encoded
+        except Exception:
+            # A consulta externa e opcional: nunca deve impedir o inventario dos mods.
+            modrinth_icon_cache[cache_key] = ""
+            return ""
+
     def inspect_jars(folder, kind, limit=40):  # Read metadata and optional artwork from installed JARs
         """Lê metadados públicos dos JARs sem executar os mods/plugins."""
         result = run_command(
@@ -232,6 +304,8 @@ def read_technical():
                                 image_bytes = archive.read(icon_path)
                                 if 0 < len(image_bytes) <= 131072:
                                     item["icon"] = "data:" + mime + ";base64," + base64.b64encode(image_bytes).decode("ascii")
+                    if kind == "mod" and not item.get("icon"):
+                        item["icon"] = modrinth_icon(item)
                 except Exception:
                     pass
                 item["description"] = item["description"][:400]
