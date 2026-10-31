@@ -139,6 +139,7 @@ const translations = {
 let currentLanguage = "pt";
 let lastFeedbackKey = "initialFeedback";
 let lastStatusResult = null;
+let lastPrivateIp = "";
 
 function setLanguage(language) {
   currentLanguage = translations[language] ? language : "pt";
@@ -194,7 +195,22 @@ function renderStatus(result) {
     };
     state.textContent = vmStates[result.vm] || t.vmUnknown;
   }
-  if (address) address.textContent = result.private ? (result.ip || t.addressUnavailable) : t.addressProtected;
+  if (address) {
+    if (result.private && result.ip) lastPrivateIp = result.ip;
+
+    if (result.vm === "VM deallocated" || result.vm === "VM stopped") {
+      lastPrivateIp = "";
+      address.textContent = t.addressUnavailable;
+    } else if (result.vm === "VM running" && lastPrivateIp) {
+      // A consulta publica de 30 em 30 segundos nao deve esconder um IP
+      // que ja foi obtido por uma consulta privada autenticada.
+      address.textContent = lastPrivateIp;
+    } else if (result.private) {
+      address.textContent = result.ip || t.addressUnavailable;
+    } else {
+      address.textContent = t.addressProtected;
+    }
+  }
   if (count) count.textContent = String(result.players ?? 0);
   if (names) names.textContent = result.player_names?.length ? result.player_names.join(", ") : t.noPlayers;
 
