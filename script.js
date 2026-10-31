@@ -91,7 +91,8 @@ const translations = {
     checkingPrivate: "Pedido enviado. A aguardar pelo resultado da verificação...",
     serverInitializing: "A preparar as ligações Java e Bedrock…",
     bedrockStateLabel: "Bedrock · estado do Geyser",
-    bedrockReady: "Geyser ativo · UDP não testado",
+    bedrockReady: "Geyser ativo",
+    bedrockUdpReady: "UDP local confirmado", bedrockUdpFailed: "Sem resposta UDP local", bedrockUdpUnknown: "UDP por verificar",
     bedrockInitializing: "A preparar",
     bedrockUnavailable: "Não confirmada",
     startComplete: "Servidor online. O serviço Minecraft está pronto; a ligação Bedrock externa não foi testada.",
@@ -183,7 +184,8 @@ const translations = {
     checkingPrivate: "Solicitud enviada. Esperando el resultado de la comprobación...",
     serverInitializing: "Preparando las conexiones Java y Bedrock…",
     bedrockStateLabel: "Bedrock · estado de Geyser",
-    bedrockReady: "Geyser activo · UDP no probado",
+    bedrockReady: "Geyser activo",
+    bedrockUdpReady: "UDP local confirmado", bedrockUdpFailed: "Sin respuesta UDP local", bedrockUdpUnknown: "UDP por comprobar",
     bedrockInitializing: "Preparando",
     bedrockUnavailable: "No confirmada",
     startComplete: "Servidor en línea. Minecraft está listo; la conexión Bedrock externa no se ha probado.",
@@ -275,7 +277,8 @@ const translations = {
     checkingPrivate: "Request sent. Waiting for the status result...",
     serverInitializing: "Preparing Java and Bedrock connections…",
     bedrockStateLabel: "Bedrock · Geyser status",
-    bedrockReady: "Geyser active · UDP untested",
+    bedrockReady: "Geyser active",
+    bedrockUdpReady: "UDP responds locally", bedrockUdpFailed: "No local UDP response", bedrockUdpUnknown: "UDP not checked",
     bedrockInitializing: "Preparing",
     bedrockUnavailable: "Not confirmed",
     startComplete: "Server online. Minecraft is ready; external Bedrock connectivity has not been tested.",
@@ -430,8 +433,9 @@ function renderStatus(result) {
   if (details) {
     const values = [
       [t.portState, result.port_open == null ? t.unknownStatus : result.port_open ? t.portOpen : t.portClosed],
-      [t.bedrockStateLabel, result.geyser_ready === true ? t.bedrockReady :
-        result.geyser_state === "initializing" || result.geyser_ready === false ? t.bedrockInitializing : t.bedrockUnavailable],
+      [t.bedrockStateLabel, result.geyser_ready === true
+        ? `${t.bedrockReady} · ${result.geyser_udp_ready === true ? t.bedrockUdpReady : result.geyser_udp_ready === false ? t.bedrockUdpFailed : t.bedrockUdpUnknown}`
+        : result.geyser_state === "initializing" || result.geyser_ready === false ? t.bedrockInitializing : t.bedrockUnavailable],
       [t.checkedAt, result.checked_at ? new Date(result.checked_at).toLocaleString(currentLanguage === "pt" ? "pt-PT" : currentLanguage === "es" ? "es-ES" : "en-GB") : "—"]
     ];
     details.replaceChildren();
