@@ -326,7 +326,16 @@ function renderStatus(result) {
       "VM stopped": t.vmStopped, "VM starting": t.vmStarting,
       "VM stopping": t.vmStopping
     };
-    state.textContent = vmStates[result.vm] || t.vmUnknown;
+    const serverReady = result.vm === "VM running" && result.docker === "active" &&
+      result.container === "running" && result.port_open === true;
+    state.textContent = serverReady ? t.serverOnline : (vmStates[result.vm] || t.vmUnknown);
+    const dot = state.closest(".status-pill")?.querySelector(".status-dot");
+    if (dot) {
+      const pending = result.vm === "VM starting" || result.vm === "VM stopping" ||
+        (result.vm === "VM running" && result.container === "running" && result.port_open === false);
+      dot.classList.toggle("status-dot-muted", !serverReady && !pending);
+      dot.classList.toggle("status-dot-pending", pending);
+    }
   }
   if (address) {
     if (result.private && result.ip) lastPrivateIp = result.ip;
