@@ -464,6 +464,7 @@ export default {
       try {
         const accessToken = await getAzureAccessToken(env);
         const vmState = await getAzureVmPowerState(env, accessToken);
+        if (vmState === "VM stopping") throw new Error("A VM ainda está a desligar; aguarda pela conclusão.");
         if (vmState === "VM running" || vmState === "VM starting") {
           return json({ ok: true, message: "O servidor ja esta ligado ou a iniciar." }, 200, origin);
         }
@@ -480,6 +481,9 @@ export default {
         const accessToken = await getAzureAccessToken(env);
         const vmState = await getAzureVmPowerState(env, accessToken);
         if (!vmState) throw new Error("Nao foi possivel confirmar o estado da VM.");
+        if (vmState === "VM starting" || vmState === "VM stopping") {
+          throw new Error("A VM tem uma operação em curso; aguarda pela conclusão.");
+        }
         if (vmState === "VM deallocated") {
           return json({ ok: true, message: "O servidor ja esta desligado." }, 200, origin);
         }
