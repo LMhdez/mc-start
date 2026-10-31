@@ -1,0 +1,117 @@
+name: Secure Minecraft network rules
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  secure-minecraft:
+    if: github.event.issue.user.login == 'LMhdez' && startsWith(github.event.issue.title, '[MC-SECURE]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure login
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Restrict Minecraft rules to required protocols
+        id: secure
+        shell: bash
+        env:
+          RG: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          VM: ${{ secrets.AZURE_VM_NAME }}
+        run: |
+          set -euo pipefail
+
+          NIC=$(az vm show -g "$RG" -n "$VM" --query 'networkProfile.networkInterfaces[0].id' -o tsv)
+          if [ -z "$NIC" ] || [ "$NIC" = "None" ]; then
+            echo "No VM network interface found." >&2
+            exit 1
+          fi
+
+          NSG_ID=$(az network nic show --ids "$NIC" --query 'networkSecurityGroup.id' -o tsv)
+          if [ -z "$NSG_ID" ] || [ "$NSG_ID" = "None" ]; then
+            echo "No NIC-level network security group found; refusing to change network rules." >&2
+            exit 1
+          fi
+          NSG=$(basename "$NSG_ID")
+
+          EXISTING=$(az network nsg rule list -g "$RG" --nsg-name "$NSG" --query "[?name=='Minecraft'] | [0].priority" -o tsv)
+          if [ -z "$EXISTING" ] || [ "$EXISTING" = "None" ]; then
+            echo "Expected Minecraft rule was not found; refusing to create replacement rules blindly." >&2
+            exit 1
+          fi
+
+          # Keep Java publicly reachable, but only over its required TCP transport.
+          az network nsg rule update -g "$RG" --nsg-name "$NSG" -n Minecraft \
+            --priority "$EXISTING" --direction Inbound --access Allow --protocol Tcp \
+            --source-address-prefixes '*' --source-port-ranges '*' \
+            --destination-address-prefixes '*' --destination-port-ranges 25565 \
+            --description "Minecraft Java TCP only"
+
+          # Select a free priority after the existing Minecraft rule.
+          if az network nsg rule show -g "$RG" --nsg-name "$NSG" -n Minecraft-Bedrock >/dev/null 2>&1; then
+            BEDROCK_PRIORITY=$(az network nsg rule show -g "$RG" --nsg-name "$NSG" -n Minecraft-Bedrock --query priority -o tsv)
+          else
+            USED=$(az network nsg rule list -g "$RG" --nsg-name "$NSG" --query '[].priority' -o tsv)
+            BEDROCK_PRIORITY=""
+            for p in $(seq $((EXISTING + 1)) 4096); do
+              if ! printf '%s\n' "$USED" | grep -qx "$p"; then
+                BEDROCK_PRIORITY="$p"
+                break
+              fi
+            done
+            if [ -z "$BEDROCK_PRIORITY" ]; then
+              echo "No free NSG priority available for Bedrock rule." >&2
+              exit 1
+            fi
+          fi
+
+          az network nsg rule create -g "$RG" --nsg-name "$NSG" -n Minecraft-Bedrock \
+            --priority "$BEDROCK_PRIORITY" --direction Inbound --access Allow --protocol Udp \
+            --source-address-prefixes '*' --source-port-ranges '*' \
+            --destination-address-prefixes '*' --destination-port-ranges 19132 \
+            --description "Minecraft Bedrock UDP only" >/dev/null
+
+          # Emit only a non-sensitive summary; never print IPs, CIDRs, credentials, or raw rule objects.
+          echo "nsg_name=$NSG" >> "$GITHUB_OUTPUT"
+          echo "java_rule=TCP/25565" >> "$GITHUB_OUTPUT"
+          echo "bedrock_rule=UDP/19132" >> "$GITHUB_OUTPUT"
+          echo "bedrock_priority=$BEDROCK_PRIORITY" >> "$GITHUB_OUTPUT"
+
+      - name: Report safe summary
+        uses: actions/github-script@v7
+        env:
+          NSG: ${{ steps.secure.outputs.nsg_name }}
+          JAVA_RULE: ${{ steps.secure.outputs.java_rule }}
+          BEDROCK_RULE: ${{ steps.secure.outputs.bedrock_rule }}
+          BEDROCK_PRIORITY: ${{ steps.secure.outputs.bedrock_priority }}
+        with:
+          script: |
+            const body = [
+              '## Minecraft network rules updated',
+              '',
+              '- Java: TCP 25565 only',
+              '- Bedrock: UDP 19132 only',
+              '- Public player access retained.',
+              '- SSH rule was not changed.',
+              '- No IP addresses, CIDRs, credentials, or raw configuration were included in this report.',
+              '',
+              'The rules were applied to the VM NIC network security group. Subnet-level rules were not changed.'
+            ].join('\\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              state: 'closed'
+            });
