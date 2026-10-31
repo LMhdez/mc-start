@@ -153,9 +153,11 @@ async function getAzureVmPowerState(env, accessToken = null) {
 
 async function getAzureVmPublicIp(env, accessToken = null) {
   const cacheKey = "azure:public-ip";
+
+  // Reutilizar um IP confirmado para evitar chamadas ARM em todos os cliques.
   try {
     const cached = await env.STATUS_KV.get(cacheKey);
-    if (cached) return cached;
+    if (cached && /^\\d{1,3}(?:\\.\\d{1,3}){3}$/.test(cached)) return cached;
   } catch (error) {
     console.warn("Azure IP cache unavailable:", error.message);
   }
@@ -163,68 +165,87 @@ async function getAzureVmPublicIp(env, accessToken = null) {
   const token = accessToken || await getAzureAccessToken(env);
   if (!token) return "";
   const headers = { "Authorization": "Bearer " + token };
+  const vmUrl =
+    "https://management.azure.com/" + azureVmResource(env) + "?api-version=2024-07-01";
 
-  // Consultar a VM e os IPs públicos em paralelo, sem repetir o pedido do token.
-  const publicIpPath = [
-    "subscriptions", encodeURIComponent(env.AZURE_SUBSCRIPTION_ID),
-    "resourceGroups", encodeURIComponent(env.AZURE_RESOURCE_GROUP),
-    "providers/Microsoft.Network/publicIPAddresses"
-  ].join("/");
-  const [vmResponse, ipResponse] = await Promise.all([
-    fetch(
-      "https://management.azure.com/" + azureVmResource(env) + "?api-version=2024-07-01",
-      { headers }
-    ),
-    fetch(
-      "https://management.azure.com/" + publicIpPath + "?api-version=2025-05-01",
-      { headers }
-    )
-  ]);
-
+  const vmResponse = await fetch(vmUrl, { headers });
   if (!vmResponse.ok) {
     throw new Error("Azure VM network lookup failed with status " + vmResponse.status);
   }
-  if (!ipResponse.ok) {
-    throw new Error("Azure public IP list failed with status " + ipResponse.status);
-  }
 
-  const [vmData, ipData] = await Promise.all([vmResponse.json(), ipResponse.json()]);
+  const vmData = await vmResponse.json();
   const interfaces = vmData.properties?.networkProfile?.networkInterfaces || [];
   const nicIds = interfaces
     .map(item => item.id)
-    .filter(id => typeof id === "string" && id.startsWith("/subscriptions/"))
-    .map(id => id.toLowerCase());
+    .filter(id => typeof id === "string" && id.startsWith("/subscriptions/"));
 
-  const publicIps = Array.isArray(ipData.value) ? ipData.value : [];
-  const attached = publicIps.filter(item => {
-    const configurationId = item.properties?.ipConfiguration?.id;
-    if (typeof configurationId !== "string") return false;
-    const normalized = configurationId.toLowerCase();
-    return nicIds.some(nicId => normalized.startsWith(nicId + "/ipconfigurations/"));
-  });
+  if (!nicIds.length) {
+    console.warn("Azure VM returned no network interface references");
+    return "";
+  }
 
-  const match = attached.find(item => {
-    const value = item.properties?.ipAddress;
-    return typeof value === "string" && value.trim();
-  });
-  const ip = match?.properties?.ipAddress?.trim() || "";
+  // Consultar as NICs associadas à VM diretamente; não listar todos os IPs do grupo.
+  const nicResponses = await Promise.all(nicIds.map(id =>
+    fetch("https://management.azure.com" + id + "?api-version=2025-05-01", { headers })
+  ));
 
-  if (!ip) {
-    console.warn("Azure public IP not found for VM NIC", {
+  const publicIpIds = [];
+  let ipConfigurationCount = 0;
+  for (const response of nicResponses) {
+    if (!response.ok) {
+      console.warn("Azure NIC lookup failed with status", response.status);
+      continue;
+    }
+    const nicData = await response.json();
+    const configurations = nicData.properties?.ipConfigurations || [];
+    ipConfigurationCount += configurations.length;
+    for (const configuration of configurations) {
+      const publicIpId = configuration.properties?.publicIPAddress?.id;
+      if (typeof publicIpId === "string" &&
+          publicIpId.startsWith("/subscriptions/") &&
+          !publicIpIds.includes(publicIpId)) {
+        publicIpIds.push(publicIpId);
+      }
+    }
+  }
+
+  if (!publicIpIds.length) {
+    console.warn("Azure NIC has no public IP reference", {
       nicCount: nicIds.length,
-      publicIpCount: publicIps.length,
-      attachedPublicIpCount: attached.length
+      ipConfigurationCount
     });
     return "";
   }
 
-  // Cache curto para evitar novas consultas ARM a cada clique no painel.
-  try {
-    await env.STATUS_KV.put(cacheKey, ip, { expirationTtl: 60 });
-  } catch (error) {
-    console.warn("Could not cache Azure public IP:", error.message);
+  // Resolver diretamente cada referência de IP público encontrada na NIC.
+  const publicIpResponses = await Promise.all(publicIpIds.map(id =>
+    fetch("https://management.azure.com" + id + "?api-version=2025-05-01", { headers })
+  ));
+
+  for (const response of publicIpResponses) {
+    if (!response.ok) {
+      console.warn("Azure public IP lookup failed with status", response.status);
+      continue;
+    }
+    const publicIpData = await response.json();
+    const ip = publicIpData.properties?.ipAddress;
+    if (typeof ip === "string" && ip.trim()) {
+      const confirmedIp = ip.trim();
+      try {
+        await env.STATUS_KV.put(cacheKey, confirmedIp, { expirationTtl: 60 });
+      } catch (error) {
+        console.warn("Could not cache Azure public IP:", error.message);
+      }
+      return confirmedIp;
+    }
   }
-  return ip;
+
+  console.warn("Azure public IP resources returned no assigned address", {
+    nicCount: nicIds.length,
+    ipConfigurationCount,
+    publicIpReferenceCount: publicIpIds.length
+  });
+  return "";
 }
 
 async function performAzureVmAction(env, action) {
