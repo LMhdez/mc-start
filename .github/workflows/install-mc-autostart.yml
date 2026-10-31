@@ -109,7 +109,11 @@ jobs:
             --query "value[].message" -o tsv)
 
           if ! grep -q "MC_AUTOSTART_OK" <<< "$RESULT"; then
-            echo "A VM não confirmou a instalação e o arranque automático."
+            echo "A VM não confirmou a instalação e o arranque automático. Diagnóstico (sem valores sensíveis):"
+            printf '%s\\n' "$RESULT" \
+              | grep -iE 'MC_AUTOSTART|error|failed|failure|not found|permission denied|inactive|activating|stdout|stderr|exit code|systemctl|docker|curl' \
+              | sed -E 's/((password|secret|token|client[_-]?secret|authorization)[^:=]*[:=])[[:space:]]*[^[:space:]]+/\\1 [REDACTED]/Ig' \
+              | tail -n 40 || true
             exit 1
           fi
 
