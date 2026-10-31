@@ -58,6 +58,20 @@ jobs:
           docker exec mc-server sh -c 'find /data /config /plugins /opt -type f \( -iname "*.yml" -o -iname "*.yaml" \) 2>/dev/null | while read f; do if echo "$f" | grep -qi geyser || grep -qi geyser "$f" 2>/dev/null; then echo "FILE=$f"; grep -nEi "^[[:space:]]*(bedrock:|port:|clone-remote-port:|broadcast-port:|address:|transport:|webrtc-port:|signaling:|mode:|use-direct-connection:)" "$f" 2>/dev/null || true; fi; done' 2>&1 | sed -E 's/[0-9]{1,3}(\.[0-9]{1,3}){3}/[IP REDACTED]/g'
           echo '=== PUBLISHED PORTS ==='
           docker port mc-server 2>&1 || true
+          echo '=== SSH EFFECTIVE AUTHENTICATION POLICY ==='
+          if command -v sshd >/dev/null 2>&1; then
+            sshd -T 2>/dev/null | awk '$1=="passwordauthentication" || $1=="permitrootlogin" || $1=="pubkeyauthentication" || $1=="kbdinteractiveauthentication" || $1=="authenticationmethods" || $1=="usepam" || $1=="maxauthtries" {print}'
+          else
+            echo 'sshd: unavailable'
+          fi
+          echo '=== SSH / FAIL2BAN SERVICE STATE ==='
+          for SVC in ssh sshd fail2ban; do
+            STATE=$(systemctl is-active "$SVC" 2>/dev/null || true)
+            if [ -n "$STATE" ]; then echo "$SVC: $STATE"; fi
+          done
+          if command -v fail2ban-client >/dev/null 2>&1 && systemctl is-active --quiet fail2ban 2>/dev/null; then
+            fail2ban-client status 2>/dev/null | sed -n -E 's/^Status[[:space:]]*$/Status: available/p; s/^[[:space:]]*Number of jail:[[:space:]]*/Jails configured: /p'
+          fi
           EOS
           )
           az vm run-command invoke -g "$RG" -n "$VM" --command-id RunShellScript --scripts "$SCRIPT" --query 'value[0].message' -o tsv > guest.txt
