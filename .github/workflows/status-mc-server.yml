@@ -180,7 +180,9 @@ jobs:
               ')
 
             fi
-
+            echo "=== RESPOSTA SSH ==="
+            printf '%s\n' "$REMOTE_STATUS"
+            echo "=== FIM RESPOSTA SSH ==="
             DOCKER=$(echo "$REMOTE_STATUS" | jq -r '.docker // "unknown"')
             CONTAINER=$(echo "$REMOTE_STATUS" | jq -r '.container // "unknown"')
             PLAYER_COUNT=$(echo "$REMOTE_STATUS" | jq -r '.players // 0')
