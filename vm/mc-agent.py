@@ -206,6 +206,8 @@ def read_status():
                             "udp_listener_no_raknet_pong"
                             if listener_result.returncode == 0
                             else "no_udp_listener_19132"
+                            if listener_result.returncode == 1
+                            else "listener_check_unavailable"
                         )
                 else:
                     geyser_udp_diagnostic = "container_network_namespace_unavailable"
