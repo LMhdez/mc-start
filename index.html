@@ -7,8 +7,8 @@
   <meta name="description" content="Estado da VM, ligação ao Minecraft e versões do software instalado.">
   <title>Minecraft Server | Painel técnico</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="style.css?v=20261031-clean">
-  <script src="script.js?v=20261031-mods-public" defer></script>
+  <link rel="stylesheet" href="style.css?v=20261031-local-logos">
+  <script src="script.js?v=20261031-local-logos" defer></script>
 </head>
 <body>
   <main class="page">
@@ -94,32 +94,44 @@
       </div>
       <div class="tech-grid">
         <article class="tech-card brand-card">
-          <img class="brand-logo-img" src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Microsoft_Azure.svg" loading="lazy" alt="Microsoft Azure">
+          <div class="brand-logo azure-logo" role="img" aria-label="Microsoft Azure">
+            <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M26 5 9 37h10l7-14 6 10H22l-5 8h23L26 5Z" fill="currentColor"/><path d="M9 37h10l7-14-4 14H9Z" fill="currentColor" opacity=".68"/></svg>
+          </div>
           <div><h3>Microsoft Azure</h3><p data-i18n="azureShort">Máquina virtual · infraestrutura cloud</p></div>
           <span class="card-state">CLOUD</span>
         </article>
         <article class="tech-card brand-card">
-          <img class="brand-logo-img" src="https://cdn.simpleicons.org/ubuntu/E95420" loading="lazy" alt="Ubuntu">
+          <div class="brand-logo ubuntu-logo" role="img" aria-label="Ubuntu">
+            <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="13" fill="none" stroke="currentColor" stroke-width="4"/><circle cx="24" cy="7" r="4" fill="currentColor"/><circle cx="9.3" cy="32.5" r="4" fill="currentColor"/><circle cx="38.7" cy="32.5" r="4" fill="currentColor"/><path d="M24 11v4M12 30l4-2M32 28l4 2" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+          </div>
           <div><h3>Ubuntu Linux</h3><p data-i18n="linuxShort">Sistema operativo · APT · systemd</p></div>
           <span class="card-state">OS</span>
         </article>
         <article class="tech-card brand-card">
-          <img class="brand-logo-img" src="https://cdn.simpleicons.org/docker/2496ED" loading="lazy" alt="Docker">
+          <div class="brand-logo docker-logo" role="img" aria-label="Docker">
+            <svg viewBox="0 0 48 48" aria-hidden="true"><g fill="currentColor"><rect x="5" y="17" width="7" height="6" rx="1"/><rect x="14" y="17" width="7" height="6" rx="1"/><rect x="23" y="17" width="7" height="6" rx="1"/><rect x="14" y="9" width="7" height="6" rx="1"/><rect x="23" y="9" width="7" height="6" rx="1"/><rect x="32" y="17" width="7" height="6" rx="1"/><path d="M4 26h40c-2 9-8 14-19 14C14 40 7 35 4 26Z"/></g></svg>
+          </div>
           <div><h3>Docker</h3><p data-i18n="dockerShort">Contentorização · mc-server</p></div>
           <span class="card-state">CONTAINER</span>
         </article>
         <article class="tech-card brand-card">
-          <div class="brand-logo minecraft-logo" role="img" aria-label="Minecraft">▦</div>
+          <div class="brand-logo minecraft-logo" role="img" aria-label="Minecraft">
+            <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4 43 14v20L24 44 5 34V14L24 4Z" fill="currentColor" opacity=".22"/><path d="m24 4 19 10-19 10L5 14 24 4Z" fill="currentColor"/><path d="M5 14v20l19 10V24L5 14Z" fill="currentColor" opacity=".72"/><path d="M43 14v20L24 44V24l19-10Z" fill="currentColor" opacity=".48"/><path d="m24 24 19-10M24 24 5 14" stroke="#101510" stroke-width="1.5"/></svg>
+          </div>
           <div><h3>Minecraft Java</h3><p data-i18n="minecraftShort">Servidor de jogo · RCON</p></div>
           <span class="card-state">GAME</span>
         </article>
         <article class="tech-card brand-card">
-          <img class="brand-logo-img" src="https://cdn.simpleicons.org/python/FFD43B" loading="lazy" alt="Python">
+          <div class="brand-logo python-logo" role="img" aria-label="Python">
+            <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M23 5c-8 0-8 4-8 9v5h16v3H9c-5 0-7 4-7 9s3 9 8 9h5v-7c0-5 3-8 8-8h8c5 0 8-3 8-8V14c0-6-4-9-16-9Zm-4 6a2 2 0 1 1 0 4 2 2 0 0 1 0-4Z" fill="#3776AB"/><path d="M25 43c8 0 8-4 8-9v-5H17v-3h22c5 0 7-4 7-9s-3-9-8-9h-5v7c0 5-3 8-8 8h-8c-5 0-8 3-8 8v3c0 6 4 9 16 9Zm4-6a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z" fill="#FFD43B"/></svg>
+          </div>
           <div><h3>Python</h3><p data-i18n="pythonShort">Agente privado de monitorização</p></div>
           <span class="card-state">AGENT</span>
         </article>
         <article class="tech-card brand-card">
-          <img class="brand-logo-img" src="https://cdn.simpleicons.org/cloudflare/F38020" loading="lazy" alt="Cloudflare">
+          <div class="brand-logo cloudflare-logo" role="img" aria-label="Cloudflare">
+            <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M11 34h27a7 7 0 0 0 1-14 14 14 0 0 0-27-2A8 8 0 0 0 11 34Z" fill="currentColor"/><path d="M8 39h27" stroke="currentColor" stroke-width="4" stroke-linecap="round" opacity=".65"/></svg>
+          </div>
           <div><h3>Cloudflare Tunnel</h3><p data-i18n="tunnelShort">Comunicação privada com o agente</p></div>
           <span class="card-state">NETWORK</span>
         </article>
