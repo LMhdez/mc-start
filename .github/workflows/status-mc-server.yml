@@ -51,6 +51,7 @@ jobs:
           CONTAINER="unknown"
           PLAYER_COUNT="0"
           PLAYER_NAMES="[]"
+          ACCESS_METHOD="not_tested"
 
           if [ "$VM_STATUS" = "VM running" ]; then
 
@@ -129,6 +130,10 @@ jobs:
             fi
 
             # Se SSH falhar, utilizar Azure Run Command
+            if [ -n "$REMOTE_STATUS" ]; then
+              ACCESS_METHOD="ssh"
+            fi
+
             if [ -z "$REMOTE_STATUS" ]; then
 
               echo "SSH indisponível. A utilizar Azure Run Command..."
@@ -170,6 +175,7 @@ jobs:
                   python3 -c "import json,os; print(\"MC_STATUS_JSON:\" + json.dumps({\"docker\":os.environ[\"DOCKER_STATE\"],\"container\":os.environ[\"CONTAINER_STATE\"],\"players\":int(os.environ[\"PLAYER_COUNT\"]),\"player_names\":[n.strip() for n in os.environ[\"PLAYER_NAMES\"].split(\",\") if n.strip()]},separators=(\",\",\":\")))"
                 ' --output json)
 
+              ACCESS_METHOD="azure_run_command"
               REMOTE_STATUS=$(printf '%s' "$RUN_RESULT" | python3 -c '
           import json,sys
           data=json.load(sys.stdin)
@@ -201,8 +207,9 @@ jobs:
             --arg container "$CONTAINER" \
             --argjson players "$PLAYER_COUNT" \
             --argjson names "$PLAYER_NAMES" \
+            --arg access_method "$ACCESS_METHOD" \
             --arg checked "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            '{vm:$vm,ip:$ip,port_open:$port,docker:$docker,container:$container,players:$players,player_names:$names,checked_at:$checked}')
+            '{vm:$vm,ip:$ip,port_open:$port,docker:$docker,container:$container,players:$players,player_names:$names,access_method:$access_method,checked_at:$checked}')
 
           echo "status_json=$RESULT" >> "$GITHUB_OUTPUT"
 
