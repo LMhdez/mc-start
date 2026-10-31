@@ -40,7 +40,7 @@ jobs:
           chmod 0755 /opt/mc-agent/mc-agent.py
           systemctl restart mc-private-agent.service
           systemctl is-active --quiet mc-private-agent.service
-          PUBLIC_IP=\$(python3 -c 'import importlib.util; s=importlib.util.spec_from_file_location("mcagent","/opt/mc-agent/mc-agent.py"); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); print(m.get_public_ip())')
+          PUBLIC_IP=\$(python3 -c 'import importlib.util; s=importlib.util.spec_from_file_location(\"mcagent\",\"/opt/mc-agent/mc-agent.py\"); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); print(m.get_public_ip())')
           if ! printf '%s' "\$PUBLIC_IP" | python3 -c 'import ipaddress,sys; value=sys.stdin.read().strip(); ip=ipaddress.ip_address(value); sys.exit(0 if ip.version == 4 else 1)'; then
             echo PUBLIC_IP_LOOKUP_FAILED
             exit 1
