@@ -84,6 +84,7 @@ const translations = {
 
 let currentLanguage = "pt";
 let lastFeedbackKey = "initialFeedback";
+let lastStatusResult = null;
 
 function setLanguage(language) {
   currentLanguage = translations[language] ? language : "pt";
@@ -99,6 +100,7 @@ function setLanguage(language) {
     if (dictionary[key]) element.placeholder = dictionary[key];
   });
 
+  if (lastStatusResult) renderStatus(lastStatusResult);
   if (feedback) feedback.textContent = dictionary[lastFeedbackKey] || dictionary.initialFeedback;
   if (languageSelect) languageSelect.value = currentLanguage;
   document.title = currentLanguage === "pt" ? "Minecraft Server | Painel" :
@@ -122,6 +124,7 @@ async function fetchWithTimeout(url, options = {}) {
 }
 
 function renderStatus(result) {
+  lastStatusResult = result;
   const t = translations[currentLanguage];
   const state = document.querySelector("#server-state");
   const address = document.querySelector("#server-address");
@@ -137,7 +140,7 @@ function renderStatus(result) {
     };
     state.textContent = vmStates[result.vm] || t.vmUnknown;
   }
-  if (address) address.textContent = result.ip ? result.ip + ":25565" : t.addressUnavailable;
+  if (address) address.textContent = result.ip || t.addressUnavailable;
   if (count) count.textContent = String(result.players ?? 0);
   if (names) names.textContent = result.player_names?.length ? result.player_names.join(", ") : t.noPlayers;
 
@@ -150,7 +153,6 @@ function renderStatus(result) {
         result.container === "running" ? t.containerRunning :
         result.container === "exited" ? t.containerExited :
         result.container === "not_found" ? t.containerNotFound : (result.container || t.vmUnknown)],
-      [t.portState, result.port_open ? t.portOpen : t.portClosed],
       [t.checkedAt, result.checked_at ? new Date(result.checked_at).toLocaleString(currentLanguage === "pt" ? "pt-PT" : currentLanguage === "es" ? "es-ES" : "en-GB") : "—"]
     ];
     details.replaceChildren();
