@@ -2,6 +2,8 @@
 import os
 import json
 import re
+import ipaddress
+import time
 import socket
 import subprocess
 import urllib.request
@@ -25,11 +27,37 @@ def run_command(args, timeout=10):
     )
 
 
+# Cache local para não depender de um pedido externo em cada consulta do painel.
+_PUBLIC_IP_CACHE = ""
+_PUBLIC_IP_CACHE_AT = 0.0
+_PUBLIC_IP_CACHE_TTL = 300
+
+
 def get_public_ip():
-    # O IP publico e resolvido no Worker atraves do Azure ARM; aqui o agente foca-se no estado do Minecraft.
-# Deploy automático acionado após a VM voltar a ficar disponível. Shell remoto compatível com sh.
-    # O Worker consulta o IP associado a NIC diretamente na API do Azure.
-    return ""
+    global _PUBLIC_IP_CACHE, _PUBLIC_IP_CACHE_AT
+
+    now = time.monotonic()
+    if _PUBLIC_IP_CACHE and now - _PUBLIC_IP_CACHE_AT < _PUBLIC_IP_CACHE_TTL:
+        return _PUBLIC_IP_CACHE
+
+    try:
+        request = urllib.request.Request(
+            "https://api.ipify.org",
+            headers={"User-Agent": "MCPrivateAgent/1.0"},
+        )
+        with urllib.request.urlopen(request, timeout=2) as response:
+            candidate = response.read(64).decode("ascii", errors="ignore").strip()
+
+        address = ipaddress.ip_address(candidate)
+        if address.version != 4:
+            return _PUBLIC_IP_CACHE
+
+        _PUBLIC_IP_CACHE = str(address)
+        _PUBLIC_IP_CACHE_AT = now
+        return _PUBLIC_IP_CACHE
+    except Exception:
+        # Se o serviço externo falhar, conserva o último IP confirmado.
+        return _PUBLIC_IP_CACHE
 
 
 def read_status():
