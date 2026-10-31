@@ -33,7 +33,7 @@ const translations = {
     notPublished: "Não identificada no repositório", bedrockSupport: "Minecraft Bedrock",
     notConfirmed: "Não confirmado; requer compatibilidade própria",
     compatNote: "Não apresentamos números de versão nem compatibilidade Bedrock sem confirmação técnica. Para clientes Java, Windows, macOS e Linux são plataformas suportadas pelo próprio jogo; a versão exata tem de corresponder à do servidor.",
-    serverAddress: "ENDEREÇO DE LIGAÇÃO", addressUnavailable: "Indisponível enquanto a VM está desligada", addressProtected: "Protegido — introduz a palavra-passe", revealAddress: "Mostrar endereço",
+    serverAddress: "ENDEREÇO DE LIGAÇÃO", addressUnavailable: "Indisponível enquanto a VM está desligada", addressLookupFailed: "Não foi possível obter o IP público", addressProtected: "Protegido — introduz a palavra-passe", revealAddress: "Mostrar endereço",
     liveTechHeading: "ESPECIFICAÇÕES DETETADAS", liveTechTitle: "Software instalado", liveTechNote: "Leitura automática em cache durante 10 minutos. Esta secção não apresenta endereços de rede nem credenciais.", techLoading: "A carregar especificações", techChecked: "Recolhido", techOS: "Sistema operativo", techArch: "Arquitetura", techKernel: "Kernel", techDocker: "Docker", techImage: "Imagem do contentor", techJava: "Java", techMinecraft: "Minecraft", techType: "Tipo de servidor", techMods: "Mods", techPlugins: "Plugins", techUnavailable: "Especificações dinâmicas indisponíveis.",
     playersOnline: "JOGADORES ONLINE", manualCheck: "Consulta manual", viaActions: "via Cloudflare / Actions",
     passwordLabel: "PALAVRA-PASSE DE ACESSO AO PAINEL", passwordPlaceholder: "Palavra-passe partilhada",
@@ -74,7 +74,7 @@ const translations = {
     notPublished: "No identificada en el repositorio", bedrockSupport: "Minecraft Bedrock",
     notConfirmed: "No confirmado; requiere compatibilidad específica",
     compatNote: "No mostramos versiones ni compatibilidad Bedrock sin confirmación técnica. Para clientes Java, Windows, macOS y Linux son plataformas compatibles con el propio juego; la versión debe coincidir con la del servidor.",
-    serverAddress: "DIRECCIÓN DE CONEXIÓN", addressUnavailable: "No disponible cuando la VM está apagada", addressProtected: "Protegida — introduce la contraseña", revealAddress: "Mostrar dirección",
+    serverAddress: "DIRECCIÓN DE CONEXIÓN", addressUnavailable: "No disponible cuando la VM está apagada", addressLookupFailed: "No se pudo obtener la IP pública", addressProtected: "Protegida — introduce la contraseña", revealAddress: "Mostrar dirección",
     liveTechHeading: "ESPECIFICACIONES DETECTADAS", liveTechTitle: "Software instalado", liveTechNote: "Lectura automática en caché durante 10 minutos. Esta sección no muestra direcciones de red ni credenciales.", techLoading: "Cargando especificaciones", techChecked: "Recopilado", techOS: "Sistema operativo", techArch: "Arquitectura", techKernel: "Kernel", techDocker: "Docker", techImage: "Imagen del contenedor", techJava: "Java", techMinecraft: "Minecraft", techType: "Tipo de servidor", techMods: "Mods", techPlugins: "Plugins", techUnavailable: "Especificaciones dinámicas no disponibles.",
     playersOnline: "JUGADORES EN LÍNEA", manualCheck: "Consulta manual", viaActions: "via Cloudflare / Actions",
     passwordLabel: "CONTRASEÑA DE ACCESO AL PANEL", passwordPlaceholder: "Contraseña compartida",
@@ -115,7 +115,7 @@ const translations = {
     notPublished: "Not identified in the repository", bedrockSupport: "Minecraft Bedrock",
     notConfirmed: "Not confirmed; requires specific compatibility",
     compatNote: "We do not publish version numbers or Bedrock compatibility without technical confirmation. For Java clients, Windows, macOS and Linux are supported by the game itself; the client version must match the server.",
-    serverAddress: "CONNECTION ADDRESS", addressUnavailable: "Unavailable while the VM is powered off", addressProtected: "Protected — enter the password", revealAddress: "Show address",
+    serverAddress: "CONNECTION ADDRESS", addressUnavailable: "Unavailable while the VM is powered off", addressLookupFailed: "Could not retrieve the public IP", addressProtected: "Protected — enter the password", revealAddress: "Show address",
     liveTechHeading: "DETECTED SPECIFICATIONS", liveTechTitle: "Installed software", liveTechNote: "Automatically collected and cached for 10 minutes. This section does not expose network addresses or credentials.", techLoading: "Loading specifications", techChecked: "Collected", techOS: "Operating system", techArch: "Architecture", techKernel: "Kernel", techDocker: "Docker", techImage: "Container image", techJava: "Java", techMinecraft: "Minecraft", techType: "Server type", techMods: "Mods", techPlugins: "Plugins", techUnavailable: "Dynamic specifications unavailable.",
     playersOnline: "PLAYERS ONLINE", manualCheck: "Manual check", viaActions: "via Cloudflare / Actions",
     passwordLabel: "DASHBOARD ACCESS PASSWORD", passwordPlaceholder: "Shared password",
@@ -205,6 +205,8 @@ function renderStatus(result) {
       // A consulta publica de 30 em 30 segundos nao deve esconder um IP
       // que ja foi obtido por uma consulta privada autenticada.
       address.textContent = lastPrivateIp;
+    } else if (result.vm === "VM running" && result.private) {
+      address.textContent = result.ip || t.addressLookupFailed;
     } else if (result.private) {
       address.textContent = result.ip || t.addressUnavailable;
     } else {
