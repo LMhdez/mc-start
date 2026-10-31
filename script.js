@@ -266,44 +266,49 @@ async function loadTechnicalSpecs() {
     const response = await fetchWithTimeout(WORKER_URL + "/api/technical");
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error("Technical data unavailable");
-    const services = data.result.services || {};
-    const fields = [
-      [t.techOS, data.result.os],
-      ["Versão do sistema", data.result.os_version],
-      [t.techArch, data.result.architecture],
-      [t.techKernel, data.result.kernel],
-      ["Python", data.result.python],
-      ["APT", data.result.apt],
-      ["systemd", data.result.systemd],
-      [t.techDocker, data.result.docker],
-      ["Docker Engine", data.result.docker_server],
-      ["cloudflared", data.result.cloudflared],
-      ["Serviço Docker", services.docker],
-      ["Agente privado", services.mc_private_agent],
-      ["Serviço Cloudflare Tunnel", services.cloudflared],
-      [t.techImage, data.result.container_image],
-      [t.techJava, data.result.java],
-      [t.techMinecraft, data.result.minecraft],
-      [t.techType, data.result.server_type],
-      [t.techMods, data.result.mods],
-      [t.techPlugins, data.result.plugins]
+    const d = data.result || {};
+    const services = d.services || {};
+    const unknown = currentLanguage === "es" ? "No disponible" : currentLanguage === "en" ? "Unavailable" : "Indisponível";
+    const entries = [
+      ["🐧", t.techOS, d.os, d.os_version],
+      ["⌘", currentLanguage==="es"?"Arquitectura":currentLanguage==="en"?"Architecture":"Arquitetura", d.architecture, d.kernel ? "Kernel "+d.kernel : ""],
+      ["🐍", "Python", d.python],
+      ["📦", "APT", d.apt],
+      ["⚙", "systemd", d.systemd],
+      ["🐳", "Docker", d.docker, d.docker_server ? "Engine "+d.docker_server : ""],
+      ["☁", "cloudflared", d.cloudflared],
+      ["🟢", currentLanguage==="es"?"Servicio Docker":currentLanguage==="en"?"Docker service":"Serviço Docker", services.docker],
+      ["🔒", currentLanguage==="es"?"Agente privado":currentLanguage==="en"?"Private agent":"Agente privado", services.mc_private_agent],
+      ["🌐", "Cloudflare Tunnel", services.cloudflared],
+      ["🧱", t.techImage, d.container_image],
+      ["☕", t.techJava, d.java],
+      ["🎮", t.techMinecraft, d.minecraft],
+      ["🧩", t.techMods, d.mods],
+      ["🔌", t.techPlugins, d.plugins]
     ];
     target.replaceChildren();
-    fields.forEach(([label, value]) => {
-      const row = document.createElement("div");
-      row.className = "spec-row";
-      const name = document.createElement("span");
-      const detail = document.createElement("strong");
-      name.textContent = label;
-      detail.textContent = value || "—";
-      row.append(name, detail);
-      target.append(row);
+    entries.forEach(([icon,label,value,sub]) => {
+      const card=document.createElement("article");
+      const normalized=String(value||"").toLowerCase();
+      const stateField=["docker","mc-private-agent","cloudflared"].includes(label.toLowerCase());
+      card.className="detected-card"+(stateField&&normalized==="active"?" is-ok":stateField&&normalized!=="active"?" is-bad":"");
+      const top=document.createElement("div");top.className="detected-top";
+      const symbol=document.createElement("span");symbol.className="detected-icon";symbol.textContent=icon;
+      const name=document.createElement("span");name.className="detected-label";name.textContent=label;
+      top.append(symbol,name);
+      const strong=document.createElement("strong");strong.className="detected-value";
+      strong.textContent=value&&value!=="Não identificado"&&value!=="Não identificada"&&value!=="Não identificado nos logs"?value:unknown;
+      card.append(top,strong);
+      if(sub){const small=document.createElement("small");small.className="detected-sub";small.textContent=sub;card.append(small);}
+      target.append(card);
     });
+    const checked=document.createElement("p");checked.className="section-copy";checked.style.gridColumn="1 / -1";
+    checked.textContent=(currentLanguage==="es"?"Última lectura: ":currentLanguage==="en"?"Last read: ":"Última leitura: ")+(d.checked_at?new Date(d.checked_at).toLocaleString(currentLanguage==="pt"?"pt-PT":currentLanguage==="es"?"es-ES":"en-GB"):unknown);
+    target.append(checked);
   } catch {
     target.textContent = t.techUnavailable || "Especificações dinâmicas indisponíveis.";
   }
 }
-
 async function requestAction(action) {
   const password = passwordInput?.value || "";
 
