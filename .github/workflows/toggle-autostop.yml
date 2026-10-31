@@ -100,13 +100,33 @@ jobs:
 
           REMOTE_SCRIPT="${REMOTE_SCRIPT/__AUTOSTOP_ACTION__/$AUTOSTOP_ACTION}"
 
-          RESULT=$(az vm run-command invoke \
-            --resource-group "$AZURE_RESOURCE_GROUP" \
-            --name "$AZURE_VM_NAME" \
-            --command-id RunShellScript \
-            --scripts "$REMOTE_SCRIPT" \
-            --query "value[].message" \
-            -o tsv)
+          # A extensão Azure Run Command só permite uma execução de cada vez.
+          # Se outra execução estiver em curso, aguarda e tenta novamente.
+          MAX_ATTEMPTS=7
+          ATTEMPT=1
+          RESULT=""
+
+          while (( ATTEMPT <= MAX_ATTEMPTS )); do
+            if RESULT=$(az vm run-command invoke \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
+              --name "$AZURE_VM_NAME" \
+              --command-id RunShellScript \
+              --scripts "$REMOTE_SCRIPT" \
+              --query "value[].message" \
+              -o tsv 2>&1); then
+              break
+            else
+              EXIT_CODE=$?
+              if grep -q "Run command extension execution is in progress" <<< "$RESULT" && (( ATTEMPT < MAX_ATTEMPTS )); then
+                echo "Azure Run Command ocupado (tentativa $ATTEMPT/$MAX_ATTEMPTS). Nova tentativa em 20 segundos..."
+                sleep 20
+                ((ATTEMPT += 1))
+              else
+                printf '%s\n' "$RESULT"
+                exit "$EXIT_CODE"
+              fi
+            fi
+          done
 
           printf '%s\n' "$RESULT"
 
