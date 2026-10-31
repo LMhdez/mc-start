@@ -75,81 +75,39 @@
 
     <section class="technical-section">
       <div class="section-heading">
-        <p class="card-kicker" data-i18n="verifiedHeading">COMPONENTES IDENTIFICADOS NO PROJETO</p>
-        <h2 data-i18n="stackTitle">Infraestrutura e software</h2>
-        <p class="section-copy" data-i18n="verifiedNote">Informação confirmada pela configuração e pelos scripts existentes no repositório. Não representa uma leitura automática de versões instaladas.</p>
+        <p class="card-kicker" data-i18n="verifiedHeading">TECNOLOGIA</p>
+        <h2 data-i18n="stackTitle">Infraestrutura</h2>
       </div>
-
       <div class="tech-grid">
-        <article class="tech-card">
-          <span class="tech-category" data-i18n="cloudCategory">INFRAESTRUTURA</span>
-          <h3>Microsoft Azure VM</h3>
-          <p data-i18n="azureDescription">Máquina virtual gerida pela Azure. O painel consulta o estado de energia através do Azure Resource Manager.</p>
-        </article>
-        <article class="tech-card">
-          <span class="tech-category" data-i18n="systemCategory">SISTEMA</span>
-          <h3>Linux · APT · systemd</h3>
-          <p data-i18n="linuxDescription">Os scripts usam apt-get e systemd. A distribuição e a versão exatas do sistema operativo não estão identificadas no painel.</p>
-        </article>
-        <article class="tech-card">
-          <span class="tech-category" data-i18n="containerCategory">CONTENTORIZAÇÃO</span>
-          <h3>Docker</h3>
-          <p data-i18n="dockerDescription">O serviço Docker é verificado e o contentor do jogo é identificado pelo nome <code>mc-server</code>.</p>
-        </article>
-        <article class="tech-card">
-          <span class="tech-category" data-i18n="gameCategory">SERVIDOR DE JOGO</span>
-          <h3>Minecraft</h3>
-          <p data-i18n="minecraftDescription">O contentor é consultado através de <code>rcon-cli</code>. A versão, a imagem Docker, o tipo de servidor e os mods/plugins não são publicados pelo estado atual.</p>
-        </article>
-        <article class="tech-card">
-          <span class="tech-category" data-i18n="remoteCategory">GESTÃO REMOTA</span>
-          <h3>SSH · Azure Run Command</h3>
-          <p data-i18n="remoteDescription">A verificação tenta primeiro SSH e usa Azure Run Command como alternativa para consultar Docker e jogadores.</p>
-        </article>
-        <article class="tech-card">
-          <span class="tech-category" data-i18n="agentCategory">AGENTE PRIVADO</span>
-          <h3>Python 3 · Cloudflare Tunnel</h3>
-          <p data-i18n="agentDescription">O repositório inclui um agente Python local na porta 8765 e um workflow para instalar cloudflared. A instalação ativa não é confirmada pelo painel.</p>
-        </article>
+        <article class="tech-card brand-card"><div class="brand-logo azure-logo">Azure</div><div><h3>Microsoft Azure</h3><p>Máquina virtual · infraestrutura cloud</p></div><span class="card-state">CLOUD</span></article>
+        <article class="tech-card brand-card"><div class="brand-logo ubuntu-logo">●</div><div><h3>Ubuntu Linux</h3><p>Sistema operativo · APT · systemd</p></div><span class="card-state">OS</span></article>
+        <article class="tech-card brand-card"><div class="brand-logo docker-logo">🐳</div><div><h3>Docker</h3><p>Contentorização · mc-server</p></div><span class="card-state">CONTAINER</span></article>
+        <article class="tech-card brand-card"><div class="brand-logo minecraft-logo">▦</div><div><h3>Minecraft Java</h3><p>Servidor de jogo · RCON</p></div><span class="card-state">GAME</span></article>
+        <article class="tech-card brand-card"><div class="brand-logo python-logo">Py</div><div><h3>Python</h3><p>Agente privado de monitorização</p></div><span class="card-state">AGENT</span></article>
+        <article class="tech-card brand-card"><div class="brand-logo cloudflare-logo">☁</div><div><h3>Cloudflare Tunnel</h3><p>Comunicação privada com o agente</p></div><span class="card-state">NETWORK</span></article>
       </div>
     </section>
 
     <section class="technical-section">
       <div class="section-heading">
-        <p class="card-kicker" data-i18n="networkHeading">REDE E ACESSO</p>
-        <h2 data-i18n="connectionTitle">Parâmetros de ligação</h2>
+        <p class="card-kicker" data-i18n="networkHeading">REDE</p>
+        <h2 data-i18n="connectionTitle">Rede e acesso</h2>
       </div>
-      <div class="spec-list">
-        <div class="spec-row"><span data-i18n="gamePort">Porta do jogo</span><strong>TCP 25565</strong></div>
-        <div class="spec-row"><span data-i18n="rconAccess">Administração do jogo</span><strong>RCON · rcon-cli</strong></div>
-        <div class="spec-row"><span data-i18n="agentPort">Agente privado (configuração)</span><strong>127.0.0.1:8765</strong></div>
-        <div class="spec-row"><span data-i18n="publicIp">Endereço público</span><strong data-i18n="dynamicIp">Obtido dinamicamente na Azure</strong></div>
+      <div class="quick-spec-grid">
+        <div class="quick-spec"><span>TCP</span><strong>25565</strong><small data-i18n="gamePort">Porta do Minecraft</small></div>
+        <div class="quick-spec"><span>RCON</span><strong>Ativo por configuração</strong><small>Administração interna</small></div>
+        <div class="quick-spec"><span>SSH</span><strong>Fallback Azure</strong><small>Gestão remota</small></div>
+        <div class="quick-spec"><span>BEDROCK</span><strong data-i18n="notConfirmed">Não confirmado</strong><small>Compatibilidade</small></div>
       </div>
-      <p class="section-copy compatibility-note" data-i18n="networkNote">A porta 25565 é testada durante a verificação. A acessibilidade depende de a VM, o contentor e as regras de rede estarem ativos.</p>
-    </section>
-
-    <section class="technical-section">
-      <div class="section-heading">
-        <p class="card-kicker" data-i18n="compatHeading">COMPATIBILIDADE E VERSÕES</p>
-        <h2 data-i18n="compatTitle">O que está confirmado</h2>
-      </div>
-      <div class="spec-list">
-        <div class="spec-row"><span data-i18n="clientPlatforms">Sistemas dos jogadores</span><strong data-i18n="platformsValue">Windows · macOS · Linux (cliente Java, se confirmado)</strong></div>
-        <div class="spec-row"><span data-i18n="minecraftVersion">Versão Minecraft</span><strong data-i18n="notPublished">Não identificada no repositório</strong></div>
-        <div class="spec-row"><span data-i18n="javaVersion">Versão Java</span><strong data-i18n="notPublished">Não identificada no repositório</strong></div>
-        <div class="spec-row"><span data-i18n="serverType">Software do servidor</span><strong data-i18n="notPublished">Não identificado (Vanilla/Paper/etc.)</strong></div>
-        <div class="spec-row"><span data-i18n="bedrockSupport">Minecraft Bedrock</span><strong data-i18n="notConfirmed">Não confirmado; requer compatibilidade própria</strong></div>
-      </div>
-      <p class="section-copy compatibility-note" data-i18n="compatNote">Não apresentamos números de versão nem compatibilidade Bedrock sem confirmação técnica. Para clientes Java, Windows, macOS e Linux são plataformas suportadas pelo próprio jogo; a versão exata tem de corresponder à do servidor.</p>
     </section>
 
     <section class="technical-section" aria-labelledby="live-tech-title">
       <div class="section-heading">
         <p class="card-kicker" data-i18n="liveTechHeading">ESPECIFICAÇÕES DETETADAS</p>
         <h2 id="live-tech-title" data-i18n="liveTechTitle">Software instalado</h2>
-        <p class="section-copy" data-i18n="liveTechNote">Leitura automática em cache durante 10 minutos. Esta secção não apresenta endereços de rede nem credenciais.</p>
+        <p class="section-copy" data-i18n="liveTechNote">Dados recolhidos diretamente da VM. Valores não disponíveis são identificados como tal.</p>
       </div>
-      <div id="technical-specs" class="spec-list">
+      <div id="technical-specs" class="detected-grid">
         <div class="spec-row"><span data-i18n="techLoading">A carregar especificações</span><strong>—</strong></div>
       </div>
     </section>
