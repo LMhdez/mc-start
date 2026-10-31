@@ -277,20 +277,30 @@ def read_technical():
                         entries.append((mod_id, runtime_version))
             loaded_entries = entries
 
-        metadata_by_id = {item.get("id"): item for item in installed_mods if item.get("id")}
+        # O inventário dos JARs é a fonte pública principal. A lista dos logs
+        # complementa as versões em execução, mas não pode esconder mods instalados
+        # quando a formatação do Fabric muda entre versões.
+        loaded_versions = {mod_id: version for mod_id, version in loaded_entries}
         mods = []
-        for mod_id, runtime_version in loaded_entries:
-            item = dict(metadata_by_id.get(mod_id, {}))
-            item["id"] = mod_id
-            item["name"] = item.get("name") or mod_id
-            item["version"] = runtime_version
-            item["description"] = item.get("description", "")
-            item["status"] = "loaded" if container_state == "running" else "last_loaded"
-            mods.append(item)
+        if installed_mods:
+            for installed in installed_mods:
+                item = dict(installed)
+                runtime_version = loaded_versions.get(item.get("id"))
+                if runtime_version:
+                    item["version"] = runtime_version
+                    item["status"] = "loaded"
+                else:
+                    item["status"] = "installed" if container_state == "running" else "last_loaded"
+                mods.append(item)
+        else:
+            for mod_id, runtime_version in loaded_entries:
+                item = {"id": mod_id, "name": mod_id, "version": runtime_version, "description": ""}
+                item["status"] = "loaded" if container_state == "running" else "last_loaded"
+                mods.append(item)
 
-        mod_count_matches = re.findall(r"Loading (\d+) mods:", logs)
+        mod_count_matches = re.findall(r"Loading (\\d+) mods:", logs)
         mod_count = len(mods)
-        fabric_total = int(mod_count_matches[-1]) if mod_count_matches else 0
+        fabric_total = int(mod_count_matches[-1]) if mod_count_matches else len(loaded_entries)
 
     return {
         "os": os_name,
@@ -312,7 +322,7 @@ def read_technical():
         "mods": mods,
         "mod_count": mod_count if "mod_count" in locals() else len(mods),
         "fabric_total": fabric_total if "fabric_total" in locals() else 0,
-        "mods_status": "loaded" if "container_state" in locals() and container_state == "running" else "last_loaded",
+        "mods_status": "loaded" if "loaded_entries" in locals() and loaded_entries and container_state == "running" else "installed" if "container_state" in locals() and container_state == "running" else "last_loaded",
         "plugins": plugins,
         "checked_at": datetime.now(timezone.utc).isoformat(),
     }
