@@ -191,6 +191,22 @@ def read_status():
                     )
                     geyser_udp_ready = namespace_result.returncode == 0
                     geyser_udp_diagnostic = "raknet_response_in_container" if geyser_udp_ready else "container_probe_no_response"
+                    if not geyser_udp_ready:
+                        listener_check = (
+                            "paths=('/proc/net/udp','/proc/net/udp6'); "
+                            "found=any(line.split()[1].rsplit(':',1)[-1]=='4ABC' "
+                            "for path in paths for line in open(path) if line[:1].strip().isdigit()); "
+                            "raise SystemExit(0 if found else 1)"
+                        )
+                        listener_result = run_command(
+                            ["nsenter", "--target", container_pid.stdout.strip(), "--net", "python3", "-c", listener_check],
+                            timeout=3,
+                        )
+                        geyser_udp_diagnostic = (
+                            "udp_listener_no_raknet_pong"
+                            if listener_result.returncode == 0
+                            else "no_udp_listener_19132"
+                        )
                 else:
                     geyser_udp_diagnostic = "container_network_namespace_unavailable"
 
