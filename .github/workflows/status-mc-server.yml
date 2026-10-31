@@ -118,6 +118,8 @@ jobs:
               if [ -z "$PLAYER_COUNT" ]; then
                 PLAYER_COUNT="null"
                 PLAYER_NAMES="null"
+              elif [ "$PLAYER_COUNT" -gt 0 ] && [ -z "$PLAYER_NAMES" ]; then
+                PLAYER_NAMES="null"
               fi
 
             fi
@@ -171,6 +173,8 @@ jobs:
 
                       if [ -z "$PLAYER_COUNT" ]; then
                 PLAYER_COUNT="null"
+                PLAYER_NAMES="null"
+              elif [ "$PLAYER_COUNT" -gt 0 ] && [ -z "$PLAYER_NAMES" ]; then
                 PLAYER_NAMES="null"
               fi
                     fi
