@@ -1,0 +1,63 @@
+name: Temporary NetherNet live connection capture
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: write
+jobs:
+  capture:
+    if: github.event.issue.user.login == 'LMhdez' && startsWith(github.event.issue.title, '[MC-LIVE]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Capture connection attempt and effective Geyser config
+        id: diag
+        shell: bash
+        env:
+          RG: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          VM: ${{ secrets.AZURE_VM_NAME }}
+        run: |
+          set -eu
+          SCRIPT=$(cat <<'EOS'
+          set -u
+          echo '=== CLOCK / CONTAINER ==='
+          date -u '+HOST %Y-%m-%dT%H:%M:%SZ'
+          docker ps --filter name=mc-server --format '{{.Names}} {{.Status}}'
+          echo '=== EFFECTIVE GEYSER CONFIG (SAFE KEYS ONLY) ==='
+          docker exec mc-server sh -c '
+            for f in $(find /data -type f \( -iname "config.yml" -o -iname "config.yaml" \) 2>/dev/null | grep -i geyser); do
+              echo "FILE=$f"
+              grep -nEi "^[[:space:]]*(bedrock:|port:|clone-remote-port:|broadcast-port:|address:|transport:|webrtc-port:|signaling:|mode:|use-direct-connection:)" "$f" 2>/dev/null || true
+            done
+          ' 2>&1 | sed -E 's/[0-9]{1,3}(\.[0-9]{1,3}){3}/[IP REDACTED]/g'
+          echo '=== UDP 19132 LIVE CAPTURE (90 SECONDS) ==='
+          if command -v timeout >/dev/null 2>&1 && command -v tcpdump >/dev/null 2>&1; then
+            timeout 90 tcpdump -nn -tt -i any 'udp port 19132' 2>&1 | tail -150 | sed -E 's/[0-9]{1,3}(\.[0-9]{1,3}){3}/[IP REDACTED]/g' || true
+          else
+            echo 'tcpdump or timeout not installed; packet capture unavailable'
+          fi
+          echo '=== GEYSER CONNECTION LOGS (LAST 3 MINUTES) ==='
+          docker logs --since 3m --timestamps mc-server 2>&1 | grep -Ei 'Geyser|Bedrock|NetherNet|connection|session|handshake|error|exception|timeout|STUN|ICE|signaling' | tail -120 | sed -E 's/[0-9]{1,3}(\.[0-9]{1,3}){3}/[IP REDACTED]/g; s/(Player|player) [^ ]+/\1 [REDACTED]/g' || true
+          EOS
+          )
+          az vm run-command invoke -g "$RG" -n "$VM" --command-id RunShellScript --scripts "$SCRIPT" --query "value[0].message" -o tsv > diag.txt
+          {
+            echo 'report<<EOF'
+            cat diag.txt
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+      - uses: actions/github-script@v7
+        env:
+          REPORT: ${{ steps.diag.outputs.report }}
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '## Live Bedrock connection capture\n\n' + (process.env.REPORT || 'No report')
+            });
+            await github.rest.issues.update({owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, state: 'closed'});
