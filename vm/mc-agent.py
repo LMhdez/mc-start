@@ -156,13 +156,14 @@ def read_technical():
                 local_path = os.path.join(temp_dir, filename)
                 if not os.path.isfile(local_path):
                     continue
-                item = {"file": filename, "name": filename[:-4], "version": "", "description": ""}
+                item = {"file": filename, "id": "", "name": filename[:-4], "version": "", "description": ""}
                 try:
                     with zipfile.ZipFile(local_path) as archive:
                         names = set(archive.namelist())
                         if kind == "mod":
                             if "fabric.mod.json" in names:
                                 metadata = json.loads(archive.read("fabric.mod.json").decode("utf-8"))
+                                item["id"] = str(metadata.get("id") or "")
                                 item["name"] = metadata.get("name") or metadata.get("id") or item["name"]
                                 item["version"] = str(metadata.get("version") or "")
                                 item["description"] = str(metadata.get("description") or "")
@@ -195,13 +196,14 @@ def read_technical():
         return found
 
     if output(["docker", "inspect", CONTAINER]):
+        container_state = output(["docker", "inspect", "-f", "{{.State.Status}}", CONTAINER])
         java_result = run_command(["docker", "exec", CONTAINER, "sh", "-lc", "java -version"], timeout=8)
         java_text = (java_result.stderr or java_result.stdout).strip()
         match = re.search(r'version "([^"]+)"', java_text)
         if match:
             java_version = match.group(1)
 
-        logs = output(["docker", "logs", "--tail", "300", CONTAINER], timeout=8)
+        logs = output(["docker", "logs", "--tail", "1000", CONTAINER], timeout=8)
         match = re.search(r"Starting minecraft server version ([0-9.]+)", logs, re.IGNORECASE)
         if match:
             minecraft_version = match.group(1)
@@ -212,8 +214,42 @@ def read_technical():
         elif image:
             server_type = image
 
-        mods = inspect_jars("/data/mods", "mod")
+        installed_mods = inspect_jars("/data/mods", "mod")
         plugins = inspect_jars("/data/plugins", "plugin")
+
+        # O bloco Fabric e a fonte de verdade: considera apenas entradas principais
+        # do ultimo arranque e ignora dependencias indentadas (|-- / \\--).
+        loaded_entries = []
+        lines = logs.splitlines()
+        for index, line in enumerate(lines):
+            header = re.search(r"Loading (\\d+) mods:", line)
+            if not header:
+                continue
+            entries = []
+            for candidate in lines[index + 1:]:
+                if re.match(r"^\\[\\d{2}:\\d{2}:\\d{2}\\]", candidate):
+                    break
+                root = re.match(r"^\\s{8}- ([^\\s]+) ([^\\s]+)\\s*$", candidate)
+                if root:
+                    mod_id, runtime_version = root.groups()
+                    if mod_id not in {"fabricloader", "java", "minecraft"}:
+                        entries.append((mod_id, runtime_version))
+            loaded_entries = entries
+
+        metadata_by_id = {item.get("id"): item for item in installed_mods if item.get("id")}
+        mods = []
+        for mod_id, runtime_version in loaded_entries:
+            item = dict(metadata_by_id.get(mod_id, {}))
+            item["id"] = mod_id
+            item["name"] = item.get("name") or mod_id
+            item["version"] = runtime_version
+            item["description"] = item.get("description", "")
+            item["status"] = "loaded" if container_state == "running" else "last_loaded"
+            mods.append(item)
+
+        mod_count_match = re.search(r"Loading (\\d+) mods:", logs)
+        mod_count = len(mods)
+        fabric_total = int(mod_count_match.group(1)) if mod_count_match else 0
 
     return {
         "os": os_name,
@@ -232,6 +268,9 @@ def read_technical():
         "minecraft": minecraft_version or "Não identificado nos logs",
         "server_type": server_type,
         "mods": mods,
+        "mod_count": mod_count if "mod_count" in locals() else len(mods),
+        "fabric_total": fabric_total if "fabric_total" in locals() else 0,
+        "mods_status": "loaded" if "container_state" in locals() and container_state == "running" else "last_loaded",
         "plugins": plugins,
         "checked_at": datetime.now(timezone.utc).isoformat(),
     }
