@@ -420,3 +420,12 @@ h2 { margin: 0; font-size: clamp(1.4rem, 3vw, 2rem); letter-spacing: -.04em; }
 .mods-heading p{margin-top:5px}
 .mod-item p{line-height:1.5}
 @media(max-width:560px){.hosting-provider{font-size:.58rem;letter-spacing:.07em}.azure-mark{width:20px;height:20px}.connection-grid{grid-template-columns:1fr}}
+
+
+.brand-logo svg { width: 31px; height: 31px; display: block; }
+.azure-logo { background: #12334b; color: #50b9ff; }
+.ubuntu-logo { background: #442a23; color: #f47735; }
+.docker-logo { background: #123747; color: #2496ed; }
+.minecraft-logo { background: #38432b; color: #a7d66f; }
+.python-logo { background: #25374a; color: #fff; }
+.cloudflare-logo { background: #49391f; color: #f6a623; }
