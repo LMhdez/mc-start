@@ -25,7 +25,7 @@ const translations = {
     versionsHeading:"VERSÕES DETETADAS", versionsTitle:"Software e versões",
     versionsIntro:"Versões lidas diretamente da VM e dos registos do último arranque.",
     kernelLabelShort:"Kernel", dockerEngineLabel:"Motor", containerImageLabel:"Imagem",
-    fabricLabel:"Fabric Loader", agentRuntimeLabel:"Agente de monitorização",
+    fabricLabel:"Fabric Loader", agentRuntimeLabel:"Agente de monitorização", javaRuntimeDescription:"Ambiente de execução do servidor Minecraft e dos seus componentes.",
     tunnelStatusLabel:"Estado do túnel", activeStatus:"Ativo", inactiveStatus:"Inativo",
     unknownStatus:"Desconhecido", unavailableValue:"Não disponível",
     loadedModsTitle:"Mods do servidor", loadedModsIntro:"Inventário público dos mods instalados no servidor.",
@@ -106,7 +106,7 @@ const translations = {
     versionsHeading:"VERSIONES DETECTADAS", versionsTitle:"Software y versiones",
     versionsIntro:"Versiones obtenidas directamente de la VM y de los registros del último inicio.",
     kernelLabelShort:"Kernel", dockerEngineLabel:"Motor", containerImageLabel:"Imagen",
-    fabricLabel:"Fabric Loader", agentRuntimeLabel:"Agente de monitorización",
+    fabricLabel:"Fabric Loader", agentRuntimeLabel:"Agente de monitorización", javaRuntimeDescription:"Entorno de ejecución del servidor Minecraft y de sus componentes.",
     tunnelStatusLabel:"Estado del túnel", activeStatus:"Activo", inactiveStatus:"Inactivo",
     unknownStatus:"Desconocido", unavailableValue:"No disponible",
     loadedModsTitle:"Mods del servidor", loadedModsIntro:"Inventario público de los mods instalados en el servidor.",
@@ -187,7 +187,7 @@ const translations = {
     versionsHeading:"DETECTED VERSIONS", versionsTitle:"Software and versions",
     versionsIntro:"Versions read directly from the VM and the latest startup logs.",
     kernelLabelShort:"Kernel", dockerEngineLabel:"Engine", containerImageLabel:"Image",
-    fabricLabel:"Fabric Loader", agentRuntimeLabel:"Monitoring agent",
+    fabricLabel:"Fabric Loader", agentRuntimeLabel:"Monitoring agent", javaRuntimeDescription:"Runtime environment for the Minecraft server and its components.",
     tunnelStatusLabel:"Tunnel status", activeStatus:"Active", inactiveStatus:"Inactive",
     unknownStatus:"Unknown", unavailableValue:"Unavailable",
     loadedModsTitle:"Server mods", loadedModsIntro:"Public inventory of mods installed on the server.",
@@ -529,7 +529,7 @@ function renderTechnicalSpecs(d) {
   addCard(t.azureName, t.azureComponent, t.azureDescription, "azure");
   addCard(t.techOS, safe(d.os), [d.architecture, kernel].filter(Boolean).join(" · "), "ubuntu");
   addCard(t.techDocker, dockerCli || dockerEngine, dockerDetails.join(" · "), "docker");
-  addCard(t.techJava, versionOnly(d.java), "", "java");
+  addCard(t.techJava, versionOnly(d.java), t.javaRuntimeDescription, "java");
   addCard("Python", versionOnly(d.python), t.agentRuntimeLabel, "python");
   addCard("cloudflared", versionOnly(d.cloudflared), t.tunnelStatusLabel + ": " + tunnelState, "cloudflare");
   addCard(t.techMinecraft, safe(d.minecraft), minecraftDetails.join(" · "), "minecraft");
