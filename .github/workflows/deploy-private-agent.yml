@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: mc-server-vm-operations
+  cancel-in-progress: false
+
 jobs:
   deploy-agent:
     runs-on: ubuntu-latest
