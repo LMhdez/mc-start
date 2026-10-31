@@ -7,6 +7,34 @@ const AUTH_RATE_LIMIT = 20;
 const CALLBACK_RATE_LIMIT = 10;
 const MAX_JSON_BYTES = 64 * 1024;
 let rateLimitStorageWarningLogged = false;
+const localRateLimitFallback = new Map();
+
+function checkLocalRateLimit(request, scope, limit, now) {
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  const key = scope + ":" + ip;
+  let record = localRateLimitFallback.get(key);
+  if (!record || now - record.startedAt >= RATE_WINDOW || now < record.startedAt) {
+    record = { count: 0, startedAt: now };
+  }
+  if (record.count >= limit) return false;
+  record.count += 1;
+  localRateLimitFallback.set(key, record);
+
+  // Bound memory use and discard expired fallback counters.
+  if (localRateLimitFallback.size > 5000) {
+    for (const [storedKey, storedRecord] of localRateLimitFallback) {
+      if (now - storedRecord.startedAt >= RATE_WINDOW || now < storedRecord.startedAt) {
+        localRateLimitFallback.delete(storedKey);
+      }
+    }
+    while (localRateLimitFallback.size > 5000) {
+      const oldestKey = localRateLimitFallback.keys().next().value;
+      if (oldestKey === undefined) break;
+      localRateLimitFallback.delete(oldestKey);
+    }
+  }
+  return true;
+}
 
 const WORKFLOWS = {
   start: {
@@ -123,9 +151,10 @@ async function checkRateLimit(env, request, scope = "action", limit = RATE_LIMIT
       console.error("Rate limit storage unavailable:", error.message);
       rateLimitStorageWarningLogged = true;
     }
-    // Public read-only endpoints expose no credentials or player names.
-    // Keep them available when KV write quotas are exhausted; sensitive actions stay fail-closed.
-    return scope === "technical" || scope === "public-status";
+    // KV can be temporarily unavailable (including daily write-quota exhaustion).
+    // Fall back to a per-isolate in-memory window instead of rejecting every request.
+    // This preserves a best-effort limit without depending on KV during an outage.
+    return checkLocalRateLimit(request, scope, limit, now);
   }
 }
 
