@@ -67,7 +67,7 @@ const translations = {
     step1Title: "Espera que o servidor ligue", step1Copy: "Quando o servidor estiver online, podes avançar.",
     step2Title: "Abre o Minecraft", step2Copy: "Escolhe Multijogador e adiciona o endereço do servidor.",
     step3Title: "Entra e diverte-te", step3Copy: "Joga com os teus amigos. O servidor trata do resto.",
-    footer: "Dados técnicos baseados na configuração disponível no repositório.", emptyPassword: "Introduz a palavra-passe de acesso.",
+    footer: "Alojado na Microsoft Azure.", emptyPassword: "Introduz a palavra-passe de acesso.",
     sending: "A enviar pedido...", startSent: "Pedido para ligar o servidor aceite.",
     stopSent: "Pedido para desligar o servidor aceite.", checkSent: "Pedido de verificação enviado.",
     starting: "A iniciar a máquina virtual na Azure...",
@@ -140,7 +140,7 @@ const translations = {
     step1Title: "Espera a que se inicie el servidor", step1Copy: "Cuando el servidor esté en línea, podrás continuar.",
     step2Title: "Abre Minecraft", step2Copy: "Elige Multijugador y añade la dirección del servidor.",
     step3Title: "Entra y diviértete", step3Copy: "Juega con tus amigos. El servidor se encarga del resto.",
-    footer: "Datos técnicos basados en la configuración disponible en el repositorio.", emptyPassword: "Introduce la contraseña de acceso.",
+    footer: "Alojado en Microsoft Azure.", emptyPassword: "Introduce la contraseña de acceso.",
     sending: "Enviando solicitud...", startSent: "Solicitud de inicio aceptada.",
     stopSent: "Solicitud de apagado aceptada.", checkSent: "Se ha enviado la solicitud de comprobación.",
     starting: "Iniciando la máquina virtual en Azure...",
@@ -213,7 +213,7 @@ const translations = {
     step1Title: "Wait for the server to start", step1Copy: "Once the server is online, you can continue.",
     step2Title: "Open Minecraft", step2Copy: "Choose Multiplayer and add the server address.",
     step3Title: "Join and have fun", step3Copy: "Play with your friends. The server takes care of the rest.",
-    footer: "Technical information based on the configuration available in the repository.", emptyPassword: "Enter the access password.",
+    footer: "Hosted on Microsoft Azure.", emptyPassword: "Enter the access password.",
     sending: "Sending request...", startSent: "Start request accepted.",
     stopSent: "Stop request accepted.", checkSent: "The status check request has been sent.",
     starting: "Starting the Azure virtual machine...",
@@ -493,9 +493,11 @@ function renderTechnicalSpecs(d) {
     const descriptions = {
       lithium: t.modDescLithium,
       fabric_api: t.modDescFabricApi,
+      "fabric-api": t.modDescFabricApi,
       floodgate: t.modDescFloodgate,
       ferritecore: t.modDescFerritecore,
       essential_commands: t.modDescEssentialCommands,
+      "essential-commands": t.modDescEssentialCommands,
       chunky: t.modDescChunky,
       "geyser-fabric": t.modDescGeyser
     };
