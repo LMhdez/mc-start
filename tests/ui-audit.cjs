@@ -8,7 +8,8 @@ async function main() {
   const browser = await chromium.launch({ headless: true });
   const failures = [];
   const pageErrors = [];
-  const page = await browser.newPage({ viewport: { width: 1366, height: 900 } });
+  const context = await browser.newContext({ viewport: { width: 1366, height: 900 } });
+  const page = await context.newPage();
 
   // Read-only audit: never call the live Worker or invoke admin actions.
   await page.route("https://mc-start-control.luismariohernandezsantos.workers.dev/**",
