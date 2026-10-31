@@ -299,6 +299,7 @@ export default {
               geyser_state: typeof live.geyser_state === "string" ? live.geyser_state : "unknown",
               geyser_udp_ready: typeof live.geyser_udp_ready === "boolean" ? live.geyser_udp_ready : null,
               geyser_udp_state: typeof live.geyser_udp_state === "string" ? live.geyser_udp_state : "unknown",
+              geyser_udp_diagnostic: typeof live.geyser_udp_diagnostic === "string" ? live.geyser_udp_diagnostic : "unknown",
               checked_at: live.checked_at || result.checked_at
             };
           } catch (error) {
