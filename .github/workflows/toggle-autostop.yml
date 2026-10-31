@@ -55,7 +55,7 @@ jobs:
           fi
 
           REMOTE_SCRIPT=$(cat <<'REMOTE'
-          set -euo pipefail
+          set -eu
 
           CRON_USER="azureuser"
           AUTOSTOP_SCRIPT="/home/azureuser/autostop.sh"
@@ -67,29 +67,29 @@ jobs:
           systemctl is-active --quiet cron
 
           CURRENT_CRONTAB=$(crontab -u "$CRON_USER" -l 2>/dev/null || true)
-          FILTERED_CRONTAB=$(printf '%s\n' "$CURRENT_CRONTAB" | grep -Fv "$AUTOSTOP_SCRIPT" || true)
+          FILTERED_CRONTAB=$(printf '%s\\n' "$CURRENT_CRONTAB" | grep -Fv "$AUTOSTOP_SCRIPT" || true)
 
-          if [[ "$AUTOSTOP_ACTION" == "enable" ]]; then
-            if [[ ! -f "$AUTOSTOP_SCRIPT" ]]; then
+          if [ "$AUTOSTOP_ACTION" = "enable" ]; then
+            if [ ! -f "$AUTOSTOP_SCRIPT" ]; then
               echo "O script $AUTOSTOP_SCRIPT não existe. Nenhuma alteração foi aplicada."
               exit 1
             fi
-            UPDATED_CRONTAB=$(printf '%s\n%s' "$FILTERED_CRONTAB" "$CRON_LINE")
+            UPDATED_CRONTAB=$(printf '%s\\n%s' "$FILTERED_CRONTAB" "$CRON_LINE")
           else
             UPDATED_CRONTAB="$FILTERED_CRONTAB"
           fi
 
-          printf '%s\n' "$UPDATED_CRONTAB" | crontab -u "$CRON_USER" -
+          printf '%s\\n' "$UPDATED_CRONTAB" | crontab -u "$CRON_USER" -
 
           FINAL_CRONTAB=$(crontab -u "$CRON_USER" -l 2>/dev/null || true)
-          if [[ "$AUTOSTOP_ACTION" == "enable" ]]; then
-            if ! grep -Fqx "$CRON_LINE" <<< "$FINAL_CRONTAB"; then
+          if [ "$AUTOSTOP_ACTION" = "enable" ]; then
+            if ! printf '%s\\n' "$FINAL_CRONTAB" | grep -Fqx "$CRON_LINE"; then
               echo "Falha ao confirmar a ativação do auto turn-off."
               exit 1
             fi
             echo "AUTOSTOP_ENABLED: cron configurado para executar a cada 5 minutos."
           else
-            if grep -Fq "$AUTOSTOP_SCRIPT" <<< "$FINAL_CRONTAB"; then
+            if printf '%s\\n' "$FINAL_CRONTAB" | grep -Fq "$AUTOSTOP_SCRIPT"; then
               echo "Falha: ainda existe uma entrada de auto turn-off no crontab."
               exit 1
             fi
