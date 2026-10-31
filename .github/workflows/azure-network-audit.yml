@@ -21,12 +21,25 @@ jobs:
           VM: ${{ secrets.AZURE_VM_NAME }}
         run: |
           set -eu
-          echo '=== EFFECTIVE AZURE INBOUND RULES ===' > report.txt
+          echo '=== ATTACHED NETWORK SECURITY GROUPS ===' > report.txt
           NIC_IDS=$(az vm show -g "$RG" -n "$VM" --query 'networkProfile.networkInterfaces[].id' -o tsv)
           for NIC in $NIC_IDS; do
             echo "NIC: $(basename "$NIC")" >> report.txt
-            az network nic list-effective-nsg --ids "$NIC" -o json > nsg.json
-            python3 -c "import json; d=json.load(open('nsg.json')); a=d if isinstance(d,list) else d.get('value',[]); r=[x for i in a for x in i.get('effectiveSecurityRules',[]) if x.get('direction')=='Inbound' and ('19132' in str(x.get('destinationPortRange',x.get('destinationPortRanges',''))) or str(x.get('destinationPortRange',x.get('destinationPortRanges',''))) in ('*','[*]'))]; [print('INBOUND name=%s access=%s proto=%s priority=%s dest=%s' % (x.get('name'),x.get('access'),x.get('protocol'),x.get('priority'),x.get('destinationPortRange',x.get('destinationPortRanges','')))) for x in r]; print('Relevant rules:',len(r))" >> report.txt
+            NIC_NSG=$(az network nic show --ids "$NIC" --query 'networkSecurityGroup.id' -o tsv)
+            SUBNET_IDS=$(az network nic show --ids "$NIC" --query 'ipConfigurations[].subnet.id' -o tsv)
+            if [ -n "$NIC_NSG" ] && [ "$NIC_NSG" != "None" ]; then
+              NSG_NAME=$(basename "$NIC_NSG")
+              echo "NIC NSG: $NSG_NAME" >> report.txt
+              az network nsg rule list -g "$RG" --nsg-name "$NSG_NAME" --query "[?direction=='Inbound'].{name:name,access:access,protocol:protocol,priority:priority,destinationPortRange:destinationPortRange}" -o json >> report.txt
+            else echo 'NIC NSG: none' >> report.txt; fi
+            for SUBNET in $SUBNET_IDS; do
+              SUBNET_NSG=$(az network vnet subnet show --ids "$SUBNET" --query 'networkSecurityGroup.id' -o tsv)
+              if [ -n "$SUBNET_NSG" ] && [ "$SUBNET_NSG" != "None" ]; then
+                NSG_NAME=$(basename "$SUBNET_NSG")
+                echo "Subnet NSG: $NSG_NAME" >> report.txt
+                az network nsg rule list -g "$RG" --nsg-name "$NSG_NAME" --query "[?direction=='Inbound'].{name:name,access:access,protocol:protocol,priority:priority,destinationPortRange:destinationPortRange}" -o json >> report.txt
+              else echo 'Subnet NSG: none' >> report.txt; fi
+            done
             PUB=$(az network nic show --ids "$NIC" --query 'ipConfigurations[?publicIpAddress!=null].name' -o tsv)
             if [ -n "$PUB" ]; then echo 'Public IP association: YES' >> report.txt; else echo 'Public IP association: NO' >> report.txt; fi
           done
