@@ -1,0 +1,77 @@
+name: Temporary diagnose private agent service
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: write
+jobs:
+  diagnose:
+    if: github.event.issue.user.login == 'LMhdez' && startsWith(github.event.issue.title, '[MC-AGENT-DIAG]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Start temporarily and inspect agent service
+        id: diag
+        shell: bash
+        env:
+          RG: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          VM: ${{ secrets.AZURE_VM_NAME }}
+        run: |
+          set -euo pipefail
+          STARTED_BY_WORKFLOW=0
+          cleanup() { if [[ "$STARTED_BY_WORKFLOW" == "1" ]]; then az vm deallocate -g "$RG" -n "$VM" --no-wait || true; fi; }
+          trap cleanup EXIT
+          STATE=$(az vm get-instance-view -g "$RG" -n "$VM" --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus | [0]" -o tsv)
+          if [[ "$STATE" == "VM deallocated" || "$STATE" == "VM stopped" ]]; then STARTED_BY_WORKFLOW=1; az vm start -g "$RG" -n "$VM"; elif [[ "$STATE" != "VM running" ]]; then echo "Unexpected state: $STATE"; exit 1; fi
+          READY=0
+          for attempt in $(seq 1 36); do
+            STATE=$(az vm get-instance-view -g "$RG" -n "$VM" --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus | [0]" -o tsv)
+            if [[ "$STATE" == "VM running" ]]; then READY=1; break; fi
+            sleep 10
+          done
+          [[ "$READY" == "1" ]]
+          SCRIPT=$(cat <<'EOS'
+          echo '=== POWER / CLOCK ==='
+          date -u '+%Y-%m-%dT%H:%M:%SZ'
+          echo '=== AGENT UNIT ==='
+          systemctl is-enabled mc-private-agent.service 2>&1 || true
+          systemctl is-active mc-private-agent.service 2>&1 || true
+          systemctl status mc-private-agent.service --no-pager -l 2>&1 | tail -35 || true
+          echo '=== AGENT JOURNAL ==='
+          journalctl -u mc-private-agent.service --since '-8 minutes' --no-pager 2>&1 | tail -80 || true
+          echo '=== PROCESS / SOCKET ==='
+          ps -eo pid,stat,args | grep '[m]c-agent.py' || true
+          ss -lntp 2>&1 | grep '8765' || true
+          echo '=== HTTP CHECK ==='
+          python3 - <<'PY'
+          import json, urllib.request
+          try:
+              response = urllib.request.urlopen('http://127.0.0.1:8765/status', timeout=15)
+              data = json.load(response)
+              result = data.get('result') or {}
+              print('HTTP_OK', data.get('ok'), 'FIELDS', sorted(result.keys()))
+              print('GEYSER', result.get('geyser_state'), result.get('geyser_ready'), 'RCON', result.get('rcon_ready'))
+          except Exception as exc:
+              print('HTTP_ERROR', type(exc).__name__, str(exc))
+          PY
+          echo '=== CONTAINER ==='
+          docker ps --filter name=mc-server --format '{{.Names}} {{.Status}}' 2>&1 || true
+          EOS
+          )
+          REPORT=$(az vm run-command invoke -g "$RG" -n "$VM" --command-id RunShellScript --scripts "$SCRIPT" --query "value[0].message" -o tsv)
+          {
+            echo 'report<<EOF'
+            printf '%s\\n' "$REPORT"
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
+        env:
+          REPORT: ${{ steps.diag.outputs.report }}
+        with:
+          script: |
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:context.issue.number,body:'## Agent service diagnostics\n\n```text\n'+(process.env.REPORT||'No report')+'\n```'});
+            await github.rest.issues.update({owner:context.repo.owner,repo:context.repo.repo,issue_number:context.issue.number,state:'closed'});
