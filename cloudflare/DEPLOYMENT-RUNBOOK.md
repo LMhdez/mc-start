@@ -58,9 +58,10 @@ Executar a partir de uma cópia limpa do repositório, na branch que foi aprovad
 2. Confirmar que o commit publicado é o head aprovado do PR e que o CI correspondente está verde.
 3. Instalar dependências e executar testes locais:
    ```sh
-   npm ci
+   npm install --legacy-peer-deps --no-audit --no-fund
    npm run test:cloudflare
    ```
+   Nota: o PR ainda não inclui `package-lock.json`; por isso, `npm ci` não é utilizável nesta branch. A ausência do lockfile também significa que as dependências transitivas não ficam totalmente fixadas. Recomenda-se adicionar e versionar um lockfile antes de considerar a validação reprodutível.
 4. Validar o bundle/configuração sem publicar:
    ```sh
    npx wrangler deploy --config cloudflare/wrangler.toml --dry-run
