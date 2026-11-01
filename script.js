@@ -432,13 +432,12 @@ function renderStatus(result) {
   if (details) {
     const values = [
       [t.portState, result.port_open == null ? t.unknownStatus : result.port_open ? t.portOpen : t.portClosed],
-      [t.bedrockStateLabel, result.geyser_transport === "nethernet" && result.geyser_ready === true
-        ? t.bedrockServiceReady
-        : result.geyser_ready === true && result.geyser_udp_ready === true
-          ? t.portOpen
-          : result.geyser_ready === false || result.geyser_udp_ready === false
-            ? t.portClosed
-            : t.unknownStatus],
+      [t.bedrockStateLabel, result.geyser_ready === true &&
+        (result.geyser_transport === "nethernet" || result.geyser_udp_ready === true)
+        ? t.portOpen
+        : result.geyser_ready === false || result.geyser_udp_ready === false
+          ? t.portClosed
+          : t.unknownStatus],
       [t.checkedAt, result.checked_at ? new Date(result.checked_at).toLocaleString(currentLanguage === "pt" ? "pt-PT" : currentLanguage === "es" ? "es-ES" : "en-GB") : "—"]
     ];
     details.replaceChildren();
