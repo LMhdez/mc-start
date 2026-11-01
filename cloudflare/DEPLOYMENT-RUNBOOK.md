@@ -6,15 +6,15 @@
 
 - PR #27: aberto, Draft, não merged.
 - Branch: `fix/cloudflare-kv-write-amplification`.
-- Head verificado: `d2400697d3cef9c9b8eaae7cc8cd303f05850658`.
-- CI #41306538394: concluído com sucesso; job `validate` passou.
+- Head verificado na última consulta: `bd736349fa1323e896ad6344936dee9beaf92d8a`.
+- CI #41306901778: concluído com sucesso no mesmo commit; job `validate` passou.
 - Worker de produção: `mc-start-control`.
 - Configuração ativa: `usage_model = "standard"`, `compatibility_date = "2026-10-30"`.
 - Bindings atuais: os 9 secrets existentes e os bindings `STATUS_KV`, `TECHNICAL_BUCKET` e `MC_AGENT`. A auditoria consultou apenas metadata; nenhum valor secreto foi lido.
 - O binding `R2_BUDGET` ainda não existe em produção.
 - `workers.dev` está ativo; previews estão desativados.
 - A API de Worker Domains devolveu zero domínios personalizados.
-- A listagem de Worker Routes por zona continua por confirmar: a auditoria anterior não conseguiu enumerar zonas ativas. Não assumir que não existem routes.
+- Auditoria de Worker Routes (2026-11-01): `GET /zones` devolveu zero zonas acessíveis nesta conta; por isso, não existem zone-level Worker Routes enumeráveis nesta conta. A verificação não abrange domínios/rotas geridos fora desta conta Cloudflare.
 - Foram encontradas 10 deployments anteriores. A mais recente observada foi criada em 2026-11-01 via Dashboard.
 - Não foi feito deploy nem qualquer alteração à configuração de produção.
 
@@ -76,7 +76,7 @@ Executar a partir de uma cópia limpa do repositório, na branch que foi aprovad
    - bucket R2 continua Standard e privado;
    - não existem alterações inesperadas ao Worker desde a auditoria.
 
-**Bloqueio atual:** não publicar enquanto as Worker Routes não forem verificadas ou enquanto houver divergência entre os bindings ativos e o TOML.
+**Bloqueios ainda ativos:** apesar de a listagem de zonas não devolver zonas e o CI estar verde, não publicar sem nova confirmação imediatamente antes do deploy de que os bindings ativos continuam a corresponder ao TOML e de que não surgiram triggers/domínios novos.
 
 ## 4. Registo de backup antes do deploy
 
