@@ -100,28 +100,6 @@ function validIPv4(value) {
   );
 }
 
-async function deriveKey(password, salt) {
-  const material = await crypto.subtle.importKey(
-    "raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]
-  );
-  return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" },
-    material,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["decrypt"]
-  );
-}
-
-async function decryptStatus(envelope, password) {
-  const salt = Uint8Array.from(atob(envelope.salt), c => c.charCodeAt(0));
-  const iv = Uint8Array.from(atob(envelope.iv), c => c.charCodeAt(0));
-  const data = Uint8Array.from(atob(envelope.data), c => c.charCodeAt(0));
-  const key = await deriveKey(password, salt);
-  const clear = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
-  return JSON.parse(new TextDecoder().decode(clear));
-}
-
 async function readJsonBody(request, maxBytes = MAX_JSON_BYTES) {
   const contentLength = Number(request.headers.get("Content-Length") || 0);
   if (Number.isFinite(contentLength) && contentLength > maxBytes) throw new Error("BODY_TOO_LARGE");
@@ -723,8 +701,16 @@ export default {
       // Keep the encrypted result until its 5-minute TTL expires. Reads are
       // idempotent and avoid a KV delete write on every completed status request.
       try {
-        const result = await decryptStatus(JSON.parse(stored), env.ACCESS_PASSWORD);
-        return json({ ok: true, result }, 200, origin);
+        const envelope = JSON.parse(stored);
+        if (!envelope || typeof envelope !== "object" ||
+            typeof envelope.salt !== "string" ||
+            typeof envelope.iv !== "string" ||
+            typeof envelope.data !== "string") {
+          throw new Error("Invalid encrypted status envelope");
+        }
+        // PBKDF2/AES-GCM decryption runs in the authenticated browser, not on
+        // Workers Free. The encrypted envelope remains unchanged in KV.
+        return json({ ok: true, envelope }, 200, origin);
       } catch {
         return json({ ok: false, message: "Nao foi possivel ler o resultado." }, 500, origin);
       }
