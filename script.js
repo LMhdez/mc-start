@@ -94,6 +94,7 @@ const translations = {
     bedrockReady: "Geyser ativo",
     bedrockUdpReady: "Resposta RakNet local confirmada · externo não testado", bedrockUdpFailed: "Sem resposta RakNet local · externo não testado", bedrockUdpNoListener: "Geyser sem socket UDP na porta 19132", bedrockUdpListenerNoPong: "Socket UDP ativo, mas sem resposta RakNet", bedrockUdpUnknown: "Teste UDP local indisponível",
     bedrockInitializing: "A preparar",
+    bedrockOffline: "VM desligada",
     bedrockUnavailable: "Não confirmada",
     startComplete: "Servidor online. O serviço Minecraft está pronto; a ligação Bedrock externa não foi testada.",
     stopComplete: "Servidor desligado. A VM foi desalocada na Azure.",
@@ -187,6 +188,7 @@ const translations = {
     bedrockReady: "Geyser activo",
     bedrockUdpReady: "Respuesta RakNet local confirmada · externo sin probar", bedrockUdpFailed: "Sin respuesta RakNet local · externo sin probar", bedrockUdpNoListener: "Geyser sin socket UDP en el puerto 19132", bedrockUdpListenerNoPong: "Socket UDP activo, pero sin respuesta RakNet", bedrockUdpUnknown: "Prueba UDP local no disponible",
     bedrockInitializing: "Preparando",
+    bedrockOffline: "VM apagada",
     bedrockUnavailable: "No confirmada",
     startComplete: "Servidor en línea. Minecraft está listo; la conexión Bedrock externa no se ha probado.",
     stopComplete: "Servidor apagado. La VM se ha desasignado en Azure.",
@@ -279,7 +281,8 @@ const translations = {
     bedrockStateLabel: "Bedrock · Geyser status",
     bedrockReady: "Geyser active",
     bedrockUdpReady: "RakNet responds locally · external access untested", bedrockUdpFailed: "No local RakNet response · external access untested", bedrockUdpNoListener: "Geyser has no UDP socket on port 19132", bedrockUdpListenerNoPong: "UDP socket is listening, but RakNet did not respond", bedrockUdpUnknown: "Local UDP check unavailable",
-    bedrockInitializing: "Preparing",
+    bedrockInitializing: "Starting",
+    bedrockOffline: "VM offline",
     bedrockUnavailable: "Not confirmed",
     startComplete: "Server online. Minecraft is ready; external Bedrock connectivity has not been tested.",
     stopComplete: "Server stopped. The VM has been deallocated in Azure.",
@@ -446,7 +449,9 @@ function renderStatus(result) {
       [t.portState, result.port_open == null ? t.unknownStatus : result.port_open ? t.portOpen : t.portClosed],
       [t.bedrockStateLabel, result.geyser_ready === true
         ? `${t.bedrockReady} · ${result.geyser_udp_ready === true ? t.bedrockUdpReady : result.geyser_udp_ready === false ? (result.geyser_udp_diagnostic === "no_udp_listener_19132" ? t.bedrockUdpNoListener : result.geyser_udp_diagnostic === "udp_listener_no_raknet_pong" ? t.bedrockUdpListenerNoPong : t.bedrockUdpFailed) : t.bedrockUdpUnknown}`
-        : result.geyser_state === "initializing" || result.geyser_ready === false ? t.bedrockInitializing : t.bedrockUnavailable],
+        : result.vm === "VM deallocated" || result.vm === "VM stopped" ? t.bedrockOffline
+        : result.vm === "VM starting" || (result.vm === "VM running" && (result.geyser_state === "initializing" || result.geyser_ready === false)) ? t.bedrockInitializing
+        : t.bedrockUnavailable],
       [t.checkedAt, result.checked_at ? new Date(result.checked_at).toLocaleString(currentLanguage === "pt" ? "pt-PT" : currentLanguage === "es" ? "es-ES" : "en-GB") : "—"]
     ];
     details.replaceChildren();
