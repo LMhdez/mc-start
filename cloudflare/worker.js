@@ -17,6 +17,7 @@ const localRateLimitFallback = new Map();
 let r2BudgetDay = "";
 let r2Budget = { reads: 0, writes: 0 };
 let r2SnapshotCache = { loaded: false, snapshot: null, serialized: null, expiresAt: 0 };
+let r2MigrationRetryAfter = 0;
 
 function reserveR2Operation(kind) {
   const today = new Date().toISOString().slice(0, 10);
@@ -227,7 +228,11 @@ async function readTechnicalSnapshot(env) {
     const serialized = JSON.stringify(snapshot);
     if (new TextEncoder().encode(serialized).byteLength > R2_MAX_OBJECT_BYTES) {
       console.error("Snapshot tecnico excede o limite de tamanho para R2.");
+    } else if (Date.now() < r2MigrationRetryAfter) {
+      // Avoid retrying a failed/contended conditional migration on every request.
     } else if (reserveR2Operation("write")) {
+      // Back off even when the R2 request fails; attempts are already budgeted.
+      r2MigrationRetryAfter = Date.now() + R2_LOCAL_CACHE_TTL_MS;
       try {
         await env.TECHNICAL_BUCKET.put(TECHNICAL_R2_KEY, serialized, {
           onlyIf: { etagDoesNotMatch: "*" },
