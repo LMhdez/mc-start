@@ -6,7 +6,6 @@ const RATE_LIMIT = 10;
 const AUTH_RATE_LIMIT = 20;
 const CALLBACK_RATE_LIMIT = 10;
 const MAX_JSON_BYTES = 64 * 1024;
-let rateLimitStorageWarningLogged = false;
 const localRateLimitFallback = new Map();
 
 function checkLocalRateLimit(request, scope, limit, now) {
