@@ -233,7 +233,13 @@ async function writeTechnicalSnapshot(env, snapshot) {
       r2SnapshotCache.expiresAt = Date.now() + R2_LOCAL_CACHE_TTL_MS;
       return;
     }
-    const result = await getR2BudgetStub(env).writeSnapshot(serialized, false);
+    let result = null;
+    try {
+      result = await getR2BudgetStub(env).writeSnapshot(serialized, false);
+    } catch {
+      // RPC failure must not prevent the documented KV fallback.
+      console.warn("Durable Object indisponivel; a tentar fallback KV.");
+    }
     if (result && result.ok && result.written) {
       r2SnapshotCache = {
         loaded: true, snapshot, serialized,
@@ -241,8 +247,8 @@ async function writeTechnicalSnapshot(env, snapshot) {
       };
       return;
     }
-    // A missing/unavailable global budget must never be bypassed by calling R2 directly.
-    console.warn("Escrita R2 nao autorizada; a tentar fallback KV.");
+    // Never bypass the global budget by calling R2 directly.
+    if (result) console.warn("Escrita R2 nao autorizada; a tentar fallback KV.");
   }
 
   if (env.STATUS_KV) {
