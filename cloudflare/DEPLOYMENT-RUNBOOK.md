@@ -22,7 +22,10 @@
 - A chave KV `technical:public` existe no namespace de estado; o valor não foi lido. O snapshot ainda não foi migrado para R2.
 - A listagem de namespaces Durable Objects devolveu zero; a versão ativa não tem binding `R2_BUDGET`.
 - Foram observadas 10 deployments; a mais recente estava a receber 100% do tráfego no momento da auditoria.
-- Não foi feito deploy nem qualquer alteração à configuração de produção ou billing.
+- Não foi feito deploy do código do PR #27 nem qualquer alteração ao plano, billing ou bindings do Worker de produção.
+- A auditoria read-only de Observability encontrou, nas últimas 24 horas, 9 eventos de erro em `GET /api/public/status`, todos com a mensagem `Rate limit storage unavailable: KV put() limit exceeded for the day.`. Isto é compatível com a versão pré-PR #27 ainda tentar guardar o rate limiter no KV e atingir o limite diário de escritas.
+- Foi executado um teste isolado temporário no runtime Workers Free, sem bindings ou secrets de produção, reproduzindo a sequência de `decryptStatus()`: Base64 decode, PBKDF2-SHA256 (100 000 iterações), AES-256-GCM decrypt e JSON parse. O Workers Analytics GraphQL registou 2 invocações, CPU P50 = 19 199 µs (19,199 ms) e P99 = 20 523 µs (20,523 ms). A amostra é pequena, mas ambas as métricas excedem o limite nominal Free de 10 ms. As respostas foram bem-sucedidas; a documentação Cloudflare explica que existe flexibilidade para ultrapassagens infrequentes, o que não constitui margem de segurança para tráfego normal.
+- A tentativa de definir explicitamente `limits.cpu_ms` foi rejeitada pela API por não ser suportada no plano Free; não foi ativado Workers Paid. O teste foi removido após a medição e o seu endpoint `workers.dev` foi desativado.
 - A verificação local `wrangler deploy --dry-run` permanece pendente: o ambiente de trabalho não conseguiu clonar o repositório devido a falha de resolução DNS do GitHub. O CI atual não executa esse dry-run.
 
 ## 2. Riscos e decisões antes de publicar
@@ -48,8 +51,11 @@ O rollback de uma versão também não reverte o estado de recursos externos com
 ### 2.3 Free Tier — bloqueio obrigatório
 
 - O Dashboard confirmou **Workers Free — Active** em 2026-11-01. A API de Billing não permitiu uma verificação independente (403); não inferir o plano apenas a partir de `usage_model = "standard"`.
-- Workers Free tem limite de 10 ms de CPU por pedido. O endpoint `/api/status/read` chama `decryptStatus()`, que deriva uma chave com PBKDF2-SHA256 e 100 000 iterações. A documentação confirma que Web Crypto suporta PBKDF2 e que operações criptográficas podem ser intensivas, mas não fornece um custo CPU garantido para esta carga. **Não foi medida a CPU real deste caminho no runtime Cloudflare.** Isto é um bloqueio técnico real para o deploy: medir primeiro num Worker de teste isolado no mesmo plano/runtime ou obter CPU time de uma invocação equivalente. Miniflare/Vitest e benchmarks Node não substituem essa medição.
-- Não reduzir as 100 000 iterações nem alterar o formato criptográfico para caber nos 10 ms sem uma análise de segurança, compatibilidade dos resultados pendentes e plano de migração.
+- Workers Free tem limite nominal de 10 ms de CPU por pedido. O endpoint `/api/status/read` chama `decryptStatus()`, que deriva uma chave com PBKDF2-SHA256 e 100 000 iterações.
+- **Medição real concluída em 2026-11-01:** um Worker temporário e isolado, no mesmo runtime/conta Free e sem bindings/secrets de produção, executou a sequência criptográfica de `decryptStatus()` com uma fixture de teste. O Analytics GraphQL registou 2 invocações: CPU P50 = 19 199 µs e P99 = 20 523 µs. A medição corresponde a aproximadamente 1,92x e 2,05x o limite nominal de 10 ms. A amostra de 2 pedidos é pequena e não caracteriza toda a distribuição; contudo, demonstra que esta sequência pode ultrapassar 10 ms mesmo sem o trabalho adicional do handler real.
+- As duas invocações de teste terminaram com sucesso. A documentação Cloudflare descreve uma flexibilidade para ultrapassagens infrequentes do limite; isto não é uma garantia para pedidos regulares nem uma base aceitável para deploy. Fonte: https://developers.cloudflare.com/workers/platform/limits/ (limite Free de 10 ms e flexibilidade para ultrapassagens ocasionais).
+- **Bloqueio confirmado:** não publicar a versão atual do PR #27 enquanto `/api/status/read` continuar a executar PBKDF2 100 000 no Worker. Não reduzir iterações, não aumentar CPU, não alterar usage model e não ativar Workers Paid. A solução deve remover a derivação repetida do caminho de leitura sem enfraquecer a proteção criptográfica, preservando compatibilidade dos envelopes pendentes e um plano de transição.
+- O teste isolado foi eliminado após a medição; o subdomínio `workers.dev` específico do teste foi desativado. Não ficaram secrets, bindings, rotas ou recursos de teste ativos.
 - Não alterar plano, método de pagamento, billing, usage model ou funcionalidades pagas neste procedimento.
 - Não executar qualquer ação de upgrade/downgrade, ativação, trial, top-up ou subscription.
 - Não ativar R2 Infrequent Access, domínios públicos, `r2.dev`, Logpush ou serviços pagos.
