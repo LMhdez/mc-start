@@ -798,7 +798,14 @@ async function requestAction(action) {
         showFeedback("requestError");
         return;
       }
-      renderStatus({ ...statusResult.result, private: true });
+      let privateResult;
+      try {
+        privateResult = await globalThis.decryptPrivateStatus(statusResult.envelope, password);
+      } catch {
+        showFeedback("requestError");
+        return;
+      }
+      renderStatus({ ...privateResult, private: true });
       showFeedback("statusReady");
       return;
     }

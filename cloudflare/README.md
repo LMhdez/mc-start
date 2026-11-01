@@ -15,7 +15,7 @@ Antes de qualquer publicação do Worker, seguir o [runbook de publicação cont
    - Consulta e controla a VM através da API ARM do Azure.
    - Usa os workflows do GitHub Actions como alternativa quando a chamada direta falha.
    - Encaminha pedidos privados para o agente através do binding VPC `MC_AGENT`.
-   - Usa o binding R2 `TECHNICAL_BUCKET` para guardar a última fotografia técnica, quando configurado. O KV `STATUS_KV` continua a guardar os resultados privados cifrados com expiração automática de 5 minutos e funciona como fallback/migração da cache técnica enquanto R2 não estiver ligado. Os contadores de rate limit continuam em memória no Worker; o orçamento de operações R2 é centralizado num Durable Object com SQLite.
+   - Usa o binding R2 `TECHNICAL_BUCKET` para guardar a última fotografia técnica, quando configurado. O KV `STATUS_KV` guarda os resultados privados cifrados com expiração automática de 5 minutos. O Worker autentica o pedido e devolve apenas o envelope cifrado; o navegador executa PBKDF2-SHA256 (100 000 iterações) e AES-256-GCM localmente. Assim, o Worker Free não executa PBKDF2 nem precisa de um secret de encriptação adicional. O KV também funciona como fallback/migração da cache técnica enquanto R2 não estiver ligado. Os contadores de rate limit continuam em memória no Worker; o orçamento de operações R2 é centralizado num Durable Object com SQLite.
 
 3. **VM Azure**
    - Contentor Docker `mc-server`.
@@ -32,7 +32,7 @@ Antes de qualquer publicação do Worker, seguir o [runbook de publicação cont
 | GET | `/api/public/status` | Público; estado da VM, contentor, porta e número de jogadores quando conhecido |
 | GET | `/api/technical` | Público; versões e inventário de software/mods |
 | POST | `/api/action` | Palavra-passe; ações `start`, `stop` e `status` |
-| POST | `/api/status/read` | Palavra-passe; leitura do resultado privado |
+| POST | `/api/status/read` | Palavra-passe; devolve o envelope cifrado para desencriptação no navegador |
 | POST | `/api/status-result` | Callback autenticado do workflow de estado |
 
 O endpoint técnico divulga versões e mods instalados. Isso é informação operacional, não um segredo, mas deve ser considerado uma decisão consciente de exposição pública.
@@ -92,7 +92,7 @@ A publicação do Worker e do agente é deliberadamente separada: publica primei
 - O agente escuta apenas em `127.0.0.1:8765`; não abras essa porta no NSG.
 - A instalação inicial ainda usa SSH para o IP público da VM. A fingerprint é validada através da Azure, mas a porta TCP 22 continua a ter de estar acessível; restringe-a no NSG e considera migrar para Azure Bastion ou um runner dentro da VNet.
 - O Worker exige palavra-passe para ações privadas e aplica limites por IP em memória por isolate. Isto evita escritas KV por pedido, mas é apenas uma proteção de melhor esforço: contadores não são partilhados entre isolates nem garantem bloqueio global/atómico. Se o tráfego crescer ou for necessário controlo anti-abuso forte, configurar um Cloudflare Rate Limiting binding dedicado.
-- O Worker não usa `STATUS_KV.delete()`: os resultados privados expiram pelo TTL de 5 minutos e os IDs são UUIDs novos por pedido. O KV recebe apenas as gravações dos callbacks cifrados, salvo quando R2 ainda não está configurado. Com `TECHNICAL_BUCKET`, a fotografia técnica passa a ser escrita em R2 e o KV deixa de receber essas atualizações.
+- O Worker não usa `STATUS_KV.delete()`: os resultados privados expiram pelo TTL de 5 minutos e os IDs são UUIDs novos por pedido. O KV recebe apenas as gravações dos callbacks cifrados. A desencriptação ocorre no navegador após a autenticação, mantendo as 100 000 iterações PBKDF2 sem consumir CPU do Worker Free. Com `TECHNICAL_BUCKET`, a fotografia técnica passa a ser escrita em R2 e o KV deixa de receber essas atualizações.
 - Na primeira leitura, se R2 ainda não tiver o objeto, o Worker tenta recuperar a fotografia antiga do KV e copiá-la para R2 apenas se o objeto continuar ausente. A escrita condicional evita substituir uma fotografia que outra execução já tenha criado.
 - A fotografia técnica só é atualizada quando a cache ultrapassa 10 minutos e o agente devolve um inventário completo. O objeto R2 contém apenas o inventário técnico público; não contém passwords, tokens ou resultados privados.
 - **Proteção global R2:** todas as chamadas `get` e `put` passam pelo Durable Object `R2Budget`; não existe caminho direto do Worker para R2. O SQLite mantém contadores globais, persistentes e atómicos por dia e por mês UTC. Limites conservadores: 3.000 leituras/dia e 90.000/mês; 10 escritas/dia e 300/mês. As tentativas são contabilizadas antes da chamada R2, incluindo falhas. Se o Durable Object falhar ou o orçamento esgotar, o Worker não contorna o controlo: usa KV/cache quando disponível e pode devolver o inventário vivo sem persistência.

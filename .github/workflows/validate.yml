@@ -23,6 +23,7 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           node --check script.js
+          node --check status-crypto.js
           node --check cloudflare/worker.js
 
       - name: Install local test dependencies
@@ -30,6 +31,15 @@ jobs:
 
       - name: Test Durable Object budgets and R2 behavior
         run: npm run test:cloudflare
+
+      - name: Validate Wrangler production bundle without deploying
+        run: |
+          mkdir -p "$RUNNER_TEMP/wrangler-check"
+          cd "$RUNNER_TEMP/wrangler-check"
+          npm init -y --silent
+          npm install --no-save --no-package-lock wrangler@4.156.0
+          cd "$GITHUB_WORKSPACE"
+          "$RUNNER_TEMP/wrangler-check/node_modules/.bin/wrangler" deploy --config cloudflare/wrangler.toml --dry-run
 
       - name: Check Python syntax
         run: python3 -m py_compile vm/mc-agent.py
