@@ -502,32 +502,58 @@ export default {
     const isStatusCallback = url.pathname === "/api/status-result";
 
     // Callbacks do GitHub Actions não vêm do navegador; autenticam-se pela palavra-passe.
+    // Nunca registar body, password, envelope ou dados privados do servidor.
     if (isStatusCallback) {
-      if (request.method !== "POST") return json({ ok: false }, 405);
-      if (!env.ACCESS_PASSWORD || !env.STATUS_KV) return json({ ok: false }, 503);
+      if (request.method !== "POST") return json({ ok: false, code: "method_not_allowed" }, 405);
+      if (!env.ACCESS_PASSWORD || !env.STATUS_KV) return json({ ok: false, code: "configuration_unavailable" }, 503);
       if (!(request.headers.get("Content-Type") || "").toLowerCase().includes("application/json")) {
-        return json({ ok: false }, 415);
+        return json({ ok: false, code: "invalid_content_type" }, 415);
       }
       if (!(await checkRateLimit(env, request, "callback", CALLBACK_RATE_LIMIT))) {
-        return json({ ok: false, message: "Demasiados pedidos." }, 429);
-      }
-      let body;
-      try { body = await readJsonBody(request); }
-      catch (error) { return json({ ok: false }, error.message === "BODY_TOO_LARGE" ? 413 : 400); }
-      if (!body || typeof body.password !== "string" ||
-          !constantTimeEqual(body.password, env.ACCESS_PASSWORD)) {
-        return json({ ok: false }, 401);
+        return json({ ok: false, code: "rate_limited" }, 429);
       }
 
-      if (!validRequestId(body.request_id) || !body.envelope ||
-          !body.envelope.salt || !body.envelope.iv || !body.envelope.data) {
-        return json({ ok: false }, 400);
+      let body;
+      try {
+        body = await readJsonBody(request);
+      } catch (error) {
+        const tooLarge = error.message === "BODY_TOO_LARGE";
+        console.warn("Callback de estado rejeitado:", tooLarge ? "body_too_large" : "invalid_json");
+        return json({ ok: false, code: tooLarge ? "body_too_large" : "invalid_json" }, tooLarge ? 413 : 400);
       }
-      await env.STATUS_KV.put(
-        "status:" + body.request_id,
-        JSON.stringify(body.envelope),
-        { expirationTtl: STATUS_TTL }
-      );
+
+      if (!body || typeof body.password !== "string" ||
+          !constantTimeEqual(body.password, env.ACCESS_PASSWORD)) {
+        return json({ ok: false, code: "unauthorized" }, 401);
+      }
+
+      const validEnvelope = body.envelope &&
+        typeof body.envelope === "object" &&
+        !Array.isArray(body.envelope) &&
+        typeof body.envelope.salt === "string" &&
+        body.envelope.salt.length > 0 &&
+        typeof body.envelope.iv === "string" &&
+        body.envelope.iv.length > 0 &&
+        typeof body.envelope.data === "string" &&
+        body.envelope.data.length > 0;
+
+      if (!validRequestId(body.request_id) || !validEnvelope) {
+        console.warn("Callback de estado rejeitado: invalid_payload");
+        return json({ ok: false, code: "invalid_payload" }, 400);
+      }
+
+      try {
+        await env.STATUS_KV.put(
+          "status:" + body.request_id,
+          JSON.stringify(body.envelope),
+          { expirationTtl: STATUS_TTL }
+        );
+      } catch {
+        // KV write failures must not become unhandled Worker exceptions (HTTP 500).
+        console.error("Callback de estado: escrita temporária em KV indisponível.");
+        return json({ ok: false, code: "storage_unavailable" }, 503);
+      }
+
       return json({ ok: true }, 200);
     }
 
