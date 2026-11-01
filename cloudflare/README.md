@@ -13,7 +13,7 @@ Este documento descreve a arquitetura atual e a ordem segura de implementação.
    - Consulta e controla a VM através da API ARM do Azure.
    - Usa os workflows do GitHub Actions como alternativa quando a chamada direta falha.
    - Encaminha pedidos privados para o agente através do binding VPC `MC_AGENT`.
-   - Usa o KV `STATUS_KV` para cache, limites de pedidos e resultados privados cifrados.
+   - Usa o KV `STATUS_KV` para cache técnica e resultados privados cifrados; os contadores de rate limit ficam em memória no Worker.
 
 3. **VM Azure**
    - Contentor Docker `mc-server`.
@@ -52,7 +52,7 @@ Os seguintes bindings existem na configuração Cloudflare:
 | `AZURE_RESOURCE_GROUP` | Secret | Resource group da VM |
 | `AZURE_VM_NAME` | Secret | Nome da VM |
 | `GITHUB_TOKEN` | Secret | Dispatch dos workflows de fallback |
-| `STATUS_KV` | KV namespace | Cache, rate limiting e estado privado |
+| `STATUS_KV` | KV namespace | Cache técnica e estado privado temporário |
 | `MC_AGENT` | VPC Service | Ligação ao agente privado |
 
 Estes valores já aparecem como bindings do tipo Secret na configuração atual. **Não os recries nem substituas por variáveis de texto simples.** Os valores dos secrets não são legíveis através da API de gestão.
@@ -85,7 +85,7 @@ A publicação do Worker e do agente é deliberadamente separada: publica primei
 
 - O agente escuta apenas em `127.0.0.1:8765`; não abras essa porta no NSG.
 - A instalação inicial ainda usa SSH para o IP público da VM. A fingerprint é validada através da Azure, mas a porta TCP 22 continua a ter de estar acessível; restringe-a no NSG e considera migrar para Azure Bastion ou um runner dentro da VNet.
-- O Worker exige palavra-passe para ações privadas e limita pedidos por IP através do KV. Como o KV é eventualmente consistente, este rate limiting é uma proteção de melhor esforço, não um bloqueio atómico contra tráfego distribuído.
+- O Worker exige palavra-passe para ações privadas e aplica limites por IP em memória por isolate. Isto evita escritas KV por pedido, mas é apenas uma proteção de melhor esforço: contadores não são partilhados entre isolates nem garantem bloqueio global/atómico. Se o tráfego crescer ou for necessário controlo anti-abuso forte, configurar um Cloudflare Rate Limiting binding dedicado.
 - Os endpoints públicos não devolvem IP privado nem nomes de jogadores.
 - O desligamento tenta parar o contentor Minecraft antes de desalocar a VM.
 - Os workflows que alteram a VM partilham um grupo de concorrência para evitar execuções simultâneas.
