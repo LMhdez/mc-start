@@ -1,4 +1,5 @@
 name: Temporary PBKDF2 Free CPU probe
+# Re-run after enabling the isolated worker's workers.dev endpoint.
 
 on:
   push:
