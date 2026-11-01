@@ -11,6 +11,6 @@ bucket_name = "mc-start-technical-tests"
 name = "R2_BUDGET"
 class_name = "R2Budget"
 
-[[migrations]]
-tag = "v1"
-new_sqlite_classes = ["R2Budget"]
+[exports.R2Budget]
+type = "durable-object"
+storage = "sqlite"
