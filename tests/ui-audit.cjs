@@ -81,9 +81,9 @@ async function main() {
     // keyboard-focusable. No buttons are clicked and all Worker requests are
     // blocked above, so this cannot invoke a real administrative action.
     await page.locator("#access-password").fill("audit-only-not-a-real-password");
-    // Filling the field focuses it; blur back to the document so the Tab
-    // sequence starts at the first focusable element and covers every control.
-    await page.evaluate(() => document.activeElement.blur());
+    // Start from the password field, then move backwards once to include
+    // the language selector before traversing the complete sequence forwards.
+    await page.keyboard.press("Shift+Tab");
 
     const focusedControls = new Set();
     for (let index = 0; index < 40; index++) {
