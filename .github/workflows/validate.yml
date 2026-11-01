@@ -23,6 +23,7 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           node --check script.js
+          node --check status-crypto.js
           node --check cloudflare/worker.js
 
       - name: Install local test dependencies
