@@ -6,6 +6,8 @@ const RATE_LIMIT = 10;
 const AUTH_RATE_LIMIT = 20;
 const CALLBACK_RATE_LIMIT = 10;
 const MAX_JSON_BYTES = 64 * 1024;
+const TECHNICAL_KV_KEY = "technical:public";
+const TECHNICAL_R2_KEY = "technical/latest.json";
 const localRateLimitFallback = new Map();
 
 function checkLocalRateLimit(request, scope, limit, now) {
@@ -124,6 +126,75 @@ function checkRateLimit(_env, request, scope = "action", limit = RATE_LIMIT) {
   // abuse-control mechanism; use a Cloudflare Rate Limiting binding if traffic grows.
   const now = Math.floor(Date.now() / 1000);
   return checkLocalRateLimit(request, scope, limit, now);
+}
+
+async function readTechnicalSnapshot(env) {
+  if (env.TECHNICAL_BUCKET) {
+    try {
+      const object = await env.TECHNICAL_BUCKET.get(TECHNICAL_R2_KEY);
+      if (object) {
+        try {
+          const snapshot = JSON.parse(await object.text());
+          if (snapshot && typeof snapshot === "object" && !Array.isArray(snapshot)) {
+            return snapshot;
+          }
+        } catch {
+          console.error("Snapshot tecnico em R2 invalido.");
+        }
+      }
+    } catch {
+      console.error("Leitura do snapshot tecnico em R2 indisponivel.");
+    }
+  }
+
+  // Backward-compatible fallback for existing installations and first-time migration.
+  if (!env.STATUS_KV) return null;
+  let stored;
+  try {
+    stored = await env.STATUS_KV.get(TECHNICAL_KV_KEY);
+  } catch {
+    console.error("Leitura do snapshot tecnico legado em KV indisponivel.");
+    return null;
+  }
+  if (!stored) return null;
+
+  let snapshot;
+  try {
+    snapshot = JSON.parse(stored);
+  } catch {
+    console.error("Snapshot tecnico legado em KV invalido.");
+    return null;
+  }
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) return null;
+
+  // Seed R2 only if the object is still absent. The conditional write prevents a
+  // concurrent fresh snapshot from being overwritten by this legacy backfill.
+  if (env.TECHNICAL_BUCKET) {
+    try {
+      await env.TECHNICAL_BUCKET.put(TECHNICAL_R2_KEY, JSON.stringify(snapshot), {
+        onlyIf: { etagDoesNotMatch: "*" },
+        httpMetadata: { contentType: "application/json; charset=utf-8" }
+      });
+    } catch {
+      console.error("Migracao do snapshot tecnico para R2 indisponivel.");
+    }
+  }
+  return snapshot;
+}
+
+async function writeTechnicalSnapshot(env, snapshot) {
+  const serialized = JSON.stringify(snapshot);
+  if (env.TECHNICAL_BUCKET) {
+    await env.TECHNICAL_BUCKET.put(TECHNICAL_R2_KEY, serialized, {
+      httpMetadata: { contentType: "application/json; charset=utf-8" }
+    });
+    return;
+  }
+  if (env.STATUS_KV) {
+    await env.STATUS_KV.put(TECHNICAL_KV_KEY, serialized);
+    return;
+  }
+  throw new Error("No technical cache binding is configured");
 }
 
 async function dispatchWorkflow(env, file, inputs) {
@@ -324,24 +395,18 @@ export default {
     }
 
     if (url.pathname === "/api/technical" && request.method === "GET") {
-      if (!env.STATUS_KV) return json({ ok: false, message: "Cache indisponivel." }, 503, origin);
+      if (!env.TECHNICAL_BUCKET && !env.STATUS_KV) {
+        return json({ ok: false, message: "Cache indisponivel." }, 503, origin);
+      }
       if (!(await checkRateLimit(env, request, "technical", 10))) {
         return json({ ok: false, message: "Demasiados pedidos. Aguarda um minuto." }, 429, origin);
       }
-      const cacheKey = "technical:public";
       let cached = null;
       try {
-        const stored = await env.STATUS_KV.get(cacheKey);
-        if (stored) {
-          try { cached = JSON.parse(stored); }
-          catch {
-            // Treat invalid cache data as a miss. A valid snapshot will replace it
-            // after the private agent returns a complete inventory; no KV delete is needed.
-          }
-        }
-      } catch (error) {
+        cached = await readTechnicalSnapshot(env);
+      } catch {
         // A cache indisponivel nao deve impedir a leitura do agente privado.
-        console.error("Leitura do inventario tecnico em cache indisponivel:", error.message);
+        console.error("Leitura do inventario tecnico em cache indisponivel.");
       }
       const age = cached && cached.checked_at ? Date.now() - Date.parse(cached.checked_at) : Infinity;
       if (cached && age >= 0 && age < 600000) {
@@ -364,12 +429,13 @@ export default {
           return json({ ok: false, message: "Inventario tecnico ainda nao esta pronto." }, 503, origin);
         }
 
-        // Sem expirationTtl: a ultima fotografia permanece disponivel mesmo apos longos periodos offline.
+        // Keep the latest complete snapshot available even after long offline periods.
+        // R2 is preferred; KV remains the compatibility fallback until R2 is bound.
         try {
-          await env.STATUS_KV.put(cacheKey, JSON.stringify(technical));
-        } catch (error) {
-          // Devolve o inventario atual mesmo que nao seja possivel persistir a cache.
-          console.error("Gravacao do inventario tecnico em cache indisponivel:", error.message);
+          await writeTechnicalSnapshot(env, technical);
+        } catch {
+          // Return the live inventory even if persistence is temporarily unavailable.
+          console.error("Gravacao do inventario tecnico em cache indisponivel.");
         }
         return json({ ok: true, result: technical, cached: false }, 200, origin);
       } catch (error) {
