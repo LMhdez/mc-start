@@ -103,6 +103,13 @@ A publicação do Worker e do agente é deliberadamente separada: publica primei
 - A conta Cloudflare deve ter autenticação multifator obrigatória. A configuração de conta consultada durante a auditoria não tinha a imposição de 2FA ativa.
 - A observabilidade do Worker está desativada; a remoção de query strings dos logs está ativada como proteção adicional.
 
+## Testes locais do Durable Object
+
+- A suite usa Vitest com `@cloudflare/vitest-plugin` e Miniflare; não precisa de credenciais Cloudflare nem acede ao bucket de produção.
+- A configuração isolada está em `cloudflare/wrangler.test.toml`. **Não usar esse ficheiro para deploy.**
+- Executar a partir da raiz do repositório: `npm install` e `npm run test:cloudflare`.
+- Os testes cobrem limites globais diários/mensais, concorrência, reset mensal UTC, validação/tamanho dos snapshots e backoff da migração condicional.
+
 ## Limites desta auditoria
 
 A integração disponível permite inspecionar o repositório, os workflows e a configuração do Worker. Não permite ler valores de secrets nem verificar diretamente regras NSG, discos, backups, RBAC e políticas da subscrição Azure. Esses elementos devem ser auditados no portal Azure.
