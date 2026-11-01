@@ -146,6 +146,8 @@ function getR2BudgetStub(env) {
 }
 
 async function readTechnicalSnapshot(env) {
+  let staleR2Snapshot = null;
+
   if (env.TECHNICAL_BUCKET && env.R2_BUDGET) {
     const now = Date.now();
 
@@ -165,36 +167,45 @@ async function readTechnicalSnapshot(env) {
           if (result.snapshot) return result.snapshot;
         } else {
           console.warn("Durable Object recusou ou nao conseguiu ler o snapshot R2; a usar fallback.");
-          // Preserve a previously loaded snapshot as stale fallback if the global budget is exhausted.
-          if (r2SnapshotCache.snapshot) return r2SnapshotCache.snapshot;
+          staleR2Snapshot = r2SnapshotCache.snapshot;
         }
       } catch {
         // Fail closed for R2: no direct R2 call is made when the budget authority is unavailable.
         console.error("Controlo global R2 indisponivel; a usar fallback KV/cache.");
-        if (r2SnapshotCache.snapshot) return r2SnapshotCache.snapshot;
+        staleR2Snapshot = r2SnapshotCache.snapshot;
       }
     }
   }
 
-  // Backward-compatible fallback for existing installations and first-time migration.
-  if (!env.STATUS_KV) return null;
+  // Prefer the shared KV fallback over an older isolate-local snapshot.
+  // The last local snapshot is used only when KV is unavailable or empty.
+  if (!env.STATUS_KV) return staleR2Snapshot;
   let stored;
   try {
     stored = await env.STATUS_KV.get(TECHNICAL_KV_KEY);
   } catch {
     console.error("Leitura do snapshot tecnico legado em KV indisponivel.");
-    return null;
+    return staleR2Snapshot;
   }
-  if (!stored) return null;
+  if (!stored) return staleR2Snapshot;
 
   let snapshot;
   try {
     snapshot = JSON.parse(stored);
   } catch {
     console.error("Snapshot tecnico legado em KV invalido.");
-    return null;
+    return staleR2Snapshot;
   }
-  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) return null;
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) return staleR2Snapshot;
+
+  // Keep the fallback result in this isolate too, so a failed R2 read does not
+  // repeatedly hide a newer KV snapshot behind an older local copy.
+  if (env.TECHNICAL_BUCKET && env.R2_BUDGET) {
+    r2SnapshotCache = {
+      loaded: true, snapshot, serialized: JSON.stringify(snapshot),
+      expiresAt: Date.now() + R2_LOCAL_CACHE_TTL_MS
+    };
+  }
 
   // Migrate the legacy KV snapshot through the same global R2 budget authority.
   if (env.TECHNICAL_BUCKET && env.R2_BUDGET) {
@@ -253,6 +264,13 @@ async function writeTechnicalSnapshot(env, snapshot) {
 
   if (env.STATUS_KV) {
     await env.STATUS_KV.put(TECHNICAL_KV_KEY, serialized);
+    if (env.TECHNICAL_BUCKET && env.R2_BUDGET) {
+      // Keep the isolate cache aligned with the newer shared KV fallback snapshot.
+      r2SnapshotCache = {
+        loaded: true, snapshot, serialized,
+        expiresAt: Date.now() + R2_LOCAL_CACHE_TTL_MS
+      };
+    }
     return;
   }
   throw new Error("No authorized technical cache binding is available");
