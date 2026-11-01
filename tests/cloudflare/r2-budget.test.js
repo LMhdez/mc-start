@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { runInDurableObject } from "cloudflare:test";
-import { beforeEach, describe, expect, it } from "vitest";
+import worker from "../../cloudflare/worker.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const OBJECT_KEY = "technical/latest.json";
 const MAX_OBJECT_BYTES = 256 * 1024;
@@ -50,6 +51,65 @@ describe("R2Budget Durable Object", () => {
   beforeEach(async () => {
     await env.TECHNICAL_BUCKET.delete(OBJECT_KEY);
     stub = await createBudget();
+  });
+
+
+  it("prefers a newer shared KV snapshot when the R2 budget is unavailable", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date());
+    try {
+      const oldSnapshot = {
+        checked_at: new Date(Date.now() - 60_000).toISOString(),
+        mods_inventory_available: true,
+        version: "old"
+      };
+      const freshSnapshot = {
+        checked_at: new Date().toISOString(),
+        mods_inventory_available: true,
+        version: "fresh"
+      };
+      let reads = 0;
+      const bindings = {
+        ALLOWED_ORIGIN: "https://panel.example",
+        TECHNICAL_BUCKET: {},
+        R2_BUDGET: {
+          getByName() {
+            return {
+              async readSnapshot() {
+                reads += 1;
+                return reads === 1
+                  ? { ok: true, snapshot: oldSnapshot, serialized: JSON.stringify(oldSnapshot) }
+                  : { ok: false, reason: "budget_exhausted" };
+              },
+              async writeSnapshot() {
+                return { ok: false, reason: "budget_exhausted" };
+              }
+            };
+          }
+        },
+        STATUS_KV: {
+          async get() {
+            return JSON.stringify(freshSnapshot);
+          }
+        }
+      };
+      const request = () => new Request("https://worker.example/api/technical", {
+        method: "GET",
+        headers: {
+          Origin: "https://panel.example",
+          "CF-Connecting-IP": "192.0.2.10"
+        }
+      });
+
+      const first = await worker.fetch(request(), bindings);
+      expect((await first.json()).result.version).toBe("old");
+
+      await vi.advanceTimersByTimeAsync(61_000);
+      const second = await worker.fetch(request(), bindings);
+      expect((await second.json()).result.version).toBe("fresh");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("reserves R2 reads and writes in persistent SQLite counters", async () => {
