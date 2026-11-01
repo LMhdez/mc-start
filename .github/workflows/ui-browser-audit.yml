@@ -29,8 +29,14 @@ jobs:
 
       - name: Install browser test dependencies
         run: |
-          npm install --no-save --no-package-lock playwright@1.56.1 @axe-core/playwright@4.10.2
-          npx playwright install --with-deps chromium
+          # Keep Playwright/axe isolated from the project's Cloudflare/Vitest
+          # dependency graph. npm install in the repository root can fail with
+          # an Arborist edgesOut error when the project has no lockfile.
+          mkdir -p "$RUNNER_TEMP/browser-audit"
+          cd "$RUNNER_TEMP/browser-audit"
+          npm init -y --silent
+          npm install --no-save --no-package-lock --legacy-peer-deps playwright@1.56.1 @axe-core/playwright@4.10.2
+          ./node_modules/.bin/playwright install --with-deps chromium
 
       - name: Start local static preview
         run: |
@@ -46,6 +52,8 @@ jobs:
           exit 1
 
       - name: Run responsive, keyboard, language and axe checks
+        env:
+          NODE_PATH: ${{ runner.temp }}/browser-audit/node_modules
         run: node tests/ui-audit.cjs
 
       - name: Upload screenshots
