@@ -1,0 +1,42 @@
+name: Temporary PBKDF2 Free CPU probe
+
+on:
+  push:
+    branches:
+      - test/pbkdf2-cpu-runtime
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke isolated Cloudflare Free Worker
+        shell: bash
+        run: |
+          set +e
+          status="$(curl --silent --show-error --output /tmp/probe-response --write-out '%{http_code}' --max-time 20 'https://mc-start-pbkdf2-probe-20261101.luismariohernandezsantos.workers.dev/')"
+          curl_status=$?
+          python3 - "$status" "$curl_status" <<'PY'
+          import json, pathlib, sys
+          status, curl_status = sys.argv[1], sys.argv[2]
+          path = pathlib.Path("/tmp/probe-response")
+          body = path.read_text(errors="replace") if path.exists() else ""
+          print("HTTP_STATUS=" + status)
+          print("CURL_STATUS=" + curl_status)
+          try:
+              data = json.loads(body)
+              print("OK=" + str(data.get("ok")))
+              print("WALL_TIME_MS=" + str(data.get("wall_time_ms")))
+              print("ITERATIONS=" + str(data.get("iterations")))
+              print("ALGORITHM=" + str(data.get("algorithm")))
+              print("ERROR=" + str(data.get("error")))
+          except Exception:
+              print("RESPONSE_PREFIX=" + body[:300].replace("\\n", " "))
+          if status != "200":
+              raise SystemExit(1)
+          data = json.loads(body)
+          if data.get("ok") is not True:
+              raise SystemExit(1)
+          PY
