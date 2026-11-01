@@ -20,6 +20,12 @@ jobs:
           node --check script.js
           node --check cloudflare/worker.js
 
+      - name: Install local test dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Test Durable Object budgets and R2 behavior
+        run: npm run test:cloudflare
+
       - name: Check Python syntax
         run: python3 -m py_compile vm/mc-agent.py
 
