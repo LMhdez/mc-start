@@ -4,6 +4,18 @@ const AxeBuilder = require("@axe-core/playwright").default;
 const BASE_URL = "http://127.0.0.1:4173/";
 const VIEWPORTS = [320, 375, 640, 768, 1366];
 
+let mockedPublicStatus = {
+  vm: "VM deallocated",
+  docker: "inactive",
+  container: "unknown",
+  port_open: null,
+  rcon_ready: false,
+  geyser_ready: false,
+  geyser_udp_ready: false,
+  players: 0,
+  checked_at: "2026-11-01T12:00:00.000Z"
+};
+
 async function main() {
   const browser = await chromium.launch({ headless: true });
   const failures = [];
@@ -12,13 +24,92 @@ async function main() {
   const page = await context.newPage();
 
   // Read-only audit: never call the live Worker or invoke admin actions.
-  await page.route("https://mc-start-control.luismariohernandezsantos.workers.dev/**",
-    route => route.abort());
+  await page.route("https://mc-start-control.luismariohernandezsantos.workers.dev/**", route => {
+    if (new URL(route.request().url()).pathname === "/api/public/status") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, result: mockedPublicStatus })
+      });
+    }
+    return route.abort();
+  });
   page.on("pageerror", error => pageErrors.push(error.message));
 
   try {
     await page.goto(BASE_URL, { waitUntil: "domcontentloaded" });
     await page.locator("#language-select").waitFor();
+
+    // The status panel must use exactly the same player-facing vocabulary
+    // for Java and Bedrock. These responses are fully mocked; the live Worker
+    // is never contacted and no credentials or admin actions are involved.
+    const statusCases = [
+      {
+        name: "Bedrock reachable",
+        result: {
+          vm: "VM running", docker: "active", container: "running",
+          port_open: true, rcon_ready: true,
+          geyser_ready: true, geyser_udp_ready: true, players: 0
+        },
+        expected: "Acessível"
+      },
+      {
+        name: "Bedrock unreachable while Java is reachable",
+        result: {
+          vm: "VM running", docker: "active", container: "running",
+          port_open: true, rcon_ready: true,
+          geyser_ready: true, geyser_udp_ready: false, players: 0
+        },
+        expected: "Inacessível"
+      },
+      {
+        name: "VM deallocated",
+        result: {
+          vm: "VM deallocated", docker: "inactive", container: "unknown",
+          port_open: null, rcon_ready: false,
+          geyser_ready: false, geyser_udp_ready: false, players: 0
+        },
+        expected: "Inacessível"
+      },
+      {
+        name: "Bedrock status unknown",
+        result: {
+          vm: "VM running", docker: "active", container: "running",
+          port_open: null, rcon_ready: null,
+          geyser_ready: null, geyser_udp_ready: null, players: null
+        },
+        expected: "Desconhecido"
+      }
+    ];
+
+    for (const testCase of statusCases) {
+      mockedPublicStatus = testCase.result;
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.locator("#status-details .status-detail").nth(1).waitFor();
+      const detailsText = await page.locator("#status-details").innerText();
+      const bedrockRow = await page.locator("#status-details .status-detail").nth(1).innerText();
+      const javaRow = await page.locator("#status-details .status-detail").nth(0).innerText();
+      if (!bedrockRow.includes(testCase.expected)) {
+        failures.push(testCase.name + ": expected Bedrock '" + testCase.expected +
+          "', got '" + bedrockRow + "'");
+      }
+      if (!["Acessível", "Inacessível", "Desconhecido"].some(value => javaRow.includes(value))) {
+        failures.push(testCase.name + ": Java did not use the shared status vocabulary: " + javaRow);
+      }
+      if (/Geyser|UDP|RakNet|19132|socket/i.test(detailsText)) {
+        failures.push(testCase.name + ": technical diagnostics leaked into player-facing status");
+      }
+      console.log(testCase.name + ": Java [" + javaRow + "], Bedrock [" + bedrockRow + "]");
+    }
+
+    // Restore the deallocated baseline before the remaining visual/accessibility audit.
+    mockedPublicStatus = {
+      vm: "VM deallocated", docker: "inactive", container: "unknown",
+      port_open: null, rcon_ready: false,
+      geyser_ready: false, geyser_udp_ready: false, players: 0,
+      checked_at: "2026-11-01T12:00:00.000Z"
+    };
+    await page.reload({ waitUntil: "domcontentloaded" });
 
     for (const width of VIEWPORTS) {
       await page.setViewportSize({ width, height: 900 });
