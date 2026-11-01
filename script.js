@@ -18,7 +18,7 @@ const translations = {
     architectureIntro:"Percurso desde a infraestrutura cloud até ao servidor de jogo e à monitorização.",
     vmStatusLabel:"ESTADO DO SERVIDOR",
     connectionSectionLabel:"LIGAÇÃO AO SERVIDOR", connectionTitleShort:"Endereços e plataformas",
-    javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Bedrock via Geyser · verificação UDP local",
+    javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Minecraft Bedrock",
     versionsHeading:"VERSÕES DETETADAS", versionsTitle:"Software e versões",
     versionsIntro:"Versões lidas diretamente da VM e dos registos do último arranque.",
     kernelLabelShort:"Kernel", dockerEngineLabel:"Motor", containerImageLabel:"Imagem",
@@ -98,7 +98,7 @@ const translations = {
     notAllowed: "Origem não autorizada.", rateLimited: "Demasiados pedidos. Aguarda um minuto antes de voltar a tentar.", incomplete: "Configuração do painel incompleta.",
     requestError: "O pedido não foi aceite. Tenta novamente mais tarde.",
     connectionError: "Erro de comunicação com o serviço.",
-    vmState: "Estado da VM", vmDeallocated: "Servidor desligado", vmRunning: "VM ligada", serverOnline: "Servidor online", vmStopped: "Servidor parado", vmStarting: "A iniciar", vmStopping: "A desligar", vmUnknown: "Estado desconhecido", notChecked: "Não verificado", dockerActive: "Ativo", dockerInactive: "Inativo", containerRunning: "Em execução", containerExited: "Parado", containerNotFound: "Não encontrado", dockerState: "Docker", containerState: "Contentor", portState: "Ligação Java", playerNames: "Jogadores", checkedAt: "Verificado", noPlayers: "Ninguém online", playersProtected: "Privado — mostra o endereço", statusReady: "Estado atualizado.", statusTimeout: "A verificação ainda não terminou. Tenta consultar novamente daqui a pouco.", portOpen: "Acessível", portClosed: "Inacessível"
+    vmState: "Estado da VM", vmDeallocated: "Servidor desligado", vmRunning: "VM ligada", serverOnline: "Servidor online", vmStopped: "Servidor parado", vmStarting: "A iniciar", vmStopping: "A desligar", vmUnknown: "Estado desconhecido", notChecked: "Não verificado", dockerActive: "Ativo", dockerInactive: "Inativo", containerRunning: "Em execução", containerExited: "Parado", containerNotFound: "Não encontrado", dockerState: "Docker", containerState: "Contentor", portState: "Ligação Java", playerNames: "Jogadores", checkedAt: "Verificado", noPlayers: "Ninguém online", playersProtected: "Privado — mostra o endereço", statusReady: "Estado atualizado.", statusTimeout: "A verificação ainda não terminou. Tenta consultar novamente daqui a pouco.", portOpen: "Acessível", portClosed: "Inacessível", bedrockServiceReady: "Serviço ativo · acesso externo não confirmado"
   },
   es: {
     hostedOnAzureLabel:"ALOJADO EN AZURE",
@@ -107,7 +107,7 @@ const translations = {
     architectureIntro:"Desde la infraestructura cloud hasta el servidor de juego y la monitorización.",
     vmStatusLabel:"ESTADO DEL SERVIDOR",
     connectionSectionLabel:"CONEXIÓN AL SERVIDOR", connectionTitleShort:"Direcciones y plataformas",
-    javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Bedrock vía Geyser · comprobación UDP local",
+    javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Minecraft Bedrock",
     versionsHeading:"VERSIONES DETECTADAS", versionsTitle:"Software y versiones",
     versionsIntro:"Versiones obtenidas directamente de la VM y de los registros del último inicio.",
     kernelLabelShort:"Kernel", dockerEngineLabel:"Motor", containerImageLabel:"Imagen",
@@ -187,7 +187,7 @@ const translations = {
     notAllowed: "Origen no autorizado.", rateLimited: "Demasiadas solicitudes. Espera un minuto antes de volver a intentarlo.", incomplete: "La configuración del panel está incompleta.",
     requestError: "No se ha aceptado la solicitud. Inténtalo de nuevo más tarde.",
     connectionError: "Error de comunicación con el servicio.",
-    vmState: "Estado de la VM", vmDeallocated: "Servidor apagado", vmRunning: "VM encendida", serverOnline: "Servidor en línea", vmStopped: "Servidor detenido", vmStarting: "Iniciando", vmStopping: "Apagando", vmUnknown: "Estado desconocido", notChecked: "No comprobado", dockerActive: "Activo", dockerInactive: "Inactivo", containerRunning: "En ejecución", containerExited: "Detenido", containerNotFound: "No encontrado", dockerState: "Docker", containerState: "Contenedor", portState: "Conexión Java", playerNames: "Jugadores", checkedAt: "Comprobado", noPlayers: "Nadie conectado", playersProtected: "Privado — muestra la dirección", statusReady: "Estado actualizado.", statusTimeout: "La comprobación aún no ha terminado. Vuelve a consultar dentro de un momento.", portOpen: "Accesible", portClosed: "Inaccesible"
+    vmState: "Estado de la VM", vmDeallocated: "Servidor apagado", vmRunning: "VM encendida", serverOnline: "Servidor en línea", vmStopped: "Servidor detenido", vmStarting: "Iniciando", vmStopping: "Apagando", vmUnknown: "Estado desconocido", notChecked: "No comprobado", dockerActive: "Activo", dockerInactive: "Inactivo", containerRunning: "En ejecución", containerExited: "Detenido", containerNotFound: "No encontrado", dockerState: "Docker", containerState: "Contenedor", portState: "Conexión Java", playerNames: "Jugadores", checkedAt: "Comprobado", noPlayers: "Nadie conectado", playersProtected: "Privado — muestra la dirección", statusReady: "Estado actualizado.", statusTimeout: "La comprobación aún no ha terminado. Vuelve a consultar dentro de un momento.", portOpen: "Accesible", portClosed: "Inaccesible", bedrockServiceReady: "Servicio activo · acceso externo no confirmado"
   },
   en: {
     hostedOnAzureLabel:"HOSTED ON AZURE",
@@ -196,7 +196,7 @@ const translations = {
     architectureIntro:"From cloud infrastructure to the game server and monitoring.",
     vmStatusLabel:"SERVER STATUS",
     connectionSectionLabel:"SERVER CONNECTION", connectionTitleShort:"Addresses and platforms",
-    javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Bedrock via Geyser · local UDP check",
+    javaEditionLabel:"Minecraft Java Edition", bedrockEditionLabel:"Minecraft Bedrock",
     versionsHeading:"DETECTED VERSIONS", versionsTitle:"Software and versions",
     versionsIntro:"Versions read directly from the VM and the latest startup logs.",
     kernelLabelShort:"Kernel", dockerEngineLabel:"Engine", containerImageLabel:"Image",
@@ -276,7 +276,7 @@ const translations = {
     notAllowed: "Origin not authorized.", rateLimited: "Too many requests. Wait one minute before trying again.", incomplete: "The dashboard is not fully configured.",
     requestError: "The request was not accepted. Please try again later.",
     connectionError: "Communication error with the service.",
-    vmState: "VM state", vmDeallocated: "Server offline", vmRunning: "VM running", serverOnline: "Server online", vmStopped: "Server stopped", vmStarting: "Starting", vmStopping: "Stopping", vmUnknown: "Unknown state", notChecked: "Not checked", dockerActive: "Active", dockerInactive: "Inactive", containerRunning: "Running", containerExited: "Stopped", containerNotFound: "Not found", dockerState: "Docker", containerState: "Container", portState: "Java connection", playerNames: "Players", checkedAt: "Checked", noPlayers: "Nobody online", playersProtected: "Private — reveal the address", statusReady: "Status updated.", statusTimeout: "The check has not finished yet. Please try checking again shortly.", portOpen: "Reachable", portClosed: "Unreachable"
+    vmState: "VM state", vmDeallocated: "Server offline", vmRunning: "VM running", serverOnline: "Server online", vmStopped: "Server stopped", vmStarting: "Starting", vmStopping: "Stopping", vmUnknown: "Unknown state", notChecked: "Not checked", dockerActive: "Active", dockerInactive: "Inactive", containerRunning: "Running", containerExited: "Stopped", containerNotFound: "Not found", dockerState: "Docker", containerState: "Container", portState: "Java connection", playerNames: "Players", checkedAt: "Checked", noPlayers: "Nobody online", playersProtected: "Private — reveal the address", statusReady: "Status updated.", statusTimeout: "The check has not finished yet. Please try checking again shortly.", portOpen: "Reachable", portClosed: "Unreachable", bedrockServiceReady: "Service active · external access unconfirmed"
   }
 };
 
@@ -432,11 +432,13 @@ function renderStatus(result) {
   if (details) {
     const values = [
       [t.portState, result.port_open == null ? t.unknownStatus : result.port_open ? t.portOpen : t.portClosed],
-      [t.bedrockStateLabel, result.geyser_ready === true && result.geyser_udp_ready === true
-        ? t.portOpen
-        : result.geyser_ready === false || result.geyser_udp_ready === false
-          ? t.portClosed
-          : t.unknownStatus],
+      [t.bedrockStateLabel, result.geyser_transport === "nethernet" && result.geyser_ready === true
+        ? t.bedrockServiceReady
+        : result.geyser_ready === true && result.geyser_udp_ready === true
+          ? t.portOpen
+          : result.geyser_ready === false || result.geyser_udp_ready === false
+            ? t.portClosed
+            : t.unknownStatus],
       [t.checkedAt, result.checked_at ? new Date(result.checked_at).toLocaleString(currentLanguage === "pt" ? "pt-PT" : currentLanguage === "es" ? "es-ES" : "en-GB") : "—"]
     ];
     details.replaceChildren();
