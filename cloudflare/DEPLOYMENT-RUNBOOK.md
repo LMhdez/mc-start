@@ -1,22 +1,25 @@
 # MC SERVER — Runbook de publicação controlada do Worker
 
-**Estado:** preparação apenas. Este documento não autoriza nem executa merge, deploy, alterações no Dashboard ou alterações de billing.
+**Estado:** PR #27 merged em 2026-11-01. Preparação de publicação apenas; este documento não autoriza nem executa deploy, alterações no Dashboard ou alterações de billing.
 
 ## 1. Estado verificado em 2026-11-01
 
-- PR #27: aberto, Draft, não merged.
-- Branch: `fix/cloudflare-kv-write-amplification`.
-- Head verificado na última consulta: `bd736349fa1323e896ad6344936dee9beaf92d8a`.
-- CI #41306901778: concluído com sucesso no mesmo commit; job `validate` passou.
+- PR #27: merged e fechado através de squash.
+- Commit de merge em `main`: `4c5eeb40b96571c7834a81a75b457de83c44c54b`.
+- Último commit de código do PR: `9e268325248ff203c51d61ac035d59bcb8ba6a69`.
+- CI do PR #41307451514: sucesso; CI pós-merge #41307597369: sucesso.
+- GitHub Pages build/deploy #41307596601: sucesso.
 - Worker de produção: `mc-start-control`.
-- Configuração ativa: `usage_model = "standard"`, `compatibility_date = "2026-10-30"`.
-- Bindings atuais: os 9 secrets existentes e os bindings `STATUS_KV`, `TECHNICAL_BUCKET` e `MC_AGENT`. A auditoria consultou apenas metadata; nenhum valor secreto foi lido.
-- O binding `R2_BUDGET` ainda não existe em produção.
+- Auditoria read-only da configuração ativa (2026-11-01): `usage_model = "standard"`, `compatibility_date = "2026-10-30"`, `default_usage_model = "standard"`.
+- **Bloqueio de custo:** a documentação Cloudflare associa o uso `standard` ao Workers Paid, cuja subscrição custa no mínimo $5/mês. O modelo Free tem limites próprios. O valor `standard` observado não demonstra que a conta está no Free; pelo contrário, é um sinal de possível plano pago. A ligação de leitura utilizada não conseguiu confirmar a subscrição de billing. Não publicar enquanto o Dashboard não confirmar explicitamente Workers Free e ausência de Workers Paid ativo.
+- Bindings ativos: 9 secrets (metadata apenas) e os 3 bindings `STATUS_KV`, `TECHNICAL_BUCKET` e `MC_AGENT`. Os identificadores de KV e VPC e o nome do bucket correspondem ao `wrangler.toml`; nenhum valor secreto foi consultado.
+- O binding `R2_BUDGET` ainda não existe em produção; a listagem devolveu zero namespaces Durable Objects. A primeira publicação cria a classe/namespace SQLite declarada em `exports`.
 - `workers.dev` está ativo; previews estão desativados.
-- A API de Worker Domains devolveu zero domínios personalizados.
-- Auditoria de Worker Routes (2026-11-01): `GET /zones` devolveu zero zonas acessíveis nesta conta; por isso, não existem zone-level Worker Routes enumeráveis nesta conta. A verificação não abrange domínios/rotas geridos fora desta conta Cloudflare.
-- Foram encontradas 10 deployments anteriores. A mais recente observada foi criada em 2026-11-01 via Dashboard.
-- Não foi feito deploy nem qualquer alteração à configuração de produção.
+- A API devolveu zero domínios personalizados do Worker, zero zonas acessíveis nesta conta e zero custom domains do bucket R2. O domínio gerido `r2.dev` está desativado.
+- O bucket `mc-start-technical` existe em região WEUR e classe Standard.
+- Foram observadas 10 deployments; a mais recente estava a receber 100% do tráfego no momento da auditoria.
+- Não foi feito deploy nem qualquer alteração à configuração de produção ou billing.
+- A verificação local `wrangler deploy --dry-run` permanece pendente: o ambiente de trabalho não conseguiu clonar o repositório devido a falha de resolução DNS do GitHub. O CI atual não executa esse dry-run.
 
 ## 2. Riscos e decisões antes de publicar
 
@@ -38,13 +41,16 @@ A primeira publicação com `[exports.R2Budget]` provisiona um namespace SQLite 
 
 O rollback de uma versão também não reverte o estado de recursos externos como KV, R2 ou Durable Objects.
 
-### 2.3 Free Tier
+### 2.3 Free Tier — bloqueio obrigatório
 
-- Não alterar o plano, método de pagamento, billing, usage model ou funcionalidades pagas.
-- Manter `usage_model = "standard"`.
-- Não ativar Workers Paid, R2 Infrequent Access, domínios públicos, `r2.dev`, Logpush ou serviços pagos.
-- Os limites R2 implementados são um orçamento interno deste Worker, não um limite de despesa da conta.
-- Se o Dashboard indicar que a operação exige upgrade, pagamento ou ativação de um produto pago, cancelar o procedimento.
+- O Workers Free e o Workers Paid são planos diferentes. A documentação atual indica que o Workers Paid tem um custo mínimo de $5 USD/mês; o Workers Free usa limites próprios. O modelo `standard` está associado ao Workers Paid.
+- A configuração ativa devolve `usage_model = "standard"` e o default da conta também é `standard`. Não assumir que isto é Free.
+- Antes de qualquer deploy, confirmar visualmente no Dashboard que o plano ativo é **Workers Free**, que não existe subscrição Workers Paid e que não há alteração pendente de billing. Se não for possível confirmar sem alterar billing, parar.
+- Não alterar plano, método de pagamento, billing, usage model ou funcionalidades pagas neste procedimento.
+- Não executar qualquer ação de upgrade/downgrade, ativação, trial, top-up ou subscription.
+- Não ativar R2 Infrequent Access, domínios públicos, `r2.dev`, Logpush ou serviços pagos.
+- O orçamento R2 no Worker é um limite interno e não um limite de despesa da conta.
+- Se o Dashboard indicar que o procedimento exige pagamento, upgrade ou ativação de um produto pago, cancelar.
 
 ## 3. Preflight — só leitura e testes locais
 
@@ -61,15 +67,15 @@ Executar a partir de uma cópia limpa do repositório, na branch que foi aprovad
    npm install --legacy-peer-deps --no-audit --no-fund
    npm run test:cloudflare
    ```
-   Nota: o PR ainda não inclui `package-lock.json`; por isso, `npm ci` não é utilizável nesta branch. A ausência do lockfile também significa que as dependências transitivas não ficam totalmente fixadas. Recomenda-se adicionar e versionar um lockfile antes de considerar a validação reprodutível.
+   Nota: `package-lock.json` não existe em `main`; por isso, `npm ci` não é utilizável. A ausência do lockfile significa que as dependências transitivas não ficam totalmente fixadas. Recomenda-se adicionar e versionar um lockfile antes de considerar a validação reprodutível. O CI passou, mas não executa `wrangler deploy --dry-run`.
 4. Validar o bundle/configuração sem publicar:
    ```sh
    npx wrangler deploy --config cloudflare/wrangler.toml --dry-run
    ```
 5. Se qualquer comando pedir para criar recursos, ativar billing ou mudar para um plano pago, responder não/cancelar.
 6. Confirmar manualmente no Dashboard, sem alterar nada:
-   - plano continua Free;
-   - `usage_model` continua `standard`;
+   - plano está explicitamente em Workers Free e não existe Workers Paid ativo;
+   - o modelo de utilização não está configurado como Standard/Paid;
    - bindings ativos continuam a corresponder ao TOML;
    - os 9 secrets continuam presentes (confirmar apenas nomes/metadata; nunca valores);
    - `workers.dev` continua ativo;
@@ -77,7 +83,7 @@ Executar a partir de uma cópia limpa do repositório, na branch que foi aprovad
    - bucket R2 continua Standard e privado;
    - não existem alterações inesperadas ao Worker desde a auditoria.
 
-**Bloqueios ainda ativos:** apesar de a listagem de zonas não devolver zonas e o CI estar verde, não publicar sem nova confirmação imediatamente antes do deploy de que os bindings ativos continuam a corresponder ao TOML e de que não surgiram triggers/domínios novos.
+**Bloqueios ativos:** (1) confirmar Workers Free e ausência de Workers Paid ativo; (2) executar e aprovar `wrangler deploy --dry-run` a partir de checkout limpo; (3) confirmar novamente os bindings, secrets, triggers e domínios imediatamente antes do deploy. O CI verde não substitui estas verificações.
 
 ## 4. Registo de backup antes do deploy
 
@@ -95,7 +101,7 @@ Não usar um dump de settings com valores secretos como backup. Não copiar secr
 
 **Não executar esta secção sem autorização explícita para publicar em produção.** O merge do PR e o deploy são decisões separadas.
 
-Depois de o PR ser revisto e merged, confirmar que `main` contém exatamente o commit aprovado e repetir os passos de preflight. Só então, com autorização explícita, executar:
+O PR #27 já está merged. Antes de publicar, confirmar que `main` contém o commit de merge aprovado e repetir todos os passos de preflight. Só depois de os bloqueios Free Tier estarem resolvidos e de existir autorização explícita para produção, executar:
 
 ```sh
 npx wrangler deploy --config cloudflare/wrangler.toml
@@ -112,7 +118,7 @@ Sem imprimir payloads sensíveis:
 1. Confirmar no Dashboard que a nova deployment está ativa e recebe 100% do tráfego.
 2. Confirmar que os bindings `STATUS_KV`, `TECHNICAL_BUCKET`, `MC_AGENT` e `R2_BUDGET` existem e apontam para os recursos esperados.
 3. Confirmar que os 9 secrets continuam presentes por metadata, sem consultar valores.
-4. Confirmar que `usage_model` continua `standard`, `compatibility_date` continua `2026-10-30`, `workers.dev` continua ativo e routes/domínios não foram alterados.
+4. Confirmar que o plano continua Workers Free (não Workers Paid), que não houve qualquer alteração de billing, que a configuração de utilização está no estado Free permitido, `compatibility_date` continua `2026-10-30`, `workers.dev` continua ativo e routes/domínios não foram alterados.
 5. Testar os endpoints públicos:
    - `GET /api/public/status`
    - `GET /api/technical`
@@ -134,10 +140,11 @@ Se qualquer verificação falhar, parar os testes e não atualizar o agente priv
 
 ## 8. Critério para considerar a publicação concluída
 
-Só considerar concluído quando os testes pós-deploy passarem, os bindings/secrets e triggers estiverem preservados, o plano permanecer Free/Standard, os endpoints públicos e o fluxo privado de estado funcionarem e não houver consumo inesperado de R2/DO.
+Só considerar concluído quando os testes pós-deploy passarem, os bindings/secrets e triggers estiverem preservados, Workers Free estiver confirmado sem Workers Paid ou custos adicionais, os endpoints públicos e o fluxo privado de estado funcionarem e não houver consumo inesperado de R2/DO.
 
 ## Referências oficiais
 
+- [Workers pricing and Free/Paid plan distinction](https://developers.cloudflare.com/workers/platform/pricing/)
 - [Wrangler configuration](https://developers.cloudflare.com/workers/wrangler/configuration/)
 - [Wrangler deploy command](https://developers.cloudflare.com/workers/wrangler/commands/workers/)
 - [Durable Object class exports](https://developers.cloudflare.com/durable-objects/reference/durable-objects-migrations/)
