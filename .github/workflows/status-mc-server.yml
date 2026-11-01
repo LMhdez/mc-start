@@ -237,13 +237,16 @@ jobs:
             --arg checked "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             '{vm:$vm,ip:$ip,port_open:$port,docker:$docker,container:$container,players:$players,player_names:$names,access_method:$access_method,checked_at:$checked}')
 
-          echo "status_json=$RESULT" >> "$GITHUB_OUTPUT"
+          # Keep private status data in a runner-local file, not step outputs.
+          # GitHub Actions may expose step outputs in diagnostic logs.
+          STATUS_FILE="$RUNNER_TEMP/mc-status-result.json"
+          (umask 077; printf '%s' "$RESULT" > "$STATUS_FILE")
 
       - name: Cifrar e enviar resultado temporário
         env:
           ACCESS_PASSWORD: ${{ secrets.ACCESS_PASSWORD }}
           REQUEST_ID: ${{ inputs.request_id }}
-          STATUS_JSON: ${{ steps.status.outputs.status_json }}
+          STATUS_FILE: ${{ runner.temp }}/mc-status-result.json
           WORKER_URL: "https://mc-start-control.luismariohernandezsantos.workers.dev"
 
         shell: bash
@@ -252,9 +255,13 @@ jobs:
 
           node <<'NODE'
           const crypto = require("crypto");
+          const fs = require("fs");
 
           (async () => {
             const password = process.env.ACCESS_PASSWORD;
+            const statusJson = fs.readFileSync(process.env.STATUS_FILE, "utf8");
+            fs.unlinkSync(process.env.STATUS_FILE);
+            JSON.parse(statusJson);
 
             if (!password || password.length < 20) {
               throw new Error("Falta configurar o secret ACCESS_PASSWORD no GitHub.");
@@ -268,7 +275,7 @@ jobs:
             const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
 
             const encrypted = Buffer.concat([
-              cipher.update(process.env.STATUS_JSON, "utf8"),
+              cipher.update(statusJson, "utf8"),
               cipher.final(),
               cipher.getAuthTag()
             ]);
@@ -290,7 +297,9 @@ jobs:
             });
 
             if (!response.ok) {
-              throw new Error("O Worker recusou o resultado (" + response.status + ").");
+              const responseBody = await response.json().catch(() => null);
+              const code = typeof responseBody?.code === "string" ? responseBody.code : "unknown";
+              throw new Error("O Worker recusou o resultado (HTTP " + response.status + "; " + code + ").");
             }
 
             console.log("Resultado enviado e guardado temporariamente.");
