@@ -1,3 +1,5 @@
+import { DurableObject } from "cloudflare:workers";
+
 const REPO = "LMhdez/mc-start";
 const API_VERSION = "2022-11-28";
 const STATUS_TTL = 300;
@@ -8,30 +10,16 @@ const CALLBACK_RATE_LIMIT = 10;
 const MAX_JSON_BYTES = 64 * 1024;
 const TECHNICAL_KV_KEY = "technical:public";
 const TECHNICAL_R2_KEY = "technical/latest.json";
-// Conservative per-isolate R2 safety budgets. These are NOT account-wide quotas.
-const R2_DAILY_READ_BUDGET = 500; // Class B attempts per isolate / UTC day.
-const R2_DAILY_WRITE_BUDGET = 10; // Class A attempts per isolate / UTC day.
+// Global R2 budgets are enforced by the persistent SQLite-backed Durable Object.
+const R2_DAILY_READ_BUDGET = 3000;
+const R2_MONTHLY_READ_BUDGET = 90000;
+const R2_DAILY_WRITE_BUDGET = 10;
+const R2_MONTHLY_WRITE_BUDGET = 300;
 const R2_MAX_OBJECT_BYTES = 256 * 1024;
 const R2_LOCAL_CACHE_TTL_MS = 60 * 1000;
+const R2_MIGRATION_BACKOFF_MS = 60 * 1000;
 const localRateLimitFallback = new Map();
-let r2BudgetDay = "";
-let r2Budget = { reads: 0, writes: 0 };
 let r2SnapshotCache = { loaded: false, snapshot: null, serialized: null, expiresAt: 0 };
-let r2MigrationRetryAfter = 0;
-
-function reserveR2Operation(kind) {
-  const today = new Date().toISOString().slice(0, 10);
-  if (today !== r2BudgetDay) {
-    r2BudgetDay = today;
-    r2Budget = { reads: 0, writes: 0 };
-  }
-  const field = kind === "read" ? "reads" : "writes";
-  const limit = kind === "read" ? R2_DAILY_READ_BUDGET : R2_DAILY_WRITE_BUDGET;
-  if (r2Budget[field] >= limit) return false;
-  // Count attempts before calling R2, including failed requests.
-  r2Budget[field] += 1;
-  return true;
-}
 
 function checkLocalRateLimit(request, scope, limit, now) {
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
@@ -151,55 +139,39 @@ function checkRateLimit(_env, request, scope = "action", limit = RATE_LIMIT) {
   return checkLocalRateLimit(request, scope, limit, now);
 }
 
+function getR2BudgetStub(env) {
+  if (!env.R2_BUDGET) return null;
+  return env.R2_BUDGET.getByName("mc-start-r2-global-budget");
+}
+
 async function readTechnicalSnapshot(env) {
-  if (env.TECHNICAL_BUCKET) {
+  if (env.TECHNICAL_BUCKET && env.R2_BUDGET) {
     const now = Date.now();
 
-    // Reuse the last result in this isolate to avoid one R2 GET per page request.
+    // Local cache reduces Durable Object and R2 requests; it is never the budget authority.
     if (r2SnapshotCache.loaded && r2SnapshotCache.expiresAt > now) {
       if (r2SnapshotCache.snapshot) return r2SnapshotCache.snapshot;
-    } else if (reserveR2Operation("read")) {
-      try {
-        const object = await env.TECHNICAL_BUCKET.get(TECHNICAL_R2_KEY);
-        let snapshot = null;
-        let serialized = null;
-        if (object) {
-          if (Number.isFinite(object.size) && object.size > R2_MAX_OBJECT_BYTES) {
-            console.error("Snapshot tecnico em R2 excede o limite de tamanho.");
-          } else {
-            serialized = await object.text();
-            if (new TextEncoder().encode(serialized).byteLength <= R2_MAX_OBJECT_BYTES) {
-              try {
-                const parsed = JSON.parse(serialized);
-                if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-                  snapshot = parsed;
-                }
-              } catch {
-                console.error("Snapshot tecnico em R2 invalido.");
-              }
-            } else {
-              console.error("Snapshot tecnico em R2 excede o limite de tamanho.");
-            }
-          }
-        }
-        r2SnapshotCache = {
-          loaded: true,
-          snapshot,
-          serialized: snapshot ? serialized : null,
-          expiresAt: now + R2_LOCAL_CACHE_TTL_MS
-        };
-        if (snapshot) return snapshot;
-      } catch {
-        console.error("Leitura do snapshot tecnico em R2 indisponivel.");
-        r2SnapshotCache = {
-          loaded: true, snapshot: null, serialized: null,
-          expiresAt: now + R2_LOCAL_CACHE_TTL_MS
-        };
-      }
     } else {
-      console.warn("Orcamento diario local de leituras R2 esgotado; a usar fallback.");
-      // If this isolate still has an older snapshot, retain it as stale fallback.
-      if (r2SnapshotCache.snapshot) return r2SnapshotCache.snapshot;
+      try {
+        const result = await getR2BudgetStub(env).readSnapshot();
+        if (result && result.ok) {
+          r2SnapshotCache = {
+            loaded: true,
+            snapshot: result.snapshot || null,
+            serialized: result.snapshot ? result.serialized : null,
+            expiresAt: now + R2_LOCAL_CACHE_TTL_MS
+          };
+          if (result.snapshot) return result.snapshot;
+        } else {
+          console.warn("Durable Object recusou ou nao conseguiu ler o snapshot R2; a usar fallback.");
+          // Preserve a previously loaded snapshot as stale fallback if the global budget is exhausted.
+          if (r2SnapshotCache.snapshot) return r2SnapshotCache.snapshot;
+        }
+      } catch {
+        // Fail closed for R2: no direct R2 call is made when the budget authority is unavailable.
+        console.error("Controlo global R2 indisponivel; a usar fallback KV/cache.");
+        if (r2SnapshotCache.snapshot) return r2SnapshotCache.snapshot;
+      }
     }
   }
 
@@ -223,30 +195,23 @@ async function readTechnicalSnapshot(env) {
   }
   if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) return null;
 
-  // Seed R2 only if the object is still absent and the local write budget allows it.
-  if (env.TECHNICAL_BUCKET) {
+  // Migrate the legacy KV snapshot through the same global R2 budget authority.
+  if (env.TECHNICAL_BUCKET && env.R2_BUDGET) {
     const serialized = JSON.stringify(snapshot);
     if (new TextEncoder().encode(serialized).byteLength > R2_MAX_OBJECT_BYTES) {
       console.error("Snapshot tecnico excede o limite de tamanho para R2.");
-    } else if (Date.now() < r2MigrationRetryAfter) {
-      // Avoid retrying a failed/contended conditional migration on every request.
-    } else if (reserveR2Operation("write")) {
-      // Back off even when the R2 request fails; attempts are already budgeted.
-      r2MigrationRetryAfter = Date.now() + R2_LOCAL_CACHE_TTL_MS;
+    } else {
       try {
-        await env.TECHNICAL_BUCKET.put(TECHNICAL_R2_KEY, serialized, {
-          onlyIf: { etagDoesNotMatch: "*" },
-          httpMetadata: { contentType: "application/json; charset=utf-8" }
-        });
-        r2SnapshotCache = {
-          loaded: true, snapshot, serialized,
-          expiresAt: Date.now() + R2_LOCAL_CACHE_TTL_MS
-        };
+        const result = await getR2BudgetStub(env).writeSnapshot(serialized, true);
+        if (result && result.ok && result.written) {
+          r2SnapshotCache = {
+            loaded: true, snapshot, serialized,
+            expiresAt: Date.now() + R2_LOCAL_CACHE_TTL_MS
+          };
+        }
       } catch {
         console.error("Migracao do snapshot tecnico para R2 indisponivel.");
       }
-    } else {
-      console.warn("Orcamento diario local de escritas R2 esgotado; migracao adiada.");
     }
   }
   return snapshot;
@@ -258,29 +223,30 @@ async function writeTechnicalSnapshot(env, snapshot) {
   if (size > R2_MAX_OBJECT_BYTES) {
     throw new Error("Technical snapshot exceeds the R2 object size safety limit");
   }
-  if (env.TECHNICAL_BUCKET) {
-    // Avoid rewriting an identical snapshot already read/written in this isolate.
+
+  if (env.TECHNICAL_BUCKET && env.R2_BUDGET) {
+    // Avoid a write only when this isolate already holds the exact same snapshot.
     if (r2SnapshotCache.loaded && r2SnapshotCache.serialized === serialized) {
       r2SnapshotCache.expiresAt = Date.now() + R2_LOCAL_CACHE_TTL_MS;
       return;
     }
-    if (!reserveR2Operation("write")) {
-      throw new Error("Local daily R2 write budget exhausted");
+    const result = await getR2BudgetStub(env).writeSnapshot(serialized, false);
+    if (result && result.ok && result.written) {
+      r2SnapshotCache = {
+        loaded: true, snapshot, serialized,
+        expiresAt: Date.now() + R2_LOCAL_CACHE_TTL_MS
+      };
+      return;
     }
-    await env.TECHNICAL_BUCKET.put(TECHNICAL_R2_KEY, serialized, {
-      httpMetadata: { contentType: "application/json; charset=utf-8" }
-    });
-    r2SnapshotCache = {
-      loaded: true, snapshot, serialized,
-      expiresAt: Date.now() + R2_LOCAL_CACHE_TTL_MS
-    };
-    return;
+    // A missing/unavailable global budget must never be bypassed by calling R2 directly.
+    console.warn("Escrita R2 nao autorizada; a tentar fallback KV.");
   }
+
   if (env.STATUS_KV) {
     await env.STATUS_KV.put(TECHNICAL_KV_KEY, serialized);
     return;
   }
-  throw new Error("No technical cache binding is configured");
+  throw new Error("No authorized technical cache binding is available");
 }
 
 async function dispatchWorkflow(env, file, inputs) {
@@ -388,6 +354,140 @@ async function callPrivateAgent(env, path, method = "GET") {
   const data = await response.json();
   if (!data || data.ok !== true) throw new Error("Private MC agent rejected the request");
   return data;
+}
+
+export class R2Budget extends DurableObject {
+  constructor(ctx, env) {
+    super(ctx, env);
+    // SQLite state is the single persistent source of truth for all Worker isolates.
+    this.ctx.storage.sql.exec(`
+      CREATE TABLE IF NOT EXISTS r2_budget (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        day_key TEXT NOT NULL,
+        month_key TEXT NOT NULL,
+        daily_reads INTEGER NOT NULL DEFAULT 0,
+        monthly_reads INTEGER NOT NULL DEFAULT 0,
+        daily_writes INTEGER NOT NULL DEFAULT 0,
+        monthly_writes INTEGER NOT NULL DEFAULT 0,
+        migration_retry_after INTEGER NOT NULL DEFAULT 0
+      )
+    `);
+    this.ctx.storage.sql.exec(
+      "INSERT OR IGNORE INTO r2_budget (id, day_key, month_key) VALUES (1, '', '')"
+    );
+  }
+
+  reserveOperation(kind) {
+    const now = new Date();
+    const day = now.toISOString().slice(0, 10);
+    const month = day.slice(0, 7);
+    const isRead = kind === "read";
+    const dailyLimit = isRead ? R2_DAILY_READ_BUDGET : R2_DAILY_WRITE_BUDGET;
+    const monthlyLimit = isRead ? R2_MONTHLY_READ_BUDGET : R2_MONTHLY_WRITE_BUDGET;
+    const dailyColumn = isRead ? "daily_reads" : "daily_writes";
+    const monthlyColumn = isRead ? "monthly_reads" : "monthly_writes";
+    const dailyIncrement = isRead ? 1 : 0;
+    const dailyWriteIncrement = isRead ? 0 : 1;
+    const monthlyIncrement = isRead ? 1 : 0;
+    const monthlyWriteIncrement = isRead ? 0 : 1;
+
+    // One conditional SQLite UPDATE atomically checks and reserves both periods.
+    const sql = `
+      UPDATE r2_budget
+      SET day_key = ?,
+          month_key = ?,
+          daily_reads = CASE WHEN day_key = ? THEN daily_reads ELSE 0 END + ?,
+          daily_writes = CASE WHEN day_key = ? THEN daily_writes ELSE 0 END + ?,
+          monthly_reads = CASE WHEN month_key = ? THEN monthly_reads ELSE 0 END + ?,
+          monthly_writes = CASE WHEN month_key = ? THEN monthly_writes ELSE 0 END + ?
+      WHERE id = 1
+        AND (CASE WHEN day_key = ? THEN ${dailyColumn} ELSE 0 END) < ?
+        AND (CASE WHEN month_key = ? THEN ${monthlyColumn} ELSE 0 END) < ?
+      RETURNING id
+    `;
+    const rows = this.ctx.storage.sql.exec(
+      sql,
+      day, month,
+      day, dailyIncrement,
+      day, dailyWriteIncrement,
+      month, monthlyIncrement,
+      month, monthlyWriteIncrement,
+      day, dailyLimit,
+      month, monthlyLimit
+    ).toArray();
+    return rows.length === 1;
+  }
+
+  async readSnapshot() {
+    if (!this.env.TECHNICAL_BUCKET) return { ok: false, reason: "r2_unbound" };
+    if (!this.reserveOperation("read")) return { ok: false, reason: "budget_exhausted" };
+
+    try {
+      const object = await this.env.TECHNICAL_BUCKET.get(TECHNICAL_R2_KEY);
+      if (!object) return { ok: true, snapshot: null, serialized: null };
+      if (Number.isFinite(object.size) && object.size > R2_MAX_OBJECT_BYTES) {
+        return { ok: false, reason: "object_too_large" };
+      }
+
+      const serialized = await object.text();
+      if (new TextEncoder().encode(serialized).byteLength > R2_MAX_OBJECT_BYTES) {
+        return { ok: false, reason: "object_too_large" };
+      }
+      let snapshot;
+      try {
+        snapshot = JSON.parse(serialized);
+      } catch {
+        return { ok: false, reason: "invalid_json" };
+      }
+      if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) {
+        return { ok: false, reason: "invalid_snapshot" };
+      }
+      return { ok: true, snapshot, serialized };
+    } catch {
+      return { ok: false, reason: "r2_unavailable" };
+    }
+  }
+
+  async writeSnapshot(serialized, onlyIfAbsent = false) {
+    if (!this.env.TECHNICAL_BUCKET) return { ok: false, reason: "r2_unbound" };
+    if (typeof serialized !== "string" ||
+        new TextEncoder().encode(serialized).byteLength > R2_MAX_OBJECT_BYTES) {
+      return { ok: false, reason: "object_too_large" };
+    }
+
+    const now = Date.now();
+    if (onlyIfAbsent) {
+      const retry = this.ctx.storage.sql.exec(
+        "SELECT migration_retry_after FROM r2_budget WHERE id = 1"
+      ).one().migration_retry_after;
+      if (now < retry) return { ok: true, written: false, skipped: true };
+    }
+
+    if (!this.reserveOperation("write")) {
+      return { ok: false, reason: "budget_exhausted" };
+    }
+
+    if (onlyIfAbsent) {
+      // Persist a global backoff before external I/O to prevent repeated conditional PUTs.
+      this.ctx.storage.sql.exec(
+        "UPDATE r2_budget SET migration_retry_after = ? WHERE id = 1",
+        now + R2_MIGRATION_BACKOFF_MS
+      );
+    }
+
+    try {
+      const options = {
+        httpMetadata: { contentType: "application/json; charset=utf-8" }
+      };
+      if (onlyIfAbsent) options.onlyIf = { etagDoesNotMatch: "*" };
+      const result = await this.env.TECHNICAL_BUCKET.put(
+        TECHNICAL_R2_KEY, serialized, options
+      );
+      return { ok: true, written: result !== null };
+    } catch {
+      return { ok: false, reason: "r2_unavailable" };
+    }
+  }
 }
 
 export default {
