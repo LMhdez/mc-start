@@ -197,6 +197,8 @@ async function readTechnicalSnapshot(env) {
       }
     } else {
       console.warn("Orcamento diario local de leituras R2 esgotado; a usar fallback.");
+      // If this isolate still has an older snapshot, retain it as stale fallback.
+      if (r2SnapshotCache.snapshot) return r2SnapshotCache.snapshot;
     }
   }
 
@@ -221,9 +223,11 @@ async function readTechnicalSnapshot(env) {
   if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) return null;
 
   // Seed R2 only if the object is still absent and the local write budget allows it.
-  if (env.TECHNICAL_BUCKET && reserveR2Operation("write")) {
+  if (env.TECHNICAL_BUCKET) {
     const serialized = JSON.stringify(snapshot);
-    if (new TextEncoder().encode(serialized).byteLength <= R2_MAX_OBJECT_BYTES) {
+    if (new TextEncoder().encode(serialized).byteLength > R2_MAX_OBJECT_BYTES) {
+      console.error("Snapshot tecnico excede o limite de tamanho para R2.");
+    } else if (reserveR2Operation("write")) {
       try {
         await env.TECHNICAL_BUCKET.put(TECHNICAL_R2_KEY, serialized, {
           onlyIf: { etagDoesNotMatch: "*" },
@@ -237,10 +241,8 @@ async function readTechnicalSnapshot(env) {
         console.error("Migracao do snapshot tecnico para R2 indisponivel.");
       }
     } else {
-      console.error("Snapshot tecnico excede o limite de tamanho para R2.");
+      console.warn("Orcamento diario local de escritas R2 esgotado; migracao adiada.");
     }
-  } else if (env.TECHNICAL_BUCKET) {
-    console.warn("Orcamento diario local de escritas R2 esgotado; migracao adiada.");
   }
   return snapshot;
 }
