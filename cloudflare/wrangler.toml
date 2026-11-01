@@ -19,6 +19,6 @@ service_id = "01a18f6e-5b33-7c12-b309-7a22498c0a64"
 name = "R2_BUDGET"
 class_name = "R2Budget"
 
-[[migrations]]
-tag = "v1"
-new_sqlite_classes = ["R2Budget"]
+[exports.R2Budget]
+type = "durable-object"
+storage = "sqlite"
