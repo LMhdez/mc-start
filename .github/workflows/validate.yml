@@ -21,7 +21,7 @@ jobs:
           node --check cloudflare/worker.js
 
       - name: Install local test dependencies
-        run: npm install --no-audit --no-fund
+        run: npm install --legacy-peer-deps --no-audit --no-fund
 
       - name: Test Durable Object budgets and R2 behavior
         run: npm run test:cloudflare
