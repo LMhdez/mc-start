@@ -20,6 +20,7 @@ const R2_LOCAL_CACHE_TTL_MS = 60 * 1000;
 const R2_MIGRATION_BACKOFF_MS = 60 * 1000;
 const localRateLimitFallback = new Map();
 let r2SnapshotCache = { loaded: false, snapshot: null, serialized: null, expiresAt: 0 };
+let r2MigrationRetryAfter = 0;
 
 function checkLocalRateLimit(request, scope, limit, now) {
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
@@ -200,7 +201,9 @@ async function readTechnicalSnapshot(env) {
     const serialized = JSON.stringify(snapshot);
     if (new TextEncoder().encode(serialized).byteLength > R2_MAX_OBJECT_BYTES) {
       console.error("Snapshot tecnico excede o limite de tamanho para R2.");
-    } else {
+    } else if (Date.now() >= r2MigrationRetryAfter) {
+      // Local backoff avoids unnecessary DO calls; the authoritative backoff is persisted in SQLite.
+      r2MigrationRetryAfter = Date.now() + R2_MIGRATION_BACKOFF_MS;
       try {
         const result = await getR2BudgetStub(env).writeSnapshot(serialized, true);
         if (result && result.ok && result.written) {
