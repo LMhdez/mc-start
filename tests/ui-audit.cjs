@@ -84,8 +84,23 @@ async function main() {
     // Start from the password field, then move backwards once to include
     // the language selector before traversing the complete sequence forwards.
     await page.keyboard.press("Shift+Tab");
+    const previousFocus = await page.evaluate(() => {
+      const element = document.activeElement;
+      const style = getComputedStyle(element);
+      return {
+        id: element.id,
+        tag: element.tagName.toLowerCase(),
+        outlineStyle: style.outlineStyle,
+        outlineWidth: style.outlineWidth
+      };
+    });
+    if (previousFocus.id !== "language-select" ||
+        previousFocus.outlineStyle === "none" || previousFocus.outlineWidth === "0px") {
+      failures.push("Keyboard reverse traversal did not reach language selector: " +
+        JSON.stringify(previousFocus));
+    }
 
-    const focusedControls = new Set();
+    const focusedControls = new Set(previousFocus.id ? [previousFocus.id] : []);
     for (let index = 0; index < 40; index++) {
       await page.keyboard.press("Tab");
       const focus = await page.evaluate(() => {
