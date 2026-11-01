@@ -335,8 +335,8 @@ export default {
         if (stored) {
           try { cached = JSON.parse(stored); }
           catch {
-            try { await env.STATUS_KV.delete(cacheKey); }
-            catch (error) { console.error("Inventario tecnico em cache invalido:", error.message); }
+            // Treat invalid cache data as a miss. A valid snapshot will replace it
+            // after the private agent returns a complete inventory; no KV delete is needed.
           }
         }
       } catch (error) {
@@ -441,7 +441,8 @@ export default {
       const key = "status:" + body.request_id;
       const stored = await env.STATUS_KV.get(key);
       if (!stored) return json({ ok: false, pending: true }, 202, origin);
-      await env.STATUS_KV.delete(key);
+      // Keep the encrypted result until its 5-minute TTL expires. Reads are
+      // idempotent and avoid a KV delete write on every completed status request.
       try {
         const result = await decryptStatus(JSON.parse(stored), env.ACCESS_PASSWORD);
         return json({ ok: true, result }, 200, origin);
@@ -470,7 +471,8 @@ export default {
     let message;
     if (body.action === "status") {
       if (!validRequestId(body.request_id)) return json({ ok: false, message: "Pedido invalido." }, 400, origin);
-      await env.STATUS_KV.delete("status:" + body.request_id);
+      // request_id is a fresh UUID; an old result cannot collide with this request.
+      // The previous result, if any, expires automatically after STATUS_TTL.
 
       // Primeiro consulta diretamente Azure. Se a VM estiver ligada, tenta o agente privado.
       try {
