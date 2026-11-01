@@ -90,12 +90,7 @@ const translations = {
     searchingPrivate: "A consultar o estado privado do servidor através do Cloudflare Tunnel...",
     checkingPrivate: "Pedido enviado. A aguardar pelo resultado da verificação...",
     serverInitializing: "A preparar as ligações Java e Bedrock…",
-    bedrockStateLabel: "Bedrock · estado do Geyser",
-    bedrockReady: "Geyser ativo",
-    bedrockUdpReady: "Resposta RakNet local confirmada · externo não testado", bedrockUdpFailed: "Sem resposta RakNet local · externo não testado", bedrockUdpNoListener: "Geyser sem socket UDP na porta 19132", bedrockUdpListenerNoPong: "Socket UDP ativo, mas sem resposta RakNet", bedrockUdpUnknown: "Teste UDP local indisponível",
-    bedrockInitializing: "A preparar",
-    bedrockOffline: "VM desligada",
-    bedrockUnavailable: "Não confirmada",
+    bedrockStateLabel: "Bedrock",
     startComplete: "Servidor online. O serviço Minecraft está pronto; a ligação Bedrock externa não foi testada.",
     stopComplete: "Servidor desligado. A VM foi desalocada na Azure.",
     operationTimeout: "O pedido foi aceite, mas a operação ainda não terminou. O estado mais recente está apresentado acima. Consulta novamente daqui a pouco.",
@@ -184,12 +179,7 @@ const translations = {
     searchingPrivate: "Consultando el estado privado del servidor a través de Cloudflare Tunnel...",
     checkingPrivate: "Solicitud enviada. Esperando el resultado de la comprobación...",
     serverInitializing: "Preparando las conexiones Java y Bedrock…",
-    bedrockStateLabel: "Bedrock · estado de Geyser",
-    bedrockReady: "Geyser activo",
-    bedrockUdpReady: "Respuesta RakNet local confirmada · externo sin probar", bedrockUdpFailed: "Sin respuesta RakNet local · externo sin probar", bedrockUdpNoListener: "Geyser sin socket UDP en el puerto 19132", bedrockUdpListenerNoPong: "Socket UDP activo, pero sin respuesta RakNet", bedrockUdpUnknown: "Prueba UDP local no disponible",
-    bedrockInitializing: "Preparando",
-    bedrockOffline: "VM apagada",
-    bedrockUnavailable: "No confirmada",
+    bedrockStateLabel: "Bedrock",
     startComplete: "Servidor en línea. Minecraft está listo; la conexión Bedrock externa no se ha probado.",
     stopComplete: "Servidor apagado. La VM se ha desasignado en Azure.",
     operationTimeout: "La solicitud fue aceptada, pero la operación aún no ha terminado. El último estado aparece arriba. Vuelve a consultar dentro de un momento.",
@@ -278,12 +268,7 @@ const translations = {
     searchingPrivate: "Checking the private server status through Cloudflare Tunnel...",
     checkingPrivate: "Request sent. Waiting for the status result...",
     serverInitializing: "Preparing Java and Bedrock connections…",
-    bedrockStateLabel: "Bedrock · Geyser status",
-    bedrockReady: "Geyser active",
-    bedrockUdpReady: "RakNet responds locally · external access untested", bedrockUdpFailed: "No local RakNet response · external access untested", bedrockUdpNoListener: "Geyser has no UDP socket on port 19132", bedrockUdpListenerNoPong: "UDP socket is listening, but RakNet did not respond", bedrockUdpUnknown: "Local UDP check unavailable",
-    bedrockInitializing: "Starting",
-    bedrockOffline: "VM offline",
-    bedrockUnavailable: "Not confirmed",
+    bedrockStateLabel: "Bedrock",
     startComplete: "Server online. Minecraft is ready; external Bedrock connectivity has not been tested.",
     stopComplete: "Server stopped. The VM has been deallocated in Azure.",
     operationTimeout: "The request was accepted, but the operation has not finished yet. The latest status is shown above. Check again shortly.",
@@ -447,11 +432,11 @@ function renderStatus(result) {
   if (details) {
     const values = [
       [t.portState, result.port_open == null ? t.unknownStatus : result.port_open ? t.portOpen : t.portClosed],
-      [t.bedrockStateLabel, result.geyser_ready === true
-        ? `${t.bedrockReady} · ${result.geyser_udp_ready === true ? t.bedrockUdpReady : result.geyser_udp_ready === false ? (result.geyser_udp_diagnostic === "no_udp_listener_19132" ? t.bedrockUdpNoListener : result.geyser_udp_diagnostic === "udp_listener_no_raknet_pong" ? t.bedrockUdpListenerNoPong : t.bedrockUdpFailed) : t.bedrockUdpUnknown}`
-        : result.vm === "VM deallocated" || result.vm === "VM stopped" ? t.bedrockOffline
-        : result.vm === "VM starting" || (result.vm === "VM running" && (result.geyser_state === "initializing" || result.geyser_ready === false)) ? t.bedrockInitializing
-        : t.bedrockUnavailable],
+      [t.bedrockStateLabel, result.geyser_ready === true && result.geyser_udp_ready === true
+        ? t.portOpen
+        : result.geyser_ready === false || result.geyser_udp_ready === false
+          ? t.portClosed
+          : t.unknownStatus],
       [t.checkedAt, result.checked_at ? new Date(result.checked_at).toLocaleString(currentLanguage === "pt" ? "pt-PT" : currentLanguage === "es" ? "es-ES" : "en-GB") : "—"]
     ];
     details.replaceChildren();
