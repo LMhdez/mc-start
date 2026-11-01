@@ -236,19 +236,21 @@ async function writeTechnicalSnapshot(env, snapshot) {
       };
       return;
     }
-    // Never bypass the global budget by calling R2 directly.
-    if (result) console.warn("Escrita R2 nao autorizada; a tentar fallback KV.");
+    // Never bypass the global budget by calling R2 directly or falling back
+    // to a KV write: doing so could exhaust the very quota this path protects.
+    if (result) console.warn("Escrita R2 nao autorizada; snapshot mantido sem persistencia.");
+    throw new Error("R2 persistence unavailable; KV write fallback is disabled");
+  }
+
+  // KV is retained only for installations that have not configured the R2 path.
+  // Once either R2 binding is present, a broken/incomplete R2 setup must fail
+  // closed instead of silently reintroducing technical snapshot KV writes.
+  if (env.TECHNICAL_BUCKET || env.R2_BUDGET) {
+    throw new Error("R2 configuration incomplete; KV write fallback is disabled");
   }
 
   if (env.STATUS_KV) {
     await env.STATUS_KV.put(TECHNICAL_KV_KEY, serialized);
-    if (env.TECHNICAL_BUCKET && env.R2_BUDGET) {
-      // Keep the isolate cache aligned with the newer shared KV fallback snapshot.
-      r2SnapshotCache = {
-        loaded: true, snapshot, serialized,
-        expiresAt: Date.now() + R2_LOCAL_CACHE_TTL_MS
-      };
-    }
     return;
   }
   throw new Error("No authorized technical cache binding is available");

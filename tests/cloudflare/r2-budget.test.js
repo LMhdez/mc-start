@@ -233,4 +233,76 @@ describe("R2Budget Durable Object", () => {
     expect(counters.daily_writes).toBe(1);
     expect(counters.migration_retry_after).toBeGreaterThan(Date.now());
   });
+  it("does not write technical snapshots to KV when the configured R2 budget is unavailable", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(Date.now() + 11 * 60 * 1000));
+    vi.stubGlobal("fetch", vi.fn(async input => {
+      const url = String(input);
+      if (url.startsWith("https://login.microsoftonline.com/")) {
+        return Response.json({ access_token: "test-only-token" });
+      }
+      if (url.startsWith("https://management.azure.com/")) {
+        return Response.json({ statuses: [{ code: "PowerState/running" }] });
+      }
+      throw new Error("Unexpected network request in isolated test");
+    }));
+
+    const freshSnapshot = {
+      checked_at: new Date().toISOString(),
+      mods_inventory_available: true,
+      version: "live"
+    };
+    const kvPut = vi.fn(async () => undefined);
+    const bindings = {
+      ALLOWED_ORIGIN: "https://panel.example",
+      AZURE_CLIENT_ID: "test-client",
+      AZURE_CLIENT_SECRET: "test-secret",
+      AZURE_TENANT_ID: "test-tenant",
+      AZURE_SUBSCRIPTION_ID: "test-subscription",
+      AZURE_RESOURCE_GROUP: "test-resource-group",
+      AZURE_VM_NAME: "test-vm",
+      TECHNICAL_BUCKET: {},
+      R2_BUDGET: {
+        getByName() {
+          return {
+            async readSnapshot() {
+              return { ok: false, reason: "budget_exhausted" };
+            },
+            async writeSnapshot() {
+              return { ok: false, reason: "budget_exhausted" };
+            }
+          };
+        }
+      },
+      STATUS_KV: {
+        async get() { return null; },
+        put: kvPut
+      },
+      MC_AGENT: {
+        async fetch() {
+          return Response.json({ ok: true, result: freshSnapshot });
+        }
+      }
+    };
+    const request = new Request("https://worker.example/api/technical", {
+      method: "GET",
+      headers: {
+        Origin: "https://panel.example",
+        "CF-Connecting-IP": "192.0.2.30"
+      }
+    });
+
+    try {
+      const response = await worker.fetch(request, bindings);
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body).toMatchObject({ ok: true, cached: false, result: freshSnapshot });
+      expect(kvPut).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
+  });
+
 });
