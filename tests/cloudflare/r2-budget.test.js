@@ -48,6 +48,7 @@ describe("R2Budget Durable Object", () => {
   let stub;
 
   beforeEach(async () => {
+    await env.TECHNICAL_BUCKET.delete(OBJECT_KEY);
     stub = await createBudget();
   });
 
