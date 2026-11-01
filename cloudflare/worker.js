@@ -1,3 +1,5 @@
+import { DurableObject } from "cloudflare:workers";
+
 const REPO = "LMhdez/mc-start";
 const API_VERSION = "2022-11-28";
 const STATUS_TTL = 300;
@@ -6,8 +8,19 @@ const RATE_LIMIT = 10;
 const AUTH_RATE_LIMIT = 20;
 const CALLBACK_RATE_LIMIT = 10;
 const MAX_JSON_BYTES = 64 * 1024;
-let rateLimitStorageWarningLogged = false;
+const TECHNICAL_KV_KEY = "technical:public";
+const TECHNICAL_R2_KEY = "technical/latest.json";
+// Global R2 budgets are enforced by the persistent SQLite-backed Durable Object.
+const R2_DAILY_READ_BUDGET = 3000;
+const R2_MONTHLY_READ_BUDGET = 90000;
+const R2_DAILY_WRITE_BUDGET = 10;
+const R2_MONTHLY_WRITE_BUDGET = 300;
+const R2_MAX_OBJECT_BYTES = 256 * 1024;
+const R2_LOCAL_CACHE_TTL_MS = 60 * 1000;
+const R2_MIGRATION_BACKOFF_MS = 60 * 1000;
 const localRateLimitFallback = new Map();
+let r2SnapshotCache = { loaded: false, snapshot: null, serialized: null, expiresAt: 0 };
+let r2MigrationRetryAfter = 0;
 
 function checkLocalRateLimit(request, scope, limit, now) {
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
@@ -118,44 +131,149 @@ async function readJsonBody(request, maxBytes = MAX_JSON_BYTES) {
   catch { throw new Error("INVALID_JSON"); }
 }
 
-async function checkRateLimit(env, request, scope = "action", limit = RATE_LIMIT) {
-  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-  const key = "rate:" + scope + ":" + ip;
+function checkRateLimit(_env, request, scope = "action", limit = RATE_LIMIT) {
+  // Rate-limit counters are deliberately kept in isolate memory, not Workers KV.
+  // KV is eventually consistent and writing every request exhausted the free daily
+  // write quota. This remains a best-effort per-isolate limit, not a global/atomic
+  // abuse-control mechanism; use a Cloudflare Rate Limiting binding if traffic grows.
   const now = Math.floor(Date.now() / 1000);
-  try {
-    const stored = await env.STATUS_KV.get(key);
-    let record = null;
-    if (stored) {
+  return checkLocalRateLimit(request, scope, limit, now);
+}
+
+function getR2BudgetStub(env) {
+  if (!env.R2_BUDGET) return null;
+  return env.R2_BUDGET.getByName("mc-start-r2-global-budget");
+}
+
+async function readTechnicalSnapshot(env) {
+  let staleR2Snapshot = null;
+
+  if (env.TECHNICAL_BUCKET && env.R2_BUDGET) {
+    const now = Date.now();
+
+    // Local cache reduces Durable Object and R2 requests; it is never the budget authority.
+    if (r2SnapshotCache.loaded && r2SnapshotCache.expiresAt > now) {
+      if (r2SnapshotCache.snapshot) return r2SnapshotCache.snapshot;
+    } else {
       try {
-        const parsed = JSON.parse(stored);
-        if (parsed && Number.isFinite(parsed.count) && Number.isFinite(parsed.startedAt)) {
-          record = parsed;
-        } else if (Number.isFinite(Number(stored))) {
-          // Migrate counters written by the previous implementation.
-          record = { count: Number(stored), startedAt: now };
+        const result = await getR2BudgetStub(env).readSnapshot();
+        if (result && result.ok) {
+          r2SnapshotCache = {
+            loaded: true,
+            snapshot: result.snapshot || null,
+            serialized: result.snapshot ? result.serialized : null,
+            expiresAt: now + R2_LOCAL_CACHE_TTL_MS
+          };
+          if (result.snapshot) return result.snapshot;
+        } else {
+          console.warn("Durable Object recusou ou nao conseguiu ler o snapshot R2; a usar fallback.");
+          staleR2Snapshot = r2SnapshotCache.snapshot;
         }
-      } catch {}
+      } catch {
+        // Fail closed for R2: no direct R2 call is made when the budget authority is unavailable.
+        console.error("Controlo global R2 indisponivel; a usar fallback KV/cache.");
+        staleR2Snapshot = r2SnapshotCache.snapshot;
+      }
     }
-    if (!record || now - record.startedAt >= RATE_WINDOW || now < record.startedAt) {
-      record = { count: 0, startedAt: now };
-    }
-    if (record.count >= limit) return false;
-    record.count += 1;
-    // Workers KV is eventually consistent; this is a best-effort per-IP fixed window.
-    await env.STATUS_KV.put(key, JSON.stringify(record), { expirationTtl: RATE_WINDOW });
-    return true;
-  } catch (error) {
-    // The public technical inventory contains no credentials or player data.
-    // Keep it readable during a KV outage; other routes remain fail-closed.
-    if (!rateLimitStorageWarningLogged) {
-      console.error("Rate limit storage unavailable:", error.message);
-      rateLimitStorageWarningLogged = true;
-    }
-    // KV can be temporarily unavailable (including daily write-quota exhaustion).
-    // Fall back to a per-isolate in-memory window instead of rejecting every request.
-    // This preserves a best-effort limit without depending on KV during an outage.
-    return checkLocalRateLimit(request, scope, limit, now);
   }
+
+  // Prefer the shared KV fallback over an older isolate-local snapshot.
+  // The last local snapshot is used only when KV is unavailable or empty.
+  if (!env.STATUS_KV) return staleR2Snapshot;
+  let stored;
+  try {
+    stored = await env.STATUS_KV.get(TECHNICAL_KV_KEY);
+  } catch {
+    console.error("Leitura do snapshot tecnico legado em KV indisponivel.");
+    return staleR2Snapshot;
+  }
+  if (!stored) return staleR2Snapshot;
+
+  let snapshot;
+  try {
+    snapshot = JSON.parse(stored);
+  } catch {
+    console.error("Snapshot tecnico legado em KV invalido.");
+    return staleR2Snapshot;
+  }
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) return staleR2Snapshot;
+
+  // Keep the fallback result in this isolate too, so a failed R2 read does not
+  // repeatedly hide a newer KV snapshot behind an older local copy.
+  if (env.TECHNICAL_BUCKET && env.R2_BUDGET) {
+    r2SnapshotCache = {
+      loaded: true, snapshot, serialized: JSON.stringify(snapshot),
+      expiresAt: Date.now() + R2_LOCAL_CACHE_TTL_MS
+    };
+  }
+
+  // Migrate the legacy KV snapshot through the same global R2 budget authority.
+  if (env.TECHNICAL_BUCKET && env.R2_BUDGET) {
+    const serialized = JSON.stringify(snapshot);
+    if (new TextEncoder().encode(serialized).byteLength > R2_MAX_OBJECT_BYTES) {
+      console.error("Snapshot tecnico excede o limite de tamanho para R2.");
+    } else if (Date.now() >= r2MigrationRetryAfter) {
+      // Local backoff avoids unnecessary DO calls; the authoritative backoff is persisted in SQLite.
+      r2MigrationRetryAfter = Date.now() + R2_MIGRATION_BACKOFF_MS;
+      try {
+        const result = await getR2BudgetStub(env).writeSnapshot(serialized, true);
+        if (result && result.ok && result.written) {
+          r2SnapshotCache = {
+            loaded: true, snapshot, serialized,
+            expiresAt: Date.now() + R2_LOCAL_CACHE_TTL_MS
+          };
+        }
+      } catch {
+        console.error("Migracao do snapshot tecnico para R2 indisponivel.");
+      }
+    }
+  }
+  return snapshot;
+}
+
+async function writeTechnicalSnapshot(env, snapshot) {
+  const serialized = JSON.stringify(snapshot);
+  const size = new TextEncoder().encode(serialized).byteLength;
+  if (size > R2_MAX_OBJECT_BYTES) {
+    throw new Error("Technical snapshot exceeds the R2 object size safety limit");
+  }
+
+  if (env.TECHNICAL_BUCKET && env.R2_BUDGET) {
+    // Avoid a write only when this isolate already holds the exact same snapshot.
+    if (r2SnapshotCache.loaded && r2SnapshotCache.serialized === serialized) {
+      r2SnapshotCache.expiresAt = Date.now() + R2_LOCAL_CACHE_TTL_MS;
+      return;
+    }
+    let result = null;
+    try {
+      result = await getR2BudgetStub(env).writeSnapshot(serialized, false);
+    } catch {
+      // RPC failure must not prevent the documented KV fallback.
+      console.warn("Durable Object indisponivel; a tentar fallback KV.");
+    }
+    if (result && result.ok && result.written) {
+      r2SnapshotCache = {
+        loaded: true, snapshot, serialized,
+        expiresAt: Date.now() + R2_LOCAL_CACHE_TTL_MS
+      };
+      return;
+    }
+    // Never bypass the global budget by calling R2 directly.
+    if (result) console.warn("Escrita R2 nao autorizada; a tentar fallback KV.");
+  }
+
+  if (env.STATUS_KV) {
+    await env.STATUS_KV.put(TECHNICAL_KV_KEY, serialized);
+    if (env.TECHNICAL_BUCKET && env.R2_BUDGET) {
+      // Keep the isolate cache aligned with the newer shared KV fallback snapshot.
+      r2SnapshotCache = {
+        loaded: true, snapshot, serialized,
+        expiresAt: Date.now() + R2_LOCAL_CACHE_TTL_MS
+      };
+    }
+    return;
+  }
+  throw new Error("No authorized technical cache binding is available");
 }
 
 async function dispatchWorkflow(env, file, inputs) {
@@ -265,6 +383,140 @@ async function callPrivateAgent(env, path, method = "GET") {
   return data;
 }
 
+export class R2Budget extends DurableObject {
+  constructor(ctx, env) {
+    super(ctx, env);
+    // SQLite state is the single persistent source of truth for all Worker isolates.
+    this.ctx.storage.sql.exec(`
+      CREATE TABLE IF NOT EXISTS r2_budget (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        day_key TEXT NOT NULL,
+        month_key TEXT NOT NULL,
+        daily_reads INTEGER NOT NULL DEFAULT 0,
+        monthly_reads INTEGER NOT NULL DEFAULT 0,
+        daily_writes INTEGER NOT NULL DEFAULT 0,
+        monthly_writes INTEGER NOT NULL DEFAULT 0,
+        migration_retry_after INTEGER NOT NULL DEFAULT 0
+      )
+    `);
+    this.ctx.storage.sql.exec(
+      "INSERT OR IGNORE INTO r2_budget (id, day_key, month_key) VALUES (1, '', '')"
+    );
+  }
+
+  reserveOperation(kind) {
+    const now = new Date();
+    const day = now.toISOString().slice(0, 10);
+    const month = day.slice(0, 7);
+    const isRead = kind === "read";
+    const dailyLimit = isRead ? R2_DAILY_READ_BUDGET : R2_DAILY_WRITE_BUDGET;
+    const monthlyLimit = isRead ? R2_MONTHLY_READ_BUDGET : R2_MONTHLY_WRITE_BUDGET;
+    const dailyColumn = isRead ? "daily_reads" : "daily_writes";
+    const monthlyColumn = isRead ? "monthly_reads" : "monthly_writes";
+    const dailyIncrement = isRead ? 1 : 0;
+    const dailyWriteIncrement = isRead ? 0 : 1;
+    const monthlyIncrement = isRead ? 1 : 0;
+    const monthlyWriteIncrement = isRead ? 0 : 1;
+
+    // One conditional SQLite UPDATE atomically checks and reserves both periods.
+    const sql = `
+      UPDATE r2_budget
+      SET day_key = ?,
+          month_key = ?,
+          daily_reads = CASE WHEN day_key = ? THEN daily_reads ELSE 0 END + ?,
+          daily_writes = CASE WHEN day_key = ? THEN daily_writes ELSE 0 END + ?,
+          monthly_reads = CASE WHEN month_key = ? THEN monthly_reads ELSE 0 END + ?,
+          monthly_writes = CASE WHEN month_key = ? THEN monthly_writes ELSE 0 END + ?
+      WHERE id = 1
+        AND (CASE WHEN day_key = ? THEN ${dailyColumn} ELSE 0 END) < ?
+        AND (CASE WHEN month_key = ? THEN ${monthlyColumn} ELSE 0 END) < ?
+      RETURNING id
+    `;
+    const rows = this.ctx.storage.sql.exec(
+      sql,
+      day, month,
+      day, dailyIncrement,
+      day, dailyWriteIncrement,
+      month, monthlyIncrement,
+      month, monthlyWriteIncrement,
+      day, dailyLimit,
+      month, monthlyLimit
+    ).toArray();
+    return rows.length === 1;
+  }
+
+  async readSnapshot() {
+    if (!this.env.TECHNICAL_BUCKET) return { ok: false, reason: "r2_unbound" };
+    if (!this.reserveOperation("read")) return { ok: false, reason: "budget_exhausted" };
+
+    try {
+      const object = await this.env.TECHNICAL_BUCKET.get(TECHNICAL_R2_KEY);
+      if (!object) return { ok: true, snapshot: null, serialized: null };
+      if (Number.isFinite(object.size) && object.size > R2_MAX_OBJECT_BYTES) {
+        return { ok: false, reason: "object_too_large" };
+      }
+
+      const serialized = await object.text();
+      if (new TextEncoder().encode(serialized).byteLength > R2_MAX_OBJECT_BYTES) {
+        return { ok: false, reason: "object_too_large" };
+      }
+      let snapshot;
+      try {
+        snapshot = JSON.parse(serialized);
+      } catch {
+        return { ok: false, reason: "invalid_json" };
+      }
+      if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) {
+        return { ok: false, reason: "invalid_snapshot" };
+      }
+      return { ok: true, snapshot, serialized };
+    } catch {
+      return { ok: false, reason: "r2_unavailable" };
+    }
+  }
+
+  async writeSnapshot(serialized, onlyIfAbsent = false) {
+    if (!this.env.TECHNICAL_BUCKET) return { ok: false, reason: "r2_unbound" };
+    if (typeof serialized !== "string" ||
+        new TextEncoder().encode(serialized).byteLength > R2_MAX_OBJECT_BYTES) {
+      return { ok: false, reason: "object_too_large" };
+    }
+
+    const now = Date.now();
+    if (onlyIfAbsent) {
+      const retry = this.ctx.storage.sql.exec(
+        "SELECT migration_retry_after FROM r2_budget WHERE id = 1"
+      ).one().migration_retry_after;
+      if (now < retry) return { ok: true, written: false, skipped: true };
+    }
+
+    if (!this.reserveOperation("write")) {
+      return { ok: false, reason: "budget_exhausted" };
+    }
+
+    if (onlyIfAbsent) {
+      // Persist a global backoff before external I/O to prevent repeated conditional PUTs.
+      this.ctx.storage.sql.exec(
+        "UPDATE r2_budget SET migration_retry_after = ? WHERE id = 1",
+        now + R2_MIGRATION_BACKOFF_MS
+      );
+    }
+
+    try {
+      const options = {
+        httpMetadata: { contentType: "application/json; charset=utf-8" }
+      };
+      if (onlyIfAbsent) options.onlyIf = { etagDoesNotMatch: "*" };
+      const result = await this.env.TECHNICAL_BUCKET.put(
+        TECHNICAL_R2_KEY, serialized, options
+      );
+      return { ok: true, written: result !== null };
+    } catch {
+      return { ok: false, reason: "r2_unavailable" };
+    }
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -356,24 +608,18 @@ export default {
     }
 
     if (url.pathname === "/api/technical" && request.method === "GET") {
-      if (!env.STATUS_KV) return json({ ok: false, message: "Cache indisponivel." }, 503, origin);
+      if (!env.TECHNICAL_BUCKET && !env.STATUS_KV) {
+        return json({ ok: false, message: "Cache indisponivel." }, 503, origin);
+      }
       if (!(await checkRateLimit(env, request, "technical", 10))) {
         return json({ ok: false, message: "Demasiados pedidos. Aguarda um minuto." }, 429, origin);
       }
-      const cacheKey = "technical:public";
       let cached = null;
       try {
-        const stored = await env.STATUS_KV.get(cacheKey);
-        if (stored) {
-          try { cached = JSON.parse(stored); }
-          catch {
-            try { await env.STATUS_KV.delete(cacheKey); }
-            catch (error) { console.error("Inventario tecnico em cache invalido:", error.message); }
-          }
-        }
-      } catch (error) {
+        cached = await readTechnicalSnapshot(env);
+      } catch {
         // A cache indisponivel nao deve impedir a leitura do agente privado.
-        console.error("Leitura do inventario tecnico em cache indisponivel:", error.message);
+        console.error("Leitura do inventario tecnico em cache indisponivel.");
       }
       const age = cached && cached.checked_at ? Date.now() - Date.parse(cached.checked_at) : Infinity;
       if (cached && age >= 0 && age < 600000) {
@@ -396,12 +642,13 @@ export default {
           return json({ ok: false, message: "Inventario tecnico ainda nao esta pronto." }, 503, origin);
         }
 
-        // Sem expirationTtl: a ultima fotografia permanece disponivel mesmo apos longos periodos offline.
+        // Keep the latest complete snapshot available even after long offline periods.
+        // R2 is preferred; KV remains the compatibility fallback until R2 is bound.
         try {
-          await env.STATUS_KV.put(cacheKey, JSON.stringify(technical));
-        } catch (error) {
-          // Devolve o inventario atual mesmo que nao seja possivel persistir a cache.
-          console.error("Gravacao do inventario tecnico em cache indisponivel:", error.message);
+          await writeTechnicalSnapshot(env, technical);
+        } catch {
+          // Return the live inventory even if persistence is temporarily unavailable.
+          console.error("Gravacao do inventario tecnico em cache indisponivel.");
         }
         return json({ ok: true, result: technical, cached: false }, 200, origin);
       } catch (error) {
@@ -473,7 +720,8 @@ export default {
       const key = "status:" + body.request_id;
       const stored = await env.STATUS_KV.get(key);
       if (!stored) return json({ ok: false, pending: true }, 202, origin);
-      await env.STATUS_KV.delete(key);
+      // Keep the encrypted result until its 5-minute TTL expires. Reads are
+      // idempotent and avoid a KV delete write on every completed status request.
       try {
         const result = await decryptStatus(JSON.parse(stored), env.ACCESS_PASSWORD);
         return json({ ok: true, result }, 200, origin);
@@ -502,7 +750,8 @@ export default {
     let message;
     if (body.action === "status") {
       if (!validRequestId(body.request_id)) return json({ ok: false, message: "Pedido invalido." }, 400, origin);
-      await env.STATUS_KV.delete("status:" + body.request_id);
+      // request_id is a fresh UUID; an old result cannot collide with this request.
+      // The previous result, if any, expires automatically after STATUS_TTL.
 
       // Primeiro consulta diretamente Azure. Se a VM estiver ligada, tenta o agente privado.
       try {

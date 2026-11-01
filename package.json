@@ -1,0 +1,11 @@
+{
+  "name": "mc-start",
+  "private": true,
+  "scripts": {
+    "test:cloudflare": "vitest run --config vitest.config.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.4.11",
+    "vitest": "4.1.0"
+  }
+}

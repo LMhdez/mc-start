@@ -1,0 +1,24 @@
+name = "mc-start-control"
+main = "worker.js"
+compatibility_date = "2026-10-30"
+workers_dev = true
+
+[[kv_namespaces]]
+binding = "STATUS_KV"
+id = "f84019013618481fb284c2a32441c447"
+
+[[r2_buckets]]
+binding = "TECHNICAL_BUCKET"
+bucket_name = "mc-start-technical"
+
+[[vpc_services]]
+binding = "MC_AGENT"
+service_id = "01a18f6e-5b33-7c12-b309-7a22498c0a64"
+
+[[durable_objects.bindings]]
+name = "R2_BUDGET"
+class_name = "R2Budget"
+
+[exports.R2Budget]
+type = "durable-object"
+storage = "sqlite"

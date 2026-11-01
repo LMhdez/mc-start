@@ -1,0 +1,16 @@
+# Test-only configuration. Used by Vitest/Miniflare locally; never deploy this file.
+name = "mc-start-control-tests"
+main = "worker.js"
+compatibility_date = "2026-10-30"
+
+[[r2_buckets]]
+binding = "TECHNICAL_BUCKET"
+bucket_name = "mc-start-technical-tests"
+
+[[durable_objects.bindings]]
+name = "R2_BUDGET"
+class_name = "R2Budget"
+
+[exports.R2Budget]
+type = "durable-object"
+storage = "sqlite"
