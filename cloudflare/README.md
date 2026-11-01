@@ -13,7 +13,7 @@ Este documento descreve a arquitetura atual e a ordem segura de implementação.
    - Consulta e controla a VM através da API ARM do Azure.
    - Usa os workflows do GitHub Actions como alternativa quando a chamada direta falha.
    - Encaminha pedidos privados para o agente através do binding VPC `MC_AGENT`.
-   - Usa o binding R2 `TECHNICAL_BUCKET` para guardar a última fotografia técnica, quando configurado. O KV `STATUS_KV` continua a guardar os resultados privados cifrados com expiração automática de 5 minutos e funciona como fallback/migração da cache técnica enquanto R2 não estiver ligado. Os contadores de rate limit ficam em memória no Worker.
+   - Usa o binding R2 `TECHNICAL_BUCKET` para guardar a última fotografia técnica, quando configurado. O KV `STATUS_KV` continua a guardar os resultados privados cifrados com expiração automática de 5 minutos e funciona como fallback/migração da cache técnica enquanto R2 não estiver ligado. Os contadores de rate limit continuam em memória no Worker; o orçamento de operações R2 é centralizado num Durable Object com SQLite.
 
 3. **VM Azure**
    - Contentor Docker `mc-server`.
@@ -53,7 +53,8 @@ Bindings e secrets utilizados pelo Worker:
 | `AZURE_VM_NAME` | Secret | Nome da VM |
 | `GITHUB_TOKEN` | Secret | Dispatch dos workflows de fallback |
 | `STATUS_KV` | KV namespace | Resultados privados cifrados; cache técnica apenas como fallback de compatibilidade |
-| `TECHNICAL_BUCKET` | R2 bucket (opcional) | Última fotografia técnica em `technical/latest.json`; binding a configurar no Worker |
+| `TECHNICAL_BUCKET` | R2 bucket | Última fotografia técnica em `technical/latest.json`; acesso exclusivo pelo Durable Object |
+| `R2_BUDGET` | Durable Object (SQLite) | Contador global persistente de operações R2; uma única instância lógica |
 | `MC_AGENT` | VPC Service | Ligação ao agente privado |
 
 Os valores marcados como Secret já existem como bindings do tipo Secret na configuração atual. **Não os recries nem substituas por variáveis de texto simples.** Os valores dos secrets não são legíveis através da API de gestão. `TECHNICAL_BUCKET` é um binding R2 opcional, não um secret.
@@ -75,8 +76,9 @@ Não coloques valores destes secrets no repositório, nos logs ou em URLs. A aut
 ## Ordem de implementação e deploy
 
 1. **GitHub Pages:** o website é publicado automaticamente quando as alterações chegam a `main`.
-2. **R2 (para ativar a cache técnica):** ativar R2 na conta, criar um bucket privado na classe Standard e adicionar ao Worker o binding `TECHNICAL_BUCKET` apontado para esse bucket. Não ativar domínio público nem `r2.dev`; o acesso deve ser feito apenas pelo binding interno do Worker.
-3. **Cloudflare Worker:** o código de referência está em `cloudflare/worker.js`. A implementação não tem um workflow de deploy automático; publica o código no Worker depois de configurar o binding, preservando todos os bindings e secrets existentes. Se R2 ainda não estiver configurado, o Worker mantém o fallback KV.
+2. **R2:** manter o bucket privado `mc-start-technical`, classe Standard, sem domínio público nem `r2.dev`.
+3. **Durable Object:** o binding `R2_BUDGET` e a migration SQLite `R2Budget` estão declarados em `cloudflare/wrangler.toml`. A primeira publicação cria a classe SQLite; não remover nem alterar a migration `v1` depois de aplicada.
+4. **Cloudflare Worker:** o código de referência está em `cloudflare/worker.js`. A implementação não tem workflow de deploy automático. Antes de publicar, confirmar que o projeto continua no Workers Free e que os bindings/secrets existentes são preservados. Não executar `wrangler deploy` sem rever a configuração e autorizar a publicação.
 4. **Agente privado:** depois de publicar o Worker compatível, as alterações a `vm/mc-agent.py` acionam automaticamente **Atualizar agente privado MC**. Também pode ser executado manualmente. O workflow exige que a VM esteja ligada e não aplica alterações se estiver desligada.
 5. **Instalação inicial:** executa **Instalar agente privado MC** apenas quando a VM estiver ligada. O workflow valida a fingerprint SSH através da Azure antes de confiar na ligação.
 6. **Krypton:** executa **Instalar Krypton no servidor Minecraft** manualmente. O workflow verifica RCON/jogadores, compatibilidade, hash SHA-512, backup e arranque do servidor. Não é acionado por um simples push ao ficheiro do workflow.
@@ -91,8 +93,9 @@ A publicação do Worker e do agente é deliberadamente separada: publica primei
 - O Worker não usa `STATUS_KV.delete()`: os resultados privados expiram pelo TTL de 5 minutos e os IDs são UUIDs novos por pedido. O KV recebe apenas as gravações dos callbacks cifrados, salvo quando R2 ainda não está configurado. Com `TECHNICAL_BUCKET`, a fotografia técnica passa a ser escrita em R2 e o KV deixa de receber essas atualizações.
 - Na primeira leitura, se R2 ainda não tiver o objeto, o Worker tenta recuperar a fotografia antiga do KV e copiá-la para R2 apenas se o objeto continuar ausente. A escrita condicional evita substituir uma fotografia que outra execução já tenha criado.
 - A fotografia técnica só é atualizada quando a cache ultrapassa 10 minutos e o agente devolve um inventário completo. O objeto R2 contém apenas o inventário técnico público; não contém passwords, tokens ou resultados privados.
-- **Proteção adicional R2:** o Worker limita, por isolate e por dia UTC, a 500 tentativas de leitura (Class B) e 10 tentativas de escrita (Class A). Conta também tentativas falhadas. Mantém uma cache local de 60 segundos, evita reescrever conteúdo idêntico e rejeita snapshots acima de 256 KiB. Quando o limite local é atingido, deixa de chamar R2 nesse isolate e usa o fallback KV/cache disponível; o inventário vivo continua a poder ser devolvido sem persistência.
-- **Limitação importante:** os contadores e a cache são locais a cada isolate e reiniciam quando este é reciclado. Não constituem um limite global da conta nem uma garantia matemática de nunca ultrapassar o Free Tier. O R2 não disponibiliza um hard spending cap que desligue automaticamente as operações ao atingir a quota incluída. A proteção global continua a exigir acompanhamento no Dashboard.
+- **Proteção global R2:** todas as chamadas `get` e `put` passam pelo Durable Object `R2Budget`; não existe caminho direto do Worker para R2. O SQLite mantém contadores globais, persistentes e atómicos por dia e por mês UTC. Limites conservadores: 3.000 leituras/dia e 90.000/mês; 10 escritas/dia e 300/mês. As tentativas são contabilizadas antes da chamada R2, incluindo falhas. Se o Durable Object falhar ou o orçamento esgotar, o Worker não contorna o controlo: usa KV/cache quando disponível e pode devolver o inventário vivo sem persistência.
+- A cache local de 60 segundos continua ativa para reduzir chamadas ao Durable Object/R2. A migração condicional KV→R2 tem backoff global persistido de 60 segundos. Snapshots acima de 256 KiB continuam rejeitados.
+- **Limites remanescentes:** estes orçamentos limitam as operações R2 feitas por este Worker, não operações manuais no Dashboard nem outros Workers/tokens que acedam ao bucket. Não são um hard spending cap da conta; manter a monitorização no Dashboard. No Workers Free, os limites incluídos de Durable Objects são 100.000 requests/dia, 13.000 GB-s/dia, 5 milhões de rows lidas/dia, 100.000 rows escritas/dia e 5 GB de SQLite total; exceder os limites Free faz as operações excedentes falharem, sem cobrança automática no plano Free. Os orçamentos deste projeto ficam bastante abaixo desses valores.
 - **Monitorização manual R2:** abrir Cloudflare Dashboard → R2 Object Storage → bucket `mc-start-technical` → separador **Metrics**. Rever operações e armazenamento, preferencialmente com janela de 30 dias. Confirmar também **Manage Account → Billing → Billable Usage**, quando disponível, para verificar se existe utilização faturável. Não ativar Infrequent Access, domínios públicos, `r2.dev` ou funcionalidades pagas.
 - Os endpoints públicos não devolvem IP privado nem nomes de jogadores.
 - O desligamento tenta parar o contentor Minecraft antes de desalocar a VM.
