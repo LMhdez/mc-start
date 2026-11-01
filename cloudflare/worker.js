@@ -580,6 +580,7 @@ export default {
           rcon_ready: null,
           geyser_ready: vm === "VM running" ? null : false,
           geyser_state: "unknown",
+          geyser_transport: "unknown",
           geyser_udp_ready: vm === "VM running" ? null : false,
           geyser_udp_state: "unknown",
           checked_at: new Date().toISOString()
@@ -597,6 +598,7 @@ export default {
               rcon_ready: typeof live.rcon_ready === "boolean" ? live.rcon_ready : null,
               geyser_ready: typeof live.geyser_ready === "boolean" ? live.geyser_ready : null,
               geyser_state: typeof live.geyser_state === "string" ? live.geyser_state : "unknown",
+              geyser_transport: live.geyser_transport === "nethernet" ? "nethernet" : "unknown",
               geyser_udp_ready: typeof live.geyser_udp_ready === "boolean" ? live.geyser_udp_ready : null,
               geyser_udp_state: typeof live.geyser_udp_state === "string" ? live.geyser_udp_state : "unknown",
               geyser_udp_diagnostic: typeof live.geyser_udp_diagnostic === "string" ? live.geyser_udp_diagnostic : "unknown",

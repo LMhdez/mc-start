@@ -54,6 +54,16 @@ async function main() {
         expected: "Acessível"
       },
       {
+        name: "NetherNet service ready without a RakNet probe",
+        result: {
+          vm: "VM running", docker: "active", container: "running",
+          port_open: true, rcon_ready: true,
+          geyser_ready: true, geyser_transport: "nethernet",
+          geyser_udp_ready: null, players: 2
+        },
+        expected: "Serviço ativo"
+      },
+      {
         name: "Bedrock unreachable while Java is reachable",
         result: {
           vm: "VM running", docker: "active", container: "running",
