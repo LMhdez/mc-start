@@ -77,7 +77,7 @@ Não coloques valores destes secrets no repositório, nos logs ou em URLs. A aut
 
 1. **GitHub Pages:** o website é publicado automaticamente quando as alterações chegam a `main`.
 2. **R2:** manter o bucket privado `mc-start-technical`, classe Standard, sem domínio público nem `r2.dev`.
-3. **Durable Object:** o binding `R2_BUDGET` e a migration SQLite `R2Budget` estão declarados em `cloudflare/wrangler.toml`. A primeira publicação cria a classe SQLite; não remover nem alterar a migration `v1` depois de aplicada.
+3. **Durable Object:** o binding `R2_BUDGET` e a classe SQLite `R2Budget` estão declarados em `cloudflare/wrangler.toml` através de `exports`. A primeira publicação provisiona o namespace SQLite; manter a entrada `[exports.R2Budget]` enquanto a classe estiver em uso.
 4. **Cloudflare Worker:** o código de referência está em `cloudflare/worker.js`. A implementação não tem workflow de deploy automático. Antes de publicar, confirmar que o projeto continua no Workers Free e que os bindings/secrets existentes são preservados. Não executar `wrangler deploy` sem rever a configuração e autorizar a publicação.
 4. **Agente privado:** depois de publicar o Worker compatível, as alterações a `vm/mc-agent.py` acionam automaticamente **Atualizar agente privado MC**. Também pode ser executado manualmente. O workflow exige que a VM esteja ligada e não aplica alterações se estiver desligada.
 5. **Instalação inicial:** executa **Instalar agente privado MC** apenas quando a VM estiver ligada. O workflow valida a fingerprint SSH através da Azure antes de confiar na ligação.
@@ -106,7 +106,7 @@ A publicação do Worker e do agente é deliberadamente separada: publica primei
 ## Testes locais do Durable Object
 
 - A suite usa Vitest com `@cloudflare/vitest-plugin` e Miniflare; não precisa de credenciais Cloudflare nem acede ao bucket de produção.
-- A configuração isolada está em `cloudflare/wrangler.test.toml`. **Não usar esse ficheiro para deploy.**
+- A configuração isolada está em `cloudflare/wrangler.test.toml`, também com `exports` para declarar a classe SQLite. **Não usar esse ficheiro para deploy.**
 - Executar a partir da raiz do repositório: `npm install` e `npm run test:cloudflare`.
 - Os testes cobrem limites globais diários/mensais, concorrência, reset mensal UTC, validação/tamanho dos snapshots e backoff da migração condicional.
 
