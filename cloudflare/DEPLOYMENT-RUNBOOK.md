@@ -11,12 +11,16 @@
 - GitHub Pages build/deploy #41307596601: sucesso.
 - Worker de produção: `mc-start-control`.
 - Auditoria read-only da configuração ativa (2026-11-01): `usage_model = "standard"`, `compatibility_date = "2026-10-30"`, `default_usage_model = "standard"`.
-- **Bloqueio de custo:** a documentação Cloudflare associa o uso `standard` ao Workers Paid, cuja subscrição custa no mínimo $5/mês. O modelo Free tem limites próprios. O valor `standard` observado não demonstra que a conta está no Free; pelo contrário, é um sinal de possível plano pago. A ligação de leitura utilizada não conseguiu confirmar a subscrição de billing. Não publicar enquanto o Dashboard não confirmar explicitamente Workers Free e ausência de Workers Paid ativo.
+- **Plano confirmado visualmente:** o Dashboard mostrou **Workers Free — Active** durante a auditoria de 2026-11-01. O campo API `usage_model = "standard"` não foi usado isoladamente para contrariar essa confirmação nem para concluir que existe uma subscrição Workers Paid. A API de Billing devolveu 403, pelo que não foi possível fazer uma verificação independente da faturação por API. Não alterar o plano nem o modelo de utilização.
+- A versão ativa é a versão 45, publicada a 2026-11-01 às 10:23 UTC pelo Dashboard; a versão 44 tem o mesmo código (etag). A versão 45 apenas acrescentou o binding `TECHNICAL_BUCKET`. O PR #27 só foi merged às 12:40 UTC; por isso, a produção continua em código anterior ao PR #27.
 - Bindings ativos: 9 secrets (metadata apenas) e os 3 bindings `STATUS_KV`, `TECHNICAL_BUCKET` e `MC_AGENT`. Os identificadores de KV e VPC e o nome do bucket correspondem ao `wrangler.toml`; nenhum valor secreto foi consultado.
 - O binding `R2_BUDGET` ainda não existe em produção; a listagem devolveu zero namespaces Durable Objects. A primeira publicação cria a classe/namespace SQLite declarada em `exports`.
 - `workers.dev` está ativo; previews estão desativados.
 - A API devolveu zero domínios personalizados do Worker, zero zonas acessíveis nesta conta e zero custom domains do bucket R2. O domínio gerido `r2.dev` está desativado.
-- O bucket `mc-start-technical` existe em região WEUR e classe Standard.
+- O bucket `mc-start-technical` existe em região WEUR e classe Standard, privado, sem domínio público ou `r2.dev`.
+- A listagem read-only do bucket não devolveu objetos; isto sugere bucket vazio, mas não é extrato de faturação nem prova de zero operações faturáveis.
+- A chave KV `technical:public` existe no namespace de estado; o valor não foi lido. O snapshot ainda não foi migrado para R2.
+- A listagem de namespaces Durable Objects devolveu zero; a versão ativa não tem binding `R2_BUDGET`.
 - Foram observadas 10 deployments; a mais recente estava a receber 100% do tráfego no momento da auditoria.
 - Não foi feito deploy nem qualquer alteração à configuração de produção ou billing.
 - A verificação local `wrangler deploy --dry-run` permanece pendente: o ambiente de trabalho não conseguiu clonar o repositório devido a falha de resolução DNS do GitHub. O CI atual não executa esse dry-run.
@@ -43,10 +47,9 @@ O rollback de uma versão também não reverte o estado de recursos externos com
 
 ### 2.3 Free Tier — bloqueio obrigatório
 
-- O Workers Free e o Workers Paid são planos diferentes. A documentação atual indica que o Workers Paid tem um custo mínimo de $5 USD/mês; o Workers Free usa limites próprios. O modelo `standard` está associado ao Workers Paid.
-- A configuração ativa devolve `usage_model = "standard"` e o default da conta também é `standard`. Não assumir que isto é Free.
-- O limite de CPU por invocação do Workers Free é 10 ms. O caminho de leitura de resultados privados em `worker.js` chama `decryptStatus()`, que deriva a chave com PBKDF2-SHA256 e 100 000 iterações. Esse caminho ainda não foi medido no runtime Cloudflare/Workerd com o limite Free; pode ultrapassá-lo. Antes de qualquer migração para Free, medir o caminho completo de `/api/status/read` nesse runtime. Se exceder o limite, preparar e testar uma otimização criptográfica segura; não reduzir simplesmente as iterações PBKDF2 sem uma análise de segurança.
-- Antes de qualquer deploy, confirmar visualmente no Dashboard que o plano ativo é **Workers Free**, que não existe subscrição Workers Paid e que não há alteração pendente de billing. Se não for possível confirmar sem alterar billing, parar.
+- O Dashboard confirmou **Workers Free — Active** em 2026-11-01. A API de Billing não permitiu uma verificação independente (403); não inferir o plano apenas a partir de `usage_model = "standard"`.
+- Workers Free tem limite de 10 ms de CPU por pedido. O endpoint `/api/status/read` chama `decryptStatus()`, que deriva uma chave com PBKDF2-SHA256 e 100 000 iterações. A documentação confirma que Web Crypto suporta PBKDF2 e que operações criptográficas podem ser intensivas, mas não fornece um custo CPU garantido para esta carga. **Não foi medida a CPU real deste caminho no runtime Cloudflare.** Isto é um bloqueio técnico real para o deploy: medir primeiro num Worker de teste isolado no mesmo plano/runtime ou obter CPU time de uma invocação equivalente. Miniflare/Vitest e benchmarks Node não substituem essa medição.
+- Não reduzir as 100 000 iterações nem alterar o formato criptográfico para caber nos 10 ms sem uma análise de segurança, compatibilidade dos resultados pendentes e plano de migração.
 - Não alterar plano, método de pagamento, billing, usage model ou funcionalidades pagas neste procedimento.
 - Não executar qualquer ação de upgrade/downgrade, ativação, trial, top-up ou subscription.
 - Não ativar R2 Infrequent Access, domínios públicos, `r2.dev`, Logpush ou serviços pagos.
@@ -76,7 +79,7 @@ Executar a partir de uma cópia limpa do repositório, na branch que foi aprovad
 5. Se qualquer comando pedir para criar recursos, ativar billing ou mudar para um plano pago, responder não/cancelar.
 6. Confirmar manualmente no Dashboard, sem alterar nada:
    - plano está explicitamente em Workers Free e não existe Workers Paid ativo;
-   - o modelo de utilização não está configurado como Standard/Paid;
+   - o Dashboard continua a indicar Workers Free — Active; não alterar o modelo de utilização;
    - bindings ativos continuam a corresponder ao TOML;
    - os 9 secrets continuam presentes (confirmar apenas nomes/metadata; nunca valores);
    - `workers.dev` continua ativo;
@@ -84,7 +87,7 @@ Executar a partir de uma cópia limpa do repositório, na branch que foi aprovad
    - bucket R2 continua Standard e privado;
    - não existem alterações inesperadas ao Worker desde a auditoria.
 
-**Bloqueios ativos:** (1) confirmar Workers Free e ausência de Workers Paid ativo; (2) executar e aprovar `wrangler deploy --dry-run` a partir de checkout limpo; (3) confirmar novamente os bindings, secrets, triggers e domínios imediatamente antes do deploy. O CI verde não substitui estas verificações.
+**Bloqueios ativos:** (1) medir a CPU real do fluxo `/api/status/read` com PBKDF2 100 000 no runtime Cloudflare Free; (2) executar e aprovar `wrangler deploy --dry-run` a partir de checkout limpo; (3) confirmar novamente bindings, secrets, triggers e domínios imediatamente antes do deploy. O CI verde não substitui estas verificações.
 
 ## 4. Registo de backup antes do deploy
 
@@ -100,7 +103,7 @@ Não usar um dump de settings com valores secretos como backup. Não copiar secr
 
 ## 5. Publicação — requer autorização explícita separada
 
-**Não executar esta secção sem autorização explícita para publicar em produção.** O merge do PR e o deploy são decisões separadas.
+**Autorização explícita para publicar em produção recebida nesta conversa em 2026-11-01.** A autorização não dispensa os bloqueios técnicos e de Free Tier descritos neste runbook. O merge do PR e o deploy são decisões separadas.
 
 O PR #27 já está merged. Antes de publicar, confirmar que `main` contém o commit de merge aprovado e repetir todos os passos de preflight. Só depois de os bloqueios Free Tier estarem resolvidos e de existir autorização explícita para produção, executar:
 
