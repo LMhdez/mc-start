@@ -121,9 +121,9 @@ describe("R2Budget Durable Object", () => {
 
   it("resets monthly counters when the UTC month changes", async () => {
     const { month } = currentKeys();
-    const previousMonth = month === "2026-01" ? "2025-12" :
-      String(Number(month.slice(0, 4)) - (month.endsWith("-01") ? 1 : 0)).padStart(4, "0") +
-      "-" + String(month.endsWith("-01") ? 12 : Number(month.slice(5, 7)) - 1).padStart(2, "0");
+    const [year, monthNumber] = month.split("-").map(Number);
+    const previousMonthDate = new Date(Date.UTC(year, monthNumber - 2, 1));
+    const previousMonth = previousMonthDate.toISOString().slice(0, 7);
 
     await seedCounters(stub, {
       dayKey: previousMonth + "-01",
