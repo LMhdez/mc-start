@@ -234,6 +234,8 @@ describe("R2Budget Durable Object", () => {
     expect(counters.migration_retry_after).toBeGreaterThan(Date.now());
   });
   it("does not write technical snapshots to KV when the configured R2 budget is unavailable", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(Date.now() + 11 * 60 * 1000));
     vi.stubGlobal("fetch", vi.fn(async input => {
       const url = String(input);
       if (url.startsWith("https://login.microsoftonline.com/")) {
@@ -299,6 +301,7 @@ describe("R2Budget Durable Object", () => {
       expect(kvPut).not.toHaveBeenCalled();
     } finally {
       vi.unstubAllGlobals();
+      vi.useRealTimers();
     }
   });
 
