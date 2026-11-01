@@ -8,7 +8,29 @@ const CALLBACK_RATE_LIMIT = 10;
 const MAX_JSON_BYTES = 64 * 1024;
 const TECHNICAL_KV_KEY = "technical:public";
 const TECHNICAL_R2_KEY = "technical/latest.json";
+// Conservative per-isolate R2 safety budgets. These are NOT account-wide quotas.
+const R2_DAILY_READ_BUDGET = 500; // Class B attempts per isolate / UTC day.
+const R2_DAILY_WRITE_BUDGET = 10; // Class A attempts per isolate / UTC day.
+const R2_MAX_OBJECT_BYTES = 256 * 1024;
+const R2_LOCAL_CACHE_TTL_MS = 60 * 1000;
 const localRateLimitFallback = new Map();
+let r2BudgetDay = "";
+let r2Budget = { reads: 0, writes: 0 };
+let r2SnapshotCache = { loaded: false, snapshot: null, serialized: null, expiresAt: 0 };
+
+function reserveR2Operation(kind) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (today !== r2BudgetDay) {
+    r2BudgetDay = today;
+    r2Budget = { reads: 0, writes: 0 };
+  }
+  const field = kind === "read" ? "reads" : "writes";
+  const limit = kind === "read" ? R2_DAILY_READ_BUDGET : R2_DAILY_WRITE_BUDGET;
+  if (r2Budget[field] >= limit) return false;
+  // Count attempts before calling R2, including failed requests.
+  r2Budget[field] += 1;
+  return true;
+}
 
 function checkLocalRateLimit(request, scope, limit, now) {
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
@@ -130,20 +152,51 @@ function checkRateLimit(_env, request, scope = "action", limit = RATE_LIMIT) {
 
 async function readTechnicalSnapshot(env) {
   if (env.TECHNICAL_BUCKET) {
-    try {
-      const object = await env.TECHNICAL_BUCKET.get(TECHNICAL_R2_KEY);
-      if (object) {
-        try {
-          const snapshot = JSON.parse(await object.text());
-          if (snapshot && typeof snapshot === "object" && !Array.isArray(snapshot)) {
-            return snapshot;
+    const now = Date.now();
+
+    // Reuse the last result in this isolate to avoid one R2 GET per page request.
+    if (r2SnapshotCache.loaded && r2SnapshotCache.expiresAt > now) {
+      if (r2SnapshotCache.snapshot) return r2SnapshotCache.snapshot;
+    } else if (reserveR2Operation("read")) {
+      try {
+        const object = await env.TECHNICAL_BUCKET.get(TECHNICAL_R2_KEY);
+        let snapshot = null;
+        let serialized = null;
+        if (object) {
+          if (Number.isFinite(object.size) && object.size > R2_MAX_OBJECT_BYTES) {
+            console.error("Snapshot tecnico em R2 excede o limite de tamanho.");
+          } else {
+            serialized = await object.text();
+            if (new TextEncoder().encode(serialized).byteLength <= R2_MAX_OBJECT_BYTES) {
+              try {
+                const parsed = JSON.parse(serialized);
+                if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                  snapshot = parsed;
+                }
+              } catch {
+                console.error("Snapshot tecnico em R2 invalido.");
+              }
+            } else {
+              console.error("Snapshot tecnico em R2 excede o limite de tamanho.");
+            }
           }
-        } catch {
-          console.error("Snapshot tecnico em R2 invalido.");
         }
+        r2SnapshotCache = {
+          loaded: true,
+          snapshot,
+          serialized: snapshot ? serialized : null,
+          expiresAt: now + R2_LOCAL_CACHE_TTL_MS
+        };
+        if (snapshot) return snapshot;
+      } catch {
+        console.error("Leitura do snapshot tecnico em R2 indisponivel.");
+        r2SnapshotCache = {
+          loaded: true, snapshot: null, serialized: null,
+          expiresAt: now + R2_LOCAL_CACHE_TTL_MS
+        };
       }
-    } catch {
-      console.error("Leitura do snapshot tecnico em R2 indisponivel.");
+    } else {
+      console.warn("Orcamento diario local de leituras R2 esgotado; a usar fallback.");
     }
   }
 
@@ -167,27 +220,53 @@ async function readTechnicalSnapshot(env) {
   }
   if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) return null;
 
-  // Seed R2 only if the object is still absent. The conditional write prevents a
-  // concurrent fresh snapshot from being overwritten by this legacy backfill.
-  if (env.TECHNICAL_BUCKET) {
-    try {
-      await env.TECHNICAL_BUCKET.put(TECHNICAL_R2_KEY, JSON.stringify(snapshot), {
-        onlyIf: { etagDoesNotMatch: "*" },
-        httpMetadata: { contentType: "application/json; charset=utf-8" }
-      });
-    } catch {
-      console.error("Migracao do snapshot tecnico para R2 indisponivel.");
+  // Seed R2 only if the object is still absent and the local write budget allows it.
+  if (env.TECHNICAL_BUCKET && reserveR2Operation("write")) {
+    const serialized = JSON.stringify(snapshot);
+    if (new TextEncoder().encode(serialized).byteLength <= R2_MAX_OBJECT_BYTES) {
+      try {
+        await env.TECHNICAL_BUCKET.put(TECHNICAL_R2_KEY, serialized, {
+          onlyIf: { etagDoesNotMatch: "*" },
+          httpMetadata: { contentType: "application/json; charset=utf-8" }
+        });
+        r2SnapshotCache = {
+          loaded: true, snapshot, serialized,
+          expiresAt: Date.now() + R2_LOCAL_CACHE_TTL_MS
+        };
+      } catch {
+        console.error("Migracao do snapshot tecnico para R2 indisponivel.");
+      }
+    } else {
+      console.error("Snapshot tecnico excede o limite de tamanho para R2.");
     }
+  } else if (env.TECHNICAL_BUCKET) {
+    console.warn("Orcamento diario local de escritas R2 esgotado; migracao adiada.");
   }
   return snapshot;
 }
 
 async function writeTechnicalSnapshot(env, snapshot) {
   const serialized = JSON.stringify(snapshot);
+  const size = new TextEncoder().encode(serialized).byteLength;
+  if (size > R2_MAX_OBJECT_BYTES) {
+    throw new Error("Technical snapshot exceeds the R2 object size safety limit");
+  }
   if (env.TECHNICAL_BUCKET) {
+    // Avoid rewriting an identical snapshot already read/written in this isolate.
+    if (r2SnapshotCache.loaded && r2SnapshotCache.serialized === serialized) {
+      r2SnapshotCache.expiresAt = Date.now() + R2_LOCAL_CACHE_TTL_MS;
+      return;
+    }
+    if (!reserveR2Operation("write")) {
+      throw new Error("Local daily R2 write budget exhausted");
+    }
     await env.TECHNICAL_BUCKET.put(TECHNICAL_R2_KEY, serialized, {
       httpMetadata: { contentType: "application/json; charset=utf-8" }
     });
+    r2SnapshotCache = {
+      loaded: true, snapshot, serialized,
+      expiresAt: Date.now() + R2_LOCAL_CACHE_TTL_MS
+    };
     return;
   }
   if (env.STATUS_KV) {
