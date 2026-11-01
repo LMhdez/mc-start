@@ -41,6 +41,34 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           "$RUNNER_TEMP/wrangler-check/node_modules/.bin/wrangler" deploy --config cloudflare/wrangler.toml --dry-run
 
+      - name: Smoke test public production Worker endpoints
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          WORKER_BASE: https://mc-start-control.luismariohernandezsantos.workers.dev
+          FRONTEND_ORIGIN: https://lmhdez.github.io
+        run: |
+          set -euo pipefail
+          for path in /api/public/status /api/technical; do
+            status="$(curl --silent --show-error --output "$RUNNER_TEMP/mc-worker-smoke.json" --write-out '%{http_code}' --max-time 20 \
+              --header "Origin: $FRONTEND_ORIGIN" \
+              --header "Accept: application/json" \
+              "$WORKER_BASE$path")"
+            if [ "$status" != "200" ]; then
+              echo "GET $path returned HTTP $status"
+              exit 1
+            fi
+            node - "$RUNNER_TEMP/mc-worker-smoke.json" "$path" <<'NODE'
+          const fs = require("node:fs");
+          const body = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+          if (body?.ok !== true) {
+            console.error(`GET ${process.argv[3]} returned an unsuccessful response`);
+            process.exit(1);
+          }
+          console.log(`GET ${process.argv[3]} -> HTTP 200, ok=true`);
+          NODE
+          done
+          rm -f "$RUNNER_TEMP/mc-worker-smoke.json"
+
       - name: Check Python syntax
         run: python3 -m py_compile vm/mc-agent.py
 
