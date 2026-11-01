@@ -118,44 +118,13 @@ async function readJsonBody(request, maxBytes = MAX_JSON_BYTES) {
   catch { throw new Error("INVALID_JSON"); }
 }
 
-async function checkRateLimit(env, request, scope = "action", limit = RATE_LIMIT) {
-  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-  const key = "rate:" + scope + ":" + ip;
+function checkRateLimit(_env, request, scope = "action", limit = RATE_LIMIT) {
+  // Rate-limit counters are deliberately kept in isolate memory, not Workers KV.
+  // KV is eventually consistent and writing every request exhausted the free daily
+  // write quota. This remains a best-effort per-isolate limit, not a global/atomic
+  // abuse-control mechanism; use a Cloudflare Rate Limiting binding if traffic grows.
   const now = Math.floor(Date.now() / 1000);
-  try {
-    const stored = await env.STATUS_KV.get(key);
-    let record = null;
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (parsed && Number.isFinite(parsed.count) && Number.isFinite(parsed.startedAt)) {
-          record = parsed;
-        } else if (Number.isFinite(Number(stored))) {
-          // Migrate counters written by the previous implementation.
-          record = { count: Number(stored), startedAt: now };
-        }
-      } catch {}
-    }
-    if (!record || now - record.startedAt >= RATE_WINDOW || now < record.startedAt) {
-      record = { count: 0, startedAt: now };
-    }
-    if (record.count >= limit) return false;
-    record.count += 1;
-    // Workers KV is eventually consistent; this is a best-effort per-IP fixed window.
-    await env.STATUS_KV.put(key, JSON.stringify(record), { expirationTtl: RATE_WINDOW });
-    return true;
-  } catch (error) {
-    // The public technical inventory contains no credentials or player data.
-    // Keep it readable during a KV outage; other routes remain fail-closed.
-    if (!rateLimitStorageWarningLogged) {
-      console.error("Rate limit storage unavailable:", error.message);
-      rateLimitStorageWarningLogged = true;
-    }
-    // KV can be temporarily unavailable (including daily write-quota exhaustion).
-    // Fall back to a per-isolate in-memory window instead of rejecting every request.
-    // This preserves a best-effort limit without depending on KV during an outage.
-    return checkLocalRateLimit(request, scope, limit, now);
-  }
+  return checkLocalRateLimit(request, scope, limit, now);
 }
 
 async function dispatchWorkflow(env, file, inputs) {
