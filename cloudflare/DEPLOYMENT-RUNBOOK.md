@@ -12,17 +12,19 @@
 - Worker de produção: `mc-start-control`.
 - Auditoria read-only da configuração ativa (2026-11-01): `usage_model = "standard"`, `compatibility_date = "2026-10-30"`, `default_usage_model = "standard"`.
 - **Plano confirmado visualmente:** o Dashboard mostrou **Workers Free — Active** durante a auditoria de 2026-11-01. O campo API `usage_model = "standard"` não foi usado isoladamente para contrariar essa confirmação nem para concluir que existe uma subscrição Workers Paid. A API de Billing devolveu 403, pelo que não foi possível fazer uma verificação independente da faturação por API. Não alterar o plano nem o modelo de utilização.
-- A versão ativa é a versão 45, publicada a 2026-11-01 às 10:23 UTC pelo Dashboard; a versão 44 tem o mesmo código (etag). A versão 45 apenas acrescentou o binding `TECHNICAL_BUCKET`. O PR #27 só foi merged às 12:40 UTC; por isso, a produção continua em código anterior ao PR #27.
-- Bindings ativos: 9 secrets (metadata apenas) e os 3 bindings `STATUS_KV`, `TECHNICAL_BUCKET` e `MC_AGENT`. Os identificadores de KV e VPC e o nome do bucket correspondem ao `wrangler.toml`; nenhum valor secreto foi consultado.
-- O binding `R2_BUDGET` ainda não existe em produção; a listagem devolveu zero namespaces Durable Objects. A primeira publicação cria a classe/namespace SQLite declarada em `exports`.
+- **Fotografia histórica das 10:23 UTC:** a versão 45, publicada pelo Dashboard, apenas acrescentou o binding `TECHNICAL_BUCKET`; nessa altura, o PR #27 ainda não tinha sido merged. Esta fotografia não representa a configuração ativa posterior.
+- **Estado posterior confirmado read-only:** foi observada uma deployment mais recente às 15:36:41 UTC, a receber 100% do tráfego. A configuração ativa nessa auditoria já incluía `R2_BUDGET` e o namespace `R2Budget`. Não inferir, apenas a partir desta observação, que o PR #32 foi publicado: o PR #32 continua a ser uma alteração separada e não deve ser considerado merged/deployed sem nova verificação.
+- **Fotografia histórica das 10:23 UTC:** a versão 45 tinha apenas os bindings `STATUS_KV`, `TECHNICAL_BUCKET` e `MC_AGENT`; nessa auditoria, `R2_BUDGET` não estava instalado e a listagem de namespaces Durable Objects devolveu zero. Esta observação descreve o estado anterior à publicação posterior, não o estado atual.
+- **Auditoria read-only posterior (2026-11-01, deployment mais recente observada às 15:36:41 UTC):** o Worker `mc-start-control` tem os bindings `STATUS_KV`, `TECHNICAL_BUCKET`, `MC_AGENT` e `R2_BUDGET`. O binding `R2_BUDGET` aponta para a classe `R2Budget`, e o namespace Durable Object SQLite correspondente existe e está associado ao Worker. A deployment mais recente observada recebia 100% do tráfego.
+- A auditoria confirmou apenas metadata de bindings e deployments. Foram confirmados 9 secrets por metadata, sem consultar ou imprimir valores. Não publicar IDs de namespaces, KV, VPC, deployments ou outros identificadores internos neste runbook.
 - `workers.dev` está ativo; previews estão desativados.
 - A API devolveu zero domínios personalizados do Worker, zero zonas acessíveis nesta conta e zero custom domains do bucket R2. O domínio gerido `r2.dev` está desativado.
 - O bucket `mc-start-technical` existe em região WEUR e classe Standard, privado, sem domínio público ou `r2.dev`.
 - A listagem read-only do bucket não devolveu objetos; isto sugere bucket vazio, mas não é extrato de faturação nem prova de zero operações faturáveis.
 - A chave KV `technical:public` existe no namespace de estado; o valor não foi lido. O snapshot ainda não foi migrado para R2.
-- A listagem de namespaces Durable Objects devolveu zero; a versão ativa não tem binding `R2_BUDGET`.
+- **Correção da fotografia atual:** a afirmação acima sobre zero namespaces era válida apenas para a auditoria inicial das 10:23 UTC. Na auditoria read-only posterior de 2026-11-01, o namespace `R2Budget` já existia e o binding `R2_BUDGET` estava presente na configuração ativa.
 - Foram observadas 10 deployments; a mais recente estava a receber 100% do tráfego no momento da auditoria.
-- Não foi feito deploy do código do PR #27 nem qualquer alteração ao plano, billing ou bindings do Worker de produção.
+- **Na auditoria inicial das 10:23 UTC**, ainda não tinha sido publicado o código do PR #27. Na auditoria read-only posterior, não foram feitas alterações ao plano, billing, bindings ou deployments: apenas foi consultada a configuração já existente.
 - A auditoria read-only de Observability encontrou, nas últimas 24 horas, 9 eventos de erro em `GET /api/public/status`, todos com a mensagem `Rate limit storage unavailable: KV put() limit exceeded for the day.`. Isto é compatível com a versão pré-PR #27 ainda tentar guardar o rate limiter no KV e atingir o limite diário de escritas.
 - Foi executado um teste isolado temporário no runtime Workers Free, sem bindings ou secrets de produção, reproduzindo a sequência criptográfica antiga de `decryptStatus()`. O Analytics GraphQL registou 2 invocações, CPU P50 = 19 199 µs e P99 = 20 523 µs. Esta medição histórica identificou que PBKDF2 no Worker excedia o limite nominal Free de 10 ms. A alteração proposta nesta branch remove PBKDF2 do Worker: o endpoint autenticado devolve o envelope cifrado e o navegador desencripta-o com WebCrypto, mantendo as 100 000 iterações e AES-256-GCM. A medição antiga deixa, portanto, de representar o caminho de leitura proposto; a validação automática desta alteração e a confirmação pós-publicação continuam obrigatórias.
 - A tentativa de definir explicitamente `limits.cpu_ms` foi rejeitada pela API por não ser suportada no plano Free; não foi ativado Workers Paid. O teste foi removido após a medição e o seu endpoint `workers.dev` foi desativado.
@@ -42,7 +44,7 @@ A configuração não contém valores de secrets. A documentação Cloudflare in
 
 ### 2.2 Primeiro deploy de R2Budget
 
-A primeira publicação com `[exports.R2Budget]` provisiona um namespace SQLite novo. O formato declarativo `exports` é mutuamente exclusivo com o fluxo legado `migrations`; não voltar a introduzir `migrations` depois de publicar com `exports`.
+A publicação que introduziu `[exports.R2Budget]` provisionou o namespace SQLite, que já foi confirmado na auditoria read-only posterior de 2026-11-01. Em publicações futuras, preservar a classe e o binding existentes. O formato declarativo `exports` é mutuamente exclusivo com o fluxo legado `migrations`; não voltar a introduzir `migrations` depois de publicar com `exports`.
 
 **Atenção ao rollback:** Cloudflare documenta que um rollback para uma versão anterior pode ser bloqueado quando ocorreu uma alteração ao ciclo de vida de uma classe Durable Object entre a versão ativa e a versão de destino. Como esta publicação introduz a classe `R2Budget`, não assumir que será possível voltar diretamente à versão anterior do Worker. Preparar uma correção para a frente que mantenha o binding e a declaração `exports.R2Budget`. Não apagar nem renomear a classe para tentar reverter o código.
 
@@ -112,7 +114,7 @@ Não usar um dump de settings com valores secretos como backup. Não copiar secr
 
 **Autorização explícita para publicar em produção recebida nesta conversa em 2026-11-01.** A autorização não dispensa os bloqueios técnicos e de Free Tier descritos neste runbook. O merge do PR e o deploy são decisões separadas.
 
-O PR #27 já está merged. Antes de publicar, confirmar que `main` contém o commit de merge aprovado e repetir todos os passos de preflight. Só depois de os bloqueios Free Tier estarem resolvidos e de existir autorização explícita para produção, executar:
+O PR #27 já está merged e a auditoria read-only posterior confirmou uma deployment mais recente com `R2_BUDGET` ativo. Isto não equivale a autorização para uma nova publicação. Antes de qualquer deploy futuro, identificar exatamente o PR/commit aprovado, confirmar que `main` o contém e repetir todos os passos de preflight. Só depois de os bloqueios Free Tier estarem resolvidos e de existir autorização explícita para essa publicação, executar:
 
 ```sh
 npx wrangler deploy --config cloudflare/wrangler.toml
