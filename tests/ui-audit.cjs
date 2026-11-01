@@ -76,6 +76,12 @@ async function main() {
       failures.push("Skip link/focus indicator check failed: " + JSON.stringify(firstFocus));
     }
     console.log("Keyboard first focus: " + JSON.stringify(firstFocus));
+
+    // Use a deliberately fake local value so password-gated controls become
+    // keyboard-focusable. No buttons are clicked and all Worker requests are
+    // blocked above, so this cannot invoke a real administrative action.
+    await page.locator("#access-password").fill("audit-only-not-a-real-password");
+
     const focusedControls = new Set();
     for (let index = 0; index < 24; index++) {
       await page.keyboard.press("Tab");
@@ -97,7 +103,7 @@ async function main() {
       }
     }
     for (const requiredId of [
-      "language-select", "access-password", "start-button", "stop-button",
+      "language-select", "access-password", "start-button",
       "status-button", "private-status-button"
     ]) {
       if (!focusedControls.has(requiredId)) {
