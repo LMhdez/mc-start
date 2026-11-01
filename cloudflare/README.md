@@ -2,6 +2,8 @@
 
 Este documento descreve a arquitetura atual e a ordem segura de implementação. O website está alojado no **GitHub Pages**; a Cloudflare fornece a API de controlo e a ligação privada à VM.
 
+Antes de qualquer publicação do Worker, seguir o [runbook de publicação controlada](./DEPLOYMENT-RUNBOOK.md). O runbook é apenas preparatório: não autoriza merge, deploy ou alterações de produção.
+
 ## Arquitetura
 
 1. **Website — GitHub Pages**
