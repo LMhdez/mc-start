@@ -45,6 +45,7 @@ O rollback de uma versão também não reverte o estado de recursos externos com
 
 - O Workers Free e o Workers Paid são planos diferentes. A documentação atual indica que o Workers Paid tem um custo mínimo de $5 USD/mês; o Workers Free usa limites próprios. O modelo `standard` está associado ao Workers Paid.
 - A configuração ativa devolve `usage_model = "standard"` e o default da conta também é `standard`. Não assumir que isto é Free.
+- O limite de CPU por invocação do Workers Free é 10 ms. O caminho de leitura de resultados privados em `worker.js` chama `decryptStatus()`, que deriva a chave com PBKDF2-SHA256 e 100 000 iterações. Esse caminho ainda não foi medido no runtime Cloudflare/Workerd com o limite Free; pode ultrapassá-lo. Antes de qualquer migração para Free, medir o caminho completo de `/api/status/read` nesse runtime. Se exceder o limite, preparar e testar uma otimização criptográfica segura; não reduzir simplesmente as iterações PBKDF2 sem uma análise de segurança.
 - Antes de qualquer deploy, confirmar visualmente no Dashboard que o plano ativo é **Workers Free**, que não existe subscrição Workers Paid e que não há alteração pendente de billing. Se não for possível confirmar sem alterar billing, parar.
 - Não alterar plano, método de pagamento, billing, usage model ou funcionalidades pagas neste procedimento.
 - Não executar qualquer ação de upgrade/downgrade, ativação, trial, top-up ou subscription.
@@ -145,6 +146,7 @@ Só considerar concluído quando os testes pós-deploy passarem, os bindings/sec
 ## Referências oficiais
 
 - [Workers pricing and Free/Paid plan distinction](https://developers.cloudflare.com/workers/platform/pricing/)
+- [Workers platform limits, including CPU time](https://developers.cloudflare.com/workers/platform/limits/)
 - [Wrangler configuration](https://developers.cloudflare.com/workers/wrangler/configuration/)
 - [Wrangler deploy command](https://developers.cloudflare.com/workers/wrangler/commands/workers/)
 - [Durable Object class exports](https://developers.cloudflare.com/durable-objects/reference/durable-objects-migrations/)
