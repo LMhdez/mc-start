@@ -144,6 +144,7 @@ def read_status():
     geyser_udp_ready = None
     geyser_udp_state = "unknown"
     geyser_udp_diagnostic = "not_checked"
+    geyser_transport = "unknown"
     if container_state == "running":
         started = run_command(
             ["docker", "inspect", "-f", "{{.State.StartedAt}}", CONTAINER],
@@ -167,67 +168,15 @@ def read_status():
             if geyser_loaded and signaling_ready:
                 geyser_ready = True
                 geyser_state = "ready"
-                # Testa dentro do network namespace do contentor para evitar
-                # falsos negativos causados pelo encaminhamento da bridge Docker.
-                container_pid = run_command(
-                    ["docker", "inspect", "-f", "{{.State.Pid}}", CONTAINER],
-                    timeout=5,
-                )
-                geyser_udp_ready = False
-                if container_pid.returncode == 0 and container_pid.stdout.strip().isdigit():
-                    namespace_probe = (
-                        "import os,socket,time; "
-                        "magic=bytes.fromhex('00ffff00fefefefefdfdfdfd12345678'); "
-                        "stamp=int(time.time()*1000).to_bytes(8,'big',signed=True); "
-                        "packet=b'\\x01'+stamp+magic+os.urandom(8); "
-                        "s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); "
-                        "s.settimeout(1); s.sendto(packet,('127.0.0.1',19132)); "
-                        "r,_=s.recvfrom(2048); "
-                        "raise SystemExit(0 if len(r)>=35 and r[0]==0x1c and r[1:9]==stamp and r[17:33]==magic else 1)"
-                    )
-                    namespace_result = run_command(
-                        ["nsenter", "--target", container_pid.stdout.strip(), "--net", "python3", "-c", namespace_probe],
-                        timeout=4,
-                    )
-                    geyser_udp_ready = namespace_result.returncode == 0
-                    geyser_udp_diagnostic = "raknet_response_in_container" if geyser_udp_ready else "container_probe_no_response"
-                    if not geyser_udp_ready:
-                        listener_check = (
-                            "paths=('/proc/net/udp','/proc/net/udp6'); "
-                            "found=any(line.split()[1].rsplit(':',1)[-1]=='4ABC' "
-                            "for path in paths for line in open(path) if line[:1].strip().isdigit()); "
-                            "raise SystemExit(0 if found else 1)"
-                        )
-                        listener_result = run_command(
-                            ["nsenter", "--target", container_pid.stdout.strip(), "--net", "python3", "-c", listener_check],
-                            timeout=3,
-                        )
-                        geyser_udp_diagnostic = (
-                            "udp_listener_no_raknet_pong"
-                            if listener_result.returncode == 0
-                            else "no_udp_listener_19132"
-                            if listener_result.returncode == 1
-                            else "listener_check_unavailable"
-                        )
-                else:
-                    geyser_udp_diagnostic = "container_network_namespace_unavailable"
-
-                # Fallback: testa o IP da bridge diretamente a partir da VM.
-                if not geyser_udp_ready:
-                    container_ip = run_command(
-                        [
-                            "docker", "inspect", "-f",
-                            "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
-                            CONTAINER,
-                        ],
-                        timeout=5,
-                    )
-                    probe_host = container_ip.stdout.strip() if container_ip.returncode == 0 else ""
-                    bridge_ready = probe_bedrock_udp(probe_host) if probe_host else False
-                    if bridge_ready:
-                        geyser_udp_ready = True
-                        geyser_udp_diagnostic = "raknet_response_via_docker_bridge"
-                geyser_udp_state = "ready" if geyser_udp_ready else "no_response"
+                # O signaling integrado confirma que o serviço NetherNet arrancou.
+                # NetherNet não responde ao Unconnected Ping RakNet usado no
+                # teste UDP legado. Não tratar a ausência desse pong como falha.
+                # A acessibilidade externa e uma sessão Bedrock real continuam
+                # por confirmar por este agente.
+                geyser_transport = "nethernet"
+                geyser_udp_ready = None
+                geyser_udp_state = "not_applicable"
+                geyser_udp_diagnostic = "nethernet_signaling_ready_external_access_unverified"
 
     return {
         "vm": "VM running",
@@ -236,6 +185,7 @@ def read_status():
         "rcon_ready": rcon_ready,
         "geyser_ready": geyser_ready,
         "geyser_state": geyser_state,
+        "geyser_transport": geyser_transport,
         "geyser_udp_ready": geyser_udp_ready,
         "geyser_udp_state": geyser_udp_state,
         "geyser_udp_diagnostic": geyser_udp_diagnostic,
