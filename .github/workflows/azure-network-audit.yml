@@ -205,7 +205,8 @@ jobs:
                       return entries.filter(v => typeof v === 'string' && /^[0-9*,\-\s]+$/.test(v)).join(', ') || 'wildcard/other';
                     };
                     const scope = ['ANY/INTERNET', 'AZURE SERVICE SCOPE', 'RESTRICTED (CIDRs redacted)', 'UNSPECIFIED'].includes(rule.sourceScope) ? rule.sourceScope : 'UNSPECIFIED';
-                    return {access, protocol, destination: portText(rule.destinationPortRanges ?? rule.destinationPortRange), scope};
+                    const destinationValue = Array.isArray(rule.destinationPortRanges) && rule.destinationPortRanges.length ? rule.destinationPortRanges : rule.destinationPortRange;
+                    return {access, protocol, destination: portText(destinationValue), scope};
                   });
               } catch {
                 return [];
