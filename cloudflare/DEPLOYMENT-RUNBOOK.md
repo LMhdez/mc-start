@@ -2,7 +2,17 @@
 
 **Estado:** PR #27 merged em 2026-11-01. Preparação de publicação apenas; este documento não autoriza nem executa deploy, alterações no Dashboard ou alterações de billing.
 
-## 1. Estado verificado em 2026-11-01
+## Estado atual confirmado — 2026-11-02 (read-only)
+
+- **PR #40 — resultados temporários cifrados:** merged e deployed em produção.
+- A versão ativa do Worker foi confirmada pela API Cloudflare como versão 50, publicada em 2026-11-02 às 00:17 UTC, com **100% do tráfego** atribuído à versão.
+- A anotação da deployment identifica explicitamente a publicação do PR #40; o commit associado à versão corresponde ao merge commit 2582349810c35962e1b65146f7e06a0583811230.
+- A configuração ativa mantém o binding R2_BUDGET associado à classe SQLite R2Budget. Não foram consultados valores de secrets nem dados privados.
+- A verificação foi exclusivamente de leitura: não houve novo upload, deployment, alteração de bindings, plano, billing ou infraestrutura.
+- **PR #32:** também consta como deployed na sequência de versões, com 100% do tráfego na deployment observada em 2026-11-01 às 17:23 UTC. Não confundir essa publicação com a posterior PR #40.
+- O plano continua sujeito à regra do projeto: Free Tier apenas; nunca aprovar upgrade, trial ou funcionalidade paga.
+- **Rede Minecraft:** TCP 19132 tem utilização legítima por um mod, confirmada pelo utilizador. Não o remover nem voltar a propor uma regra Java TCP 25565 + Bedrock UDP 19132 como se fossem os únicos protocolos necessários. A issue #19 permanece not_planned: nenhuma alteração de firewall foi aplicada.
+## 1. Histórico de auditoria — 2026-11-01
 
 - PR #27: merged e fechado através de squash.
 - Commit de merge em `main`: `4c5eeb40b96571c7834a81a75b457de83c44c54b`.
@@ -13,14 +23,14 @@
 - Auditoria read-only da configuração ativa (2026-11-01): `usage_model = "standard"`, `compatibility_date = "2026-10-30"`, `default_usage_model = "standard"`.
 - **Plano confirmado visualmente:** o Dashboard mostrou **Workers Free — Active** durante a auditoria de 2026-11-01. O campo API `usage_model = "standard"` não foi usado isoladamente para contrariar essa confirmação nem para concluir que existe uma subscrição Workers Paid. A API de Billing devolveu 403, pelo que não foi possível fazer uma verificação independente da faturação por API. Não alterar o plano nem o modelo de utilização.
 - **Fotografia histórica das 10:23 UTC:** a versão 45, publicada pelo Dashboard, apenas acrescentou o binding `TECHNICAL_BUCKET`; nessa altura, o PR #27 ainda não tinha sido merged. Esta fotografia não representa a configuração ativa posterior.
-- O PR #32 é uma alteração separada e não deve ser considerado merged/deployed sem verificação própria; a auditoria read-only da configuração ativa não constitui evidência de publicação desse PR.
+- O PR #32 foi posteriormente publicado e confirmado na deployment de 2026-11-01 às 17:23 UTC, com 100% do tráfego nessa observação. Ver o estado atual confirmado no início deste runbook.
 - **Auditoria read-only posterior (2026-11-01, deployment mais recente observada às 15:36:41 UTC):** o Worker `mc-start-control` tem os bindings `STATUS_KV`, `TECHNICAL_BUCKET`, `MC_AGENT` e `R2_BUDGET`. O binding `R2_BUDGET` aponta para a classe `R2Budget`, e o namespace Durable Object SQLite correspondente existe e está associado ao Worker. A deployment mais recente observada recebia 100% do tráfego.
 - A auditoria confirmou apenas metadata de bindings e deployments. Foram confirmados 9 secrets por metadata, sem consultar ou imprimir valores. Não publicar IDs de namespaces, KV, VPC, deployments ou outros identificadores internos neste runbook.
 - `workers.dev` está ativo; previews estão desativados.
 - A API devolveu zero domínios personalizados do Worker, zero zonas acessíveis nesta conta e zero custom domains do bucket R2. O domínio gerido `r2.dev` está desativado.
 - O bucket `mc-start-technical` existe em região WEUR e classe Standard, privado, sem domínio público ou `r2.dev`.
 - A listagem read-only do bucket não devolveu objetos; isto sugere bucket vazio, mas não é extrato de faturação nem prova de zero operações faturáveis.
-- A chave KV `technical:public` existe no namespace de estado; o valor não foi lido. O snapshot ainda não foi migrado para R2.
+- A chave KV `technical:public` existia na fotografia histórica; o valor não foi lido. Não inferir o estado atual do snapshot apenas a partir desta observação.
 - Foram observadas 10 deployments; a mais recente estava a receber 100% do tráfego no momento da auditoria.
 - **Na auditoria inicial das 10:23 UTC**, ainda não tinha sido publicado o código do PR #27. Na auditoria read-only posterior, não foram feitas alterações ao plano, billing, bindings ou deployments: apenas foi consultada a configuração já existente.
 - A auditoria read-only de Observability encontrou, nas últimas 24 horas, 9 eventos de erro em `GET /api/public/status`, todos com a mensagem `Rate limit storage unavailable: KV put() limit exceeded for the day.`. Isto é compatível com a versão pré-PR #27 ainda tentar guardar o rate limiter no KV e atingir o limite diário de escritas.
@@ -28,7 +38,7 @@
 - A tentativa de definir explicitamente `limits.cpu_ms` foi rejeitada pela API por não ser suportada no plano Free; não foi ativado Workers Paid. O teste foi removido após a medição e o seu endpoint `workers.dev` foi desativado.
 - A verificação local `wrangler deploy --dry-run` permanece pendente: o ambiente de trabalho não conseguiu clonar o repositório devido a falha de resolução DNS do GitHub. O CI atual não executa esse dry-run.
 
-## 2. Riscos e decisões antes de publicar
+## 2. Riscos e decisões para futuras publicações
 
 ### 2.1 Wrangler passa a ser a fonte de verdade para bindings
 
@@ -162,3 +172,12 @@ Só considerar concluído quando os testes pós-deploy passarem, os bindings/sec
 - [Durable Object class exports](https://developers.cloudflare.com/durable-objects/reference/durable-objects-migrations/)
 - [Workers versions and deployments](https://developers.cloudflare.com/workers/versions-and-deployments/)
 - [Workers rollbacks](https://developers.cloudflare.com/workers/versions-and-deployments/rollbacks/)
+
+## 5. Regras operacionais atualizadas
+
+- **PR merged não significa automaticamente deployed.** Para confirmar produção, consultar a lista de deployments do Worker, a percentagem de tráfego por versão e as anotações/commit da versão ativa. Registar data UTC e versão, sem publicar IDs internos.
+- A deployment de PR #40 foi confirmada em 2026-11-02: versão 50, 100% do tráfego, anotação de publicação da PR #40 e commit correspondente ao merge. Não é necessária nova publicação.
+- **Não executar o workflow de alteração de NSG sem uma revisão específica.** O workflow secure-minecraft-network.yml assume que Java TCP 25565 e Bedrock UDP 19132 são os únicos protocolos de jogo e atualiza a regra Minecraft; essa premissa não contempla o tráfego TCP 19132 legítimo do mod. A execução poderia remover uma permissão necessária. A issue #19 continua fechada como not_planned e não autoriza qualquer alteração.
+- As auditorias de rede são read-only. azure-network-audit.yml recolhe resumo da NSG NIC/subnet e estado/configuração Geyser; não publicar endereços, CIDRs, nomes de recursos privados, outputs brutos ou secrets.
+- Não usar o fecho de uma issue como prova de deployment. Atualizar a issue com evidência concreta de produção quando existir.
+- A auditoria assistiva automatizada (axe/Chromium/teclado) não substitui uma sessão real com NVDA ou VoiceOver. Não declarar conformidade WCAG sem essa validação.
