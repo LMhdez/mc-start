@@ -19,7 +19,9 @@ O script:
 3. Executa `az account list-locations` no contexto da subscrição e filtra apenas regiões físicas cuja geografia seja Europa.
 4. Para cada região devolvida, consulta uma vez a lista de SKUs e verifica `Standard_B1s`, `Standard_B2ats_v2` e `Standard_B2pts_v2`, distinguindo SKU não listado de SKU com restrição de localização.
 5. Consulta as quotas de VM/vCPU de cada região.
-6. Suprime os diagnósticos brutos do Azure CLI para evitar expor identificadores ou informação confidencial.
+6. Executa até quatro regiões em paralelo, preservando a ordem dos resultados.
+7. Limita cada consulta de SKU a 150 segundos e cada consulta de quota a 45 segundos; uma consulta lenta fica marcada como indisponível/timeout e não bloqueia as restantes.
+8. Suprime os diagnósticos brutos do Azure CLI para evitar expor identificadores ou informação confidencial.
 
 **Interpretação importante:** a lista de localizações é a lista devolvida no contexto da subscrição, não uma garantia universal de acesso a todos os serviços. A presença de um SKU e quota disponível não confirmam capacidade física no momento da alocação. Só uma tentativa real de alocação poderia testar essa capacidade — e não será feita nesta fase, porque pode criar recursos faturáveis.
 
@@ -65,6 +67,7 @@ Não usar o relatório para escolher automaticamente uma região nem para inicia
 - [x] Preflight regional baseado no inventário da subscrição implementado.
 - [x] Verificação de SKUs candidatos por cada região europeia devolvida.
 - [x] Consulta de quotas regionais.
+- [x] Consultas regionais em lotes paralelos limitados e com timeout por consulta.
 - [ ] CI validado.
 - [ ] Preflight executado contra a subscrição real.
 - [ ] Free Tier e custo total confirmados.
