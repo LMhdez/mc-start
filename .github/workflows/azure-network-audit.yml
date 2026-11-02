@@ -113,6 +113,31 @@ jobs:
               awk '"'"'BEGIN { files=0; found=0 } FNR==1 { files++ } NR>1 && $2 ~ /:4ABC$/ { found=1 } END { if (files==0) print "Container UDP 19132 listener: unknown"; else if (found) print "Container UDP 19132 listener: yes"; else print "Container UDP 19132 listener: no" }'"'"' /proc/net/udp /proc/net/udp6 2>/dev/null
               awk '"'"'BEGIN { files=0; found=0 } FNR==1 { files++ } NR>1 && $2 ~ /:4ABC$/ && $4=="0A" { found=1 } END { if (files==0) print "Container TCP 19132 listener: unknown"; else if (found) print "Container TCP 19132 listener: yes"; else print "Container TCP 19132 listener: no" }'"'"' /proc/net/tcp /proc/net/tcp6 2>/dev/null
             ' 2>/dev/null || true
+            echo '=== BEDROCK SOCKET OWNER CLASS ==='
+            docker exec mc-server sh -c '
+              owner_class() {
+                file="$1"
+                state_filter="$2"
+                inode=$(awk -v state="$state_filter" "\$2 ~ /:4ABC\$/ && (state == \"\" || \$4 == state) {print \$10; exit}" "$file" 2>/dev/null || true)
+                [ -n "$inode" ] || { echo unknown; return; }
+                command -v readlink >/dev/null 2>&1 || { echo unknown; return; }
+                for fd in /proc/[0-9]*/fd/*; do
+                  target=$(readlink "$fd" 2>/dev/null || true)
+                  [ "$target" = "socket:[$inode]" ] || continue
+                  pid=${fd#/proc/}
+                  pid=${pid%%/*}
+                  comm=$(cat "/proc/$pid/comm" 2>/dev/null || true)
+                  case "$comm" in
+                    java) echo JVM; return ;;
+                    "") ;;
+                    *) echo NON_JVM; return ;;
+                  esac
+                done
+                echo unknown
+              }
+              echo "Container UDP 19132 owner class: $(owner_class /proc/net/udp "")"
+              echo "Container TCP 19132 owner class: $(owner_class /proc/net/tcp 0A)"
+            ' 2>/dev/null || true
           else
             echo 'Geyser configuration file: not found'
           fi
@@ -162,6 +187,8 @@ jobs:
           PUBLISHED_PORTS=$(sed -n -E 's/^Published container port: ([0-9]{1,5}\/(tcp|udp))$/\1/p' guest.txt | sort -u | paste -sd, -)
           BEDROCK_UDP_LISTENER=$(sed -n -E 's/^Container UDP 19132 listener: (yes|no|unknown)$/\1/p' guest.txt | head -n 1)
           BEDROCK_TCP_LISTENER=$(sed -n -E 's/^Container TCP 19132 listener: (yes|no|unknown)$/\1/p' guest.txt | head -n 1)
+          BEDROCK_UDP_OWNER=$(sed -n -E 's/^Container UDP 19132 owner class: (JVM|NON_JVM|unknown)$/\1/p' guest.txt | head -n 1)
+          BEDROCK_TCP_OWNER=$(sed -n -E 's/^Container TCP 19132 owner class: (JVM|NON_JVM|unknown)$/\1/p' guest.txt | head -n 1)
           echo "audit_complete=$AUDIT_COMPLETE" >> "$GITHUB_OUTPUT"
           echo "audit_reasons=$AUDIT_REASON_LIST" >> "$GITHUB_OUTPUT"
           echo "geyser_bedrock_port=$GEYSER_BEDROCK_PORT" >> "$GITHUB_OUTPUT"
@@ -172,6 +199,8 @@ jobs:
           echo "published_ports=$PUBLISHED_PORTS" >> "$GITHUB_OUTPUT"
           echo "bedrock_udp_listener=$BEDROCK_UDP_LISTENER" >> "$GITHUB_OUTPUT"
           echo "bedrock_tcp_listener=$BEDROCK_TCP_LISTENER" >> "$GITHUB_OUTPUT"
+          echo "bedrock_udp_owner=$BEDROCK_UDP_OWNER" >> "$GITHUB_OUTPUT"
+          echo "bedrock_tcp_owner=$BEDROCK_TCP_OWNER" >> "$GITHUB_OUTPUT"
           echo "nic_rule_summary=$NIC_RULE_SUMMARY" >> "$GITHUB_OUTPUT"
           echo "subnet_rule_summary=$SUBNET_RULE_SUMMARY" >> "$GITHUB_OUTPUT"
           # Raw Azure and guest output stays on the ephemeral runner and is never exported.
@@ -189,6 +218,8 @@ jobs:
           PUBLISHED_PORTS: ${{ steps.diag.outputs.published_ports }}
           BEDROCK_UDP_LISTENER: ${{ steps.diag.outputs.bedrock_udp_listener }}
           BEDROCK_TCP_LISTENER: ${{ steps.diag.outputs.bedrock_tcp_listener }}
+          BEDROCK_UDP_OWNER: ${{ steps.diag.outputs.bedrock_udp_owner }}
+          BEDROCK_TCP_OWNER: ${{ steps.diag.outputs.bedrock_tcp_owner }}
         with:
           script: |
             const complete = process.env.AUDIT_COMPLETE === 'true';
@@ -273,6 +304,9 @@ jobs:
             const socketState = value => ['yes', 'no', 'unknown'].includes(value) ? value : 'unknown';
             geyserDetails.push('Live UDP 19132 listener: ' + socketState(process.env.BEDROCK_UDP_LISTENER));
             geyserDetails.push('Live TCP 19132 listener: ' + socketState(process.env.BEDROCK_TCP_LISTENER));
+            const ownerClass = value => ['JVM', 'NON_JVM', 'unknown'].includes(value) ? value : 'unknown';
+            geyserDetails.push('UDP 19132 owner class: ' + ownerClass(process.env.BEDROCK_UDP_OWNER));
+            geyserDetails.push('TCP 19132 owner class: ' + ownerClass(process.env.BEDROCK_TCP_OWNER));
             const transportSummary = geyserDetails.length ? '\n\nGeyser transport/config: ' + geyserDetails.join('; ') + '.' : '';
             const body = heading + '\n\n' + note + diagnostic + ruleSummary + transportSummary +
               '\n\nOnly sanitized Minecraft-port rule summaries are published. No rule names, priorities, source addresses, resource identifiers, raw command output, configuration values, or guest diagnostics are published.';
