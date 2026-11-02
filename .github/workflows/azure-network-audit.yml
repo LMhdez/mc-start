@@ -1,7 +1,7 @@
 name: Azure network and Geyser audit
 on:
   issues:
-    types: [opened]
+    types: [opened, edited]
 permissions:
   contents: read
   issues: write
@@ -24,18 +24,18 @@ jobs:
           echo '=== NIC / NETWORK SECURITY GROUP ===' > report.txt
           NIC_IDS=$(az vm show -g "$RG" -n "$VM" --query 'networkProfile.networkInterfaces[].id' -o tsv)
           for NIC in $NIC_IDS; do
-            echo "NIC: $(basename "$NIC")" >> report.txt
+            echo 'NIC: attached' >> report.txt
             NIC_NSG=$(az network nic show --ids "$NIC" --query 'networkSecurityGroup.id' -o tsv)
             SUBNET_IDS=$(az network nic show --ids "$NIC" --query 'ipConfigurations[].subnet.id' -o tsv)
             if [ -n "$NIC_NSG" ] && [ "$NIC_NSG" != "None" ]; then
               NSG_NAME=$(basename "$NIC_NSG")
               echo '=== AZURE IDENTITY NETWORK PERMISSIONS ===' >> report.txt
               APP_ID=$(az account show --query user.name -o tsv)
-              if ! az role assignment list --assignee "$APP_ID" --scope "$NIC_NSG" --include-inherited --query '[].roleDefinitionName' -o tsv >> report.txt 2>/dev/null; then
+              if ! az role assignment list --assignee "$APP_ID" --scope "$NIC_NSG" --include-inherited --query 'length(@)' -o tsv >/dev/null 2>/dev/null; then
                 echo 'Role assignments: read denied or unavailable' >> report.txt
               fi
-              echo "NIC NSG: $NSG_NAME" >> report.txt
-              if ! az network nsg rule list -g "$RG" --nsg-name "$NSG_NAME" --query "[?direction=='Inbound'].{name:name,access:access,protocol:protocol,priority:priority,sourceAddressPrefix:sourceAddressPrefix,sourceAddressPrefixes:sourceAddressPrefixes,sourcePortRange:sourcePortRange,sourcePortRanges:sourcePortRanges,destinationPortRange:destinationPortRange,destinationPortRanges:destinationPortRanges}" -o json | jq 'map({name,access,protocol,priority,sourcePortRange,sourcePortRanges,destinationPortRange,destinationPortRanges,sourceScope: (([.sourceAddressPrefix] + (.sourceAddressPrefixes // [])) | map(select(. != null and . != "")) | if any(.[]; . == "*" or . == "Internet" or . == "0.0.0.0/0" or . == "::/0") then "ANY/INTERNET" elif any(.[]; . == "VirtualNetwork" or . == "AzureLoadBalancer") then "AZURE SERVICE SCOPE" elif length > 0 then "RESTRICTED (CIDRs redacted)" else "UNSPECIFIED" end)})' >> report.txt 2>nsg-error.txt; then
+              echo 'NIC NSG: attached' >> report.txt
+              if ! az network nsg rule list -g "$RG" --nsg-name "$NSG_NAME" --query "[?direction=='Inbound'].{name:name,access:access,protocol:protocol,priority:priority,sourceAddressPrefix:sourceAddressPrefix,sourceAddressPrefixes:sourceAddressPrefixes,sourcePortRange:sourcePortRange,sourcePortRanges:sourcePortRanges,destinationPortRange:destinationPortRange,destinationPortRanges:destinationPortRanges}" -o json | jq 'map({access,protocol,priority,sourcePortRange,sourcePortRanges,destinationPortRange,destinationPortRanges,sourceScope: (([.sourceAddressPrefix] + (.sourceAddressPrefixes // [])) | map(select(. != null and . != "")) | if any(.[]; . == "*" or . == "Internet" or . == "0.0.0.0/0" or . == "::/0") then "ANY/INTERNET" elif any(.[]; . == "VirtualNetwork" or . == "AzureLoadBalancer") then "AZURE SERVICE SCOPE" elif length > 0 then "RESTRICTED (CIDRs redacted)" else "UNSPECIFIED" end)})' >> report.txt 2>nsg-error.txt; then
                 echo 'NIC NSG rules: read denied or unavailable' >> report.txt
               fi
             else echo 'NIC NSG: none' >> report.txt; fi
@@ -43,8 +43,8 @@ jobs:
               if SUBNET_NSG=$(az network vnet subnet show --ids "$SUBNET" --query 'networkSecurityGroup.id' -o tsv 2>/dev/null); then
                 if [ -n "$SUBNET_NSG" ] && [ "$SUBNET_NSG" != "None" ]; then
                   NSG_NAME=$(basename "$SUBNET_NSG")
-                  echo "Subnet NSG: $NSG_NAME" >> report.txt
-                  if ! az network nsg rule list -g "$RG" --nsg-name "$NSG_NAME" --query "[?direction=='Inbound'].{name:name,access:access,protocol:protocol,priority:priority,sourceAddressPrefix:sourceAddressPrefix,sourceAddressPrefixes:sourceAddressPrefixes,sourcePortRange:sourcePortRange,sourcePortRanges:sourcePortRanges,destinationPortRange:destinationPortRange,destinationPortRanges:destinationPortRanges}" -o json | jq 'map({name,access,protocol,priority,sourcePortRange,sourcePortRanges,destinationPortRange,destinationPortRanges,sourceScope: (([.sourceAddressPrefix] + (.sourceAddressPrefixes // [])) | map(select(. != null and . != "")) | if any(.[]; . == "*" or . == "Internet" or . == "0.0.0.0/0" or . == "::/0") then "ANY/INTERNET" elif any(.[]; . == "VirtualNetwork" or . == "AzureLoadBalancer") then "AZURE SERVICE SCOPE" elif length > 0 then "RESTRICTED (CIDRs redacted)" else "UNSPECIFIED" end)})' >> report.txt 2>nsg-error.txt; then echo 'Subnet NSG rules: read denied' >> report.txt; fi
+                  echo 'Subnet NSG: attached' >> report.txt
+                  if ! az network nsg rule list -g "$RG" --nsg-name "$NSG_NAME" --query "[?direction=='Inbound'].{name:name,access:access,protocol:protocol,priority:priority,sourceAddressPrefix:sourceAddressPrefix,sourceAddressPrefixes:sourceAddressPrefixes,sourcePortRange:sourcePortRange,sourcePortRanges:sourcePortRanges,destinationPortRange:destinationPortRange,destinationPortRanges:destinationPortRanges}" -o json | jq 'map({access,protocol,priority,sourcePortRange,sourcePortRanges,destinationPortRange,destinationPortRanges,sourceScope: (([.sourceAddressPrefix] + (.sourceAddressPrefixes // [])) | map(select(. != null and . != "")) | if any(.[]; . == "*" or . == "Internet" or . == "0.0.0.0/0" or . == "::/0") then "ANY/INTERNET" elif any(.[]; . == "VirtualNetwork" or . == "AzureLoadBalancer") then "AZURE SERVICE SCOPE" elif length > 0 then "RESTRICTED (CIDRs redacted)" else "UNSPECIFIED" end)})' >> report.txt 2>nsg-error.txt; then echo 'Subnet NSG rules: read denied' >> report.txt; fi
                 else echo 'Subnet NSG: none' >> report.txt; fi
               else echo 'Subnet NSG: unavailable (Azure RBAC denies subnet read)' >> report.txt; fi
             done
@@ -53,11 +53,11 @@ jobs:
           done
           SCRIPT=$(cat <<'EOS'
           echo '=== GEYSER CONFIG FILE DISCOVERY ==='
-          docker exec mc-server sh -c 'find /data /config /plugins /opt -type f 2>/dev/null | grep -Ei "geyser|config\\.(yml|yaml)$" | head -60' || true
+          docker exec mc-server sh -c 'find /data /config /plugins /opt -type f 2>/dev/null | grep -Ei "geyser|config\\.(yml|yaml)$" | head -1 | sed "s/.*/Geyser configuration file: found/"' || true
           echo '=== GEYSER EFFECTIVE CONFIG KEYS ==='
-          docker exec mc-server sh -c 'find /data /config /plugins /opt -type f \( -iname "*.yml" -o -iname "*.yaml" \) 2>/dev/null | while read f; do if echo "$f" | grep -qi geyser || grep -qi geyser "$f" 2>/dev/null; then echo "FILE=$f"; grep -nEi "^[[:space:]]*(bedrock:|port:|clone-remote-port:|broadcast-port:|address:|transport:|webrtc-port:|signaling:|mode:|use-direct-connection:)" "$f" 2>/dev/null || true; fi; done' 2>&1 | sed -E 's/[0-9]{1,3}(\.[0-9]{1,3}){3}/[IP REDACTED]/g'
+          docker exec mc-server sh -c 'find /data /config /plugins /opt -type f \( -iname "*.yml" -o -iname "*.yaml" \) 2>/dev/null | while read f; do if echo "$f" | grep -qi geyser || grep -qi geyser "$f" 2>/dev/null; then grep -nEi "^[[:space:]]*(bedrock:|port:|clone-remote-port:|broadcast-port:|transport:|webrtc-port:|mode:|use-direct-connection:)" "$f" 2>/dev/null || true; fi; done' 2>&1 | sed -E 's/[0-9]{1,3}(\.[0-9]{1,3}){3}/[IP REDACTED]/g'
           echo '=== PUBLISHED PORTS ==='
-          docker port mc-server 2>&1 || true
+          docker port mc-server 2>/dev/null | sed -E 's/.*:([0-9]+)$/container port \\1/' || true
           echo '=== SSH EFFECTIVE AUTHENTICATION POLICY ==='
           if command -v sshd >/dev/null 2>&1; then
             sshd -T 2>/dev/null | awk '$1=="passwordauthentication" || $1=="permitrootlogin" || $1=="pubkeyauthentication" || $1=="kbdinteractiveauthentication" || $1=="authenticationmethods" || $1=="usepam" || $1=="maxauthtries" {print}'
