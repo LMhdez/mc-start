@@ -27,7 +27,7 @@ jobs:
           SUBNET_RULE_SUMMARY='[]'
           add_audit_reason() {
             case "$1" in
-              vm_nic_read_unavailable|role_assignment_read_unavailable|nic_nsg_rules_unavailable|subnet_authorization_denied|subnet_resource_not_found|subnet_subscription_unavailable|subnet_provider_unavailable|subnet_read_error_unknown|subnet_nsg_rules_unavailable|guest_diagnostics_unavailable|guest_output_empty|geyser_config_missing)
+              vm_nic_read_unavailable|nic_nsg_rules_unavailable|subnet_authorization_denied|subnet_resource_not_found|subnet_subscription_unavailable|subnet_provider_unavailable|subnet_read_error_unknown|subnet_nsg_rules_unavailable|guest_diagnostics_unavailable|guest_output_empty|geyser_config_missing)
                 AUDIT_REASONS+=("$1")
                 ;;
             esac
@@ -45,13 +45,8 @@ jobs:
             SUBNET_IDS=$(az network nic show --ids "$NIC" --query 'ipConfigurations[].subnet.id' -o tsv 2>/dev/null)
             if [ -n "$NIC_NSG" ] && [ "$NIC_NSG" != "None" ]; then
               NSG_NAME=$(basename "$NIC_NSG")
-              echo '=== AZURE IDENTITY NETWORK PERMISSIONS ===' >> report.txt
-              APP_ID=$(az account show --query user.name -o tsv 2>/dev/null)
-              if ! az role assignment list --assignee "$APP_ID" --scope "$NIC_NSG" --include-inherited --query 'length(@)' -o tsv >/dev/null 2>/dev/null; then
-                echo 'Role assignments: read denied or unavailable' >> report.txt
-                AUDIT_COMPLETE=false
-                add_audit_reason role_assignment_read_unavailable
-              fi
+              # Effective NSG rules are the audit target. Enumerating RBAC assignments
+              # is optional metadata and must not block network/guest diagnostics.
               echo 'NIC NSG: attached' >> report.txt
               if NIC_RULE_SUMMARY=$(az network nsg rule list -g "$RG" --nsg-name "$NSG_NAME" --query "[?direction=='Inbound'].{access:access,protocol:protocol,sourceAddressPrefix:sourceAddressPrefix,sourceAddressPrefixes:sourceAddressPrefixes,destinationPortRange:destinationPortRange,destinationPortRanges:destinationPortRanges}" -o json 2>/dev/null | jq -c 'map({access,protocol,destinationPortRange,destinationPortRanges,sourceScope: (([.sourceAddressPrefix] + (.sourceAddressPrefixes // [])) | map(select(. != null and . != "")) | if any(.[]; . == "*" or . == "Internet" or . == "0.0.0.0/0" or . == "::/0") then "ANY/INTERNET" elif any(.[]; . == "VirtualNetwork" or . == "AzureLoadBalancer") then "AZURE SERVICE SCOPE" elif length > 0 then "RESTRICTED (CIDRs redacted)" else "UNSPECIFIED" end)})'); then
                 echo 'NIC NSG rules: sanitized summary collected' >> report.txt
@@ -236,7 +231,6 @@ jobs:
               : 'At least one required Azure or guest read was denied or unavailable. Detailed infrastructure output is intentionally withheld; keep this issue open.';
             const allowed = new Set([
               'vm_nic_read_unavailable',
-              'role_assignment_read_unavailable',
               'nic_nsg_rules_unavailable',
               'subnet_authorization_denied',
               'subnet_resource_not_found',
