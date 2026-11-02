@@ -104,7 +104,7 @@ jobs:
               /^[^[:space:]#][^:]*:/ { in_bedrock=0 }
               in_bedrock && /^[[:space:]]+port:[[:space:]]*/ { value=\$2; gsub(/[[:space:]\"]/ , \"\", value); if (value ~ /^[0-9]+$/ && value >= 1 && value <= 65535) print \"Geyser Bedrock port: \" value }
               in_bedrock && /^[[:space:]]+clone-remote-port:/ { value=tolower(\$2); gsub(/[[:space:]\"]/ , \"\", value); if (value == \"true\" || value == \"false\") print \"Geyser clone remote port: \" value }
-              /^[[:space:]]*transport:/ { value=tolower(\$2); gsub(/[[:space:]\"]/ , \"\", value); if (value == \"udp\" || value == \"tcp\" || value == \"webrtc\" || value == \"auto\") print \"Geyser transport: \" toupper(value); else print \"Geyser transport: OTHER\" }
+              /^[[:space:]]*transport:/ { value=tolower(\$2); gsub(/[[:space:]\"]/ , \"\", value); if (value == \"nethernet\" || value == \"both\") print \"Geyser transport: \" toupper(value); else print \"Geyser transport: OTHER\" }
               /^[[:space:]]*webrtc-port:/ { value=\$2; gsub(/[[:space:]\"]/ , \"\", value); if (value ~ /^[0-9]+$/ && value >= 1 && value <= 65535) print \"Geyser WebRTC port: \" value }
               /^[[:space:]]*use-direct-connection:/ { value=tolower(\$2); gsub(/[[:space:]\"]/ , \"\", value); if (value == \"true\" || value == \"false\") print \"Geyser direct connection: \" value }
             ' /data/config/Geyser-Fabric/config.yml" 2>/dev/null || true
@@ -187,7 +187,7 @@ jobs:
           AUDIT_REASON_LIST="${AUDIT_REASON_LIST%,}"
           echo "Audit completeness: $AUDIT_COMPLETE" >> report.txt
           GEYSER_BEDROCK_PORT=$(sed -n -E 's/^Geyser Bedrock port: ([0-9]{1,5})$/\1/p' guest.txt | head -n 1)
-          GEYSER_TRANSPORT=$(sed -n -E 's/^Geyser transport: (UDP|TCP|WEBRTC|AUTO|OTHER)$/\1/p' guest.txt | head -n 1)
+          GEYSER_TRANSPORT=$(sed -n -E 's/^Geyser transport: (NETHERNET|BOTH|OTHER)$/\1/p' guest.txt | head -n 1)
           GEYSER_WEBRTC_PORT=$(sed -n -E 's/^Geyser WebRTC port: ([0-9]{1,5})$/\1/p' guest.txt | head -n 1)
           GEYSER_CLONE_REMOTE=$(sed -n -E 's/^Geyser clone remote port: (true|false)$/\1/p' guest.txt | head -n 1)
           GEYSER_DIRECT_CONNECTION=$(sed -n -E 's/^Geyser direct connection: (true|false)$/\1/p' guest.txt | head -n 1)
@@ -299,7 +299,7 @@ jobs:
               '\n' + describeRules('Subnet NSG', safeRules(process.env.SUBNET_RULE_SUMMARY));
             const safePort = value => /^\d{1,5}$/.test(value || '') && Number(value) >= 1 && Number(value) <= 65535 ? value : '';
             const safeBool = value => value === 'true' || value === 'false' ? value : '';
-            const safeTransport = ['UDP', 'TCP', 'WEBRTC', 'AUTO', 'OTHER'].includes(process.env.GEYSER_TRANSPORT) ? process.env.GEYSER_TRANSPORT : '';
+            const safeTransport = ['NETHERNET', 'BOTH', 'OTHER'].includes(process.env.GEYSER_TRANSPORT) ? process.env.GEYSER_TRANSPORT : '';
             const geyserDetails = [];
             if (safePort(process.env.GEYSER_BEDROCK_PORT)) geyserDetails.push('Bedrock listener port: ' + safePort(process.env.GEYSER_BEDROCK_PORT));
             if (safeTransport) geyserDetails.push('Geyser transport: ' + safeTransport);
