@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Read-only Azure preflight for a possible Minecraft VM in France.
-# This script MUST NOT create, update, start, stop, deallocate, or delete resources.
+# Read-only Azure preflight: discover Europe regions exposed to this subscription,
+# then inspect candidate VM SKUs and regional VM quotas. Never provisions resources.
 
 set -Eeuo pipefail
 
-readonly REGION="${TARGET_REGION:-francecentral}"
 readonly RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:?AZURE_RESOURCE_GROUP is required}"
 readonly CURRENT_VM="${AZURE_VM_NAME:?AZURE_VM_NAME is required}"
 readonly CANDIDATE_SKUS=(
@@ -13,14 +12,17 @@ readonly CANDIDATE_SKUS=(
   "Standard_B2pts_v2"
 )
 
-# Suppress raw Azure CLI diagnostics because they can contain resource and
-# subscription identifiers. Only emit a generic failure marker.
+# Suppress raw Azure CLI diagnostics: they may contain subscription/resource identifiers.
 az_read() {
   if "$@" 2>/dev/null; then
     return 0
   fi
   echo "ERROR: Azure read-only query failed; diagnostic output suppressed." >&2
   return 1
+}
+
+az_try() {
+  "$@" 2>/dev/null
 }
 
 for command_name in az jq; do
@@ -30,10 +32,7 @@ for command_name in az jq; do
   }
 done
 
-echo "=== AZURE FRANCE PREFLIGHT (READ-ONLY) ==="
-printf 'Target region: %s\n' "$REGION"
-
-# Confirm an authenticated context without printing its identifiers.
+echo "=== AZURE SUBSCRIPTION REGION PREFLIGHT (READ-ONLY) ==="
 az_read az account show --only-show-errors --output none
 
 CURRENT_VM_JSON="$(
@@ -44,7 +43,6 @@ CURRENT_VM_JSON="$(
     --only-show-errors \
     --output json
 )"
-
 CURRENT_LOCATION="$(jq -r '.location // "unknown"' <<<"$CURRENT_VM_JSON")"
 CURRENT_SIZE="$(jq -r '.size // "unknown"' <<<"$CURRENT_VM_JSON")"
 CURRENT_POWER_STATE="$(
@@ -61,51 +59,73 @@ printf '  Region: %s\n' "$CURRENT_LOCATION"
 printf '  Size: %s\n' "$CURRENT_SIZE"
 printf '  Power state: %s\n' "${CURRENT_POWER_STATE:-unknown}"
 
-printf '\nCandidate SKU visibility in %s (not a free-tier or performance guarantee):\n' "$REGION"
-for sku in "${CANDIDATE_SKUS[@]}"; do
-  sku_json="$(
-    az_read az vm list-skus \
-      --location "$REGION" \
-      --size "$sku" \
-      --all \
-      --only-show-errors \
-      --output json
-  )"
+# account list-locations is subscription-scoped. Keep only physical European regions.
+LOCATIONS_JSON="$(
+  az_read az account list-locations \
+    --query "[?metadata.regionType=='Physical' && metadata.geographyGroup=='Europe'].{name:name,displayName:displayName}" \
+    --only-show-errors \
+    --output json
+)"
+mapfile -t EUROPE_REGIONS < <(jq -r '.[].name // empty' <<<"$LOCATIONS_JSON")
 
-  if jq -e --arg sku "$sku" '
-    [ .[] | select(.name == $sku) ] as $matches
-    | ($matches | length) > 0
-      and any($matches[]; ((.restrictions // []) | length) == 0)
-  ' <<<"$sku_json" >/dev/null; then
-    printf '  %s: listed without SKU restrictions\n' "$sku"
-  elif jq -e --arg sku "$sku" 'any(.[]; .name == $sku)' <<<"$sku_json" >/dev/null; then
-    printf '  %s: listed but restricted\n' "$sku"
+if (("${#EUROPE_REGIONS[@]}" == 0)); then
+  echo
+  echo "ERROR: Azure returned no physical European regions for this subscription."
+  echo "No alternative region can be recommended from this result."
+  exit 2
+fi
+
+printf '\nEuropean regions returned for this subscription (%s):\n' "${#EUROPE_REGIONS[@]}"
+jq -r '.[] | "  \(.name) — \(.displayName)"' <<<"$LOCATIONS_JSON"
+
+printf '\nCandidate SKU checks (visibility is not a capacity or Free Tier guarantee):\n'
+for region in "${EUROPE_REGIONS[@]}"; do
+  printf '\n[%s]\n' "$region"
+  if ! sku_json="$(az_try az vm list-skus --location "$region" --all --only-show-errors --output json)"; then
+    echo "  SKU query: unavailable (diagnostics suppressed)"
   else
-    printf '  %s: not listed\n' "$sku"
+    for sku in "${CANDIDATE_SKUS[@]}"; do
+      if jq -e --arg sku "$sku" '
+        any(.[]; .name == $sku and
+          all((.restrictions // [])[]; .type != "Location"))
+      ' <<<"$sku_json" >/dev/null; then
+        printf '  %s: listed; no location restriction reported\n' "$sku"
+      elif jq -e --arg sku "$sku" 'any(.[]; .name == $sku)' <<<"$sku_json" >/dev/null; then
+        printf '  %s: listed but location-restricted\n' "$sku"
+      else
+        printf '  %s: not listed\n' "$sku"
+      fi
+    done
+  fi
+
+  if ! usage_json="$(az_try az vm list-usage --location "$region" --only-show-errors --output json)"; then
+    echo "  VM quota: query unavailable (diagnostics suppressed)"
+  else
+    quota_lines="$(
+      jq -r '
+        .[]
+        | select(
+            (((.name.localizedValue // "") + " " + (.name.value // "")))
+            | test("vCPU|standardBS"; "i")
+          )
+        | "  \(.name.localizedValue // .name.value): \(.currentValue)/\(.limit)"
+      ' <<<"$usage_json"
+    )"
+    if [[ -n "$quota_lines" ]]; then
+      printf '%s\n' "$quota_lines"
+    else
+      echo "  VM quota: no matching quota rows returned"
+    fi
   fi
 done
-
-printf '\nRegional VM quota indicators:\n'
-usage_json="$(az_read az vm list-usage --location "$REGION" --only-show-errors --output json)"
-quota_lines="$(
-  jq -r '
-    .[]
-    | select(
-        (((.name.localizedValue // "") + " " + (.name.value // "")))
-        | test("vCPU|standardBS"; "i")
-      )
-    | "\(.name.localizedValue // .name.value): \(.currentValue)/\(.limit)"
-  ' <<<"$usage_json"
-)"
-if [[ -n "$quota_lines" ]]; then
-  printf '%s\n' "$quota_lines"
-else
-  echo "  No matching quota rows were returned."
-fi
 
 cat <<'SUMMARY'
 
 === PREFLIGHT LIMITS ===
+REGIONS_SOURCE=subscription-scoped Azure account locations (physical Europe only)
+SKU_VISIBILITY=checked per returned region
+REGIONAL_VM_QUOTAS=queried per returned region
+PHYSICAL_CAPACITY=NOT_VERIFIED
 FREE_TIER_ENTITLEMENT=NOT_VERIFIED
 REMAINING_LINUX_VM_HOURS=NOT_VERIFIED
 MANAGED_DISK_FREE_ALLOWANCE=NOT_VERIFIED
@@ -113,8 +133,8 @@ PUBLIC_IP_AND_NETWORK_COST=NOT_VERIFIED
 PROVISIONING=NOT_ATTEMPTED
 ORIGINAL_VM=UNCHANGED
 
-This is a read-only inventory. SKU visibility and quota do not prove that a
-resource is covered by an active Azure Free offer. Do not provision until
-the Azure Free Services page confirms the remaining allowance and every
-dependent resource is confirmed to cost zero.
+Important: a region returned by Azure is not proof that every service/SKU is
+enabled for this subscription. SKU visibility and quota are not proof of physical
+capacity, Free Tier eligibility, or zero total cost. Do not provision until the
+subscription's free allowance and every dependent resource are confirmed at €0.
 SUMMARY
