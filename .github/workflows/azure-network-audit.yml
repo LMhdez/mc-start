@@ -27,7 +27,7 @@ jobs:
           SUBNET_RULE_SUMMARY='[]'
           add_audit_reason() {
             case "$1" in
-              vm_nic_read_unavailable|nic_nsg_rules_unavailable|subnet_authorization_denied|subnet_resource_not_found|subnet_subscription_unavailable|subnet_provider_unavailable|subnet_read_error_unknown|subnet_nsg_rules_unavailable|guest_diagnostics_unavailable|guest_output_empty|geyser_config_missing)
+              vm_nic_read_unavailable|nic_nsg_rules_unavailable|subnet_authorization_denied|subnet_resource_not_found|subnet_subscription_unavailable|subnet_provider_unavailable|subnet_read_error_unknown|subnet_nsg_rules_unavailable|guest_diagnostics_unavailable|guest_authorization_denied|guest_agent_unavailable|guest_vm_not_running|guest_runcommand_error_unknown|guest_output_empty|geyser_config_missing)
                 AUDIT_REASONS+=("$1")
                 ;;
             esac
@@ -165,8 +165,16 @@ jobs:
           fi
           EOS
           )
-          if ! az vm run-command invoke -g "$RG" -n "$VM" --command-id RunShellScript --scripts "$SCRIPT" --query 'value[0].message' -o tsv > guest.txt 2>/dev/null; then
+          : > guest-error.txt
+          if ! az vm run-command invoke -g "$RG" -n "$VM" --command-id RunShellScript --scripts "$SCRIPT" --query 'value[0].message' -o tsv > guest.txt 2>guest-error.txt; then
             echo 'Guest diagnostics: read denied or unavailable' > guest.txt
+            GUEST_ERROR_CODE=$(grep -oE 'AuthorizationFailed|Forbidden|VMExtensionProvisioningError|VMAgentStatusUnavailable|VMNotRunning|OperationNotAllowed|ResourceNotFound|InternalError|RunCommand' guest-error.txt | head -n 1 || true)
+            case "$GUEST_ERROR_CODE" in
+              AuthorizationFailed|Forbidden) add_audit_reason guest_authorization_denied ;;
+              VMExtensionProvisioningError|VMAgentStatusUnavailable) add_audit_reason guest_agent_unavailable ;;
+              VMNotRunning) add_audit_reason guest_vm_not_running ;;
+              *) add_audit_reason guest_runcommand_error_unknown ;;
+            esac
             AUDIT_COMPLETE=false
             add_audit_reason guest_diagnostics_unavailable
           fi
@@ -239,6 +247,10 @@ jobs:
               'subnet_read_error_unknown',
               'subnet_nsg_rules_unavailable',
               'guest_diagnostics_unavailable',
+              'guest_authorization_denied',
+              'guest_agent_unavailable',
+              'guest_vm_not_running',
+              'guest_runcommand_error_unknown',
               'guest_output_empty',
               'geyser_config_missing',
             ]);
