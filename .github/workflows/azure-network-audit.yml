@@ -166,11 +166,17 @@ jobs:
           EOS
           )
           # Independent, read-only VM power and agent health check.
-          VM_STATE_JSON=$(az vm get-instance-view -g "$RG" -n "$VM" --query "instanceView.{power:statuses[?starts_with(code, 'PowerState/')].code | [0],agent:vmAgent.statuses[0].code}" -o json 2>/dev/null || echo '{}')
+          VM_STATE_JSON=$(az vm get-instance-view -g "$RG" -n "$VM" --query "instanceView.{power:statuses[?starts_with(code, 'PowerState/')].code | [0],agentDisplay:vmAgent.statuses[0].displayStatus,agentCode:vmAgent.statuses[0].code,agentVersion:vmAgent.vmAgentVersion}" -o json 2>/dev/null || echo '{}')
           VM_POWER_STATE=$(printf '%s' "$VM_STATE_JSON" | jq -r '.power // "unknown"' 2>/dev/null || echo unknown)
-          VM_AGENT_STATE=$(printf '%s' "$VM_STATE_JSON" | jq -r '.agent // "unknown"' 2>/dev/null || echo unknown)
+          VM_AGENT_DISPLAY=$(printf '%s' "$VM_STATE_JSON" | jq -r '.agentDisplay // "unknown"' 2>/dev/null || echo unknown)
+          VM_AGENT_CODE=$(printf '%s' "$VM_STATE_JSON" | jq -r '.agentCode // "unknown"' 2>/dev/null || echo unknown)
+          VM_AGENT_VERSION=$(printf '%s' "$VM_STATE_JSON" | jq -r '.agentVersion // "unknown"' 2>/dev/null || echo unknown)
           case "$VM_POWER_STATE" in PowerState/running) VM_POWER_STATE=running ;; PowerState/deallocated|PowerState/stopped) VM_POWER_STATE=stopped ;; *) VM_POWER_STATE=unknown ;; esac
-          case "$VM_AGENT_STATE" in Ready) VM_AGENT_STATE=ready ;; NotReady) VM_AGENT_STATE=not_ready ;; *) VM_AGENT_STATE=unknown ;; esac
+          case "$VM_AGENT_DISPLAY:$VM_AGENT_CODE:$VM_AGENT_VERSION" in
+            *Ready*|*ready*|*:ProvisioningState/succeeded:*|*:*:[0-9]*.[0-9]*) VM_AGENT_STATE=ready ;;
+            *NotReady*|*notReady*|*:ProvisioningState/failed:*|*:ProvisioningState/canceled:*) VM_AGENT_STATE=not_ready ;;
+            *) VM_AGENT_STATE=unknown ;;
+          esac
           if [ "$VM_POWER_STATE" = unknown ] || [ "$VM_AGENT_STATE" = unknown ]; then AUDIT_COMPLETE=false; add_audit_reason guest_instance_view_unavailable; fi
           : > guest-error.txt
           if [ "$VM_POWER_STATE" = stopped ]; then
