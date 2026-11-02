@@ -6,7 +6,7 @@ A região Madrid substitui France Central como hipótese principal após o Azure
 
 ## Implementação
 
-O one-shot Azure Cloud Shell e o runbook operacional vivem no repositório privado \`LMhdez/mc-server-infrastructure\`:
+O one-shot Azure Cloud Shell e o runbook operacional vivem no repositório privado `LMhdez/mc-server-infrastructure`:
 
 - [Plano Madrid e custos](https://github.com/LMhdez/mc-server-infrastructure/blob/main/docs/madrid-migration-plan.md)
 - [One-shot Azure Cloud Shell](https://github.com/LMhdez/mc-server-infrastructure/blob/main/scripts/azure-madrid-once.sh)
@@ -15,8 +15,8 @@ O script começa sempre em modo read-only. A criação só é possível com conf
 
 ## Alvo planeado
 
-- Região: Spain Central (\`spaincentral\`)
-- VM: \`Standard_B2als_v2\`, sem zona
+- Região: Spain Central (`spaincentral`)
+- VM: `Standard_B2als_v2`, sem zona
 - Ubuntu Server 24.04 LTS
 - Disco Premium SSD 30 GB
 - Identidade SystemAssigned
