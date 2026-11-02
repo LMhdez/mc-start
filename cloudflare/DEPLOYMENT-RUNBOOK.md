@@ -173,7 +173,7 @@ Só considerar concluído quando os testes pós-deploy passarem, os bindings/sec
 - [Workers versions and deployments](https://developers.cloudflare.com/workers/versions-and-deployments/)
 - [Workers rollbacks](https://developers.cloudflare.com/workers/versions-and-deployments/rollbacks/)
 
-## 5. Regras operacionais atualizadas
+## 9. Regras operacionais atualizadas
 
 - **PR merged não significa automaticamente deployed.** Para confirmar produção, consultar a lista de deployments do Worker, a percentagem de tráfego por versão e as anotações/commit da versão ativa. Registar data UTC e versão, sem publicar IDs internos.
 - A deployment de PR #40 foi confirmada em 2026-11-02: versão 50, 100% do tráfego, anotação de publicação da PR #40 e commit correspondente ao merge. Não é necessária nova publicação.
