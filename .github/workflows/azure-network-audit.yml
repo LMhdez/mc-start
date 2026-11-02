@@ -108,6 +108,11 @@ jobs:
               /^[[:space:]]*webrtc-port:/ { value=\$2; gsub(/[[:space:]\"]/ , \"\", value); if (value ~ /^[0-9]+$/ && value >= 1 && value <= 65535) print \"Geyser WebRTC port: \" value }
               /^[[:space:]]*use-direct-connection:/ { value=tolower(\$2); gsub(/[[:space:]\"]/ , \"\", value); if (value == \"true\" || value == \"false\") print \"Geyser direct connection: \" value }
             ' /data/config/Geyser-Fabric/config.yml" 2>/dev/null || true
+            echo '=== LIVE BEDROCK SOCKETS ==='
+            docker exec mc-server sh -c '
+              awk '"'"'BEGIN { files=0; found=0 } FNR==1 { files++ } NR>1 && $2 ~ /:4ABC$/ { found=1 } END { if (files==0) print "Container UDP 19132 listener: unknown"; else if (found) print "Container UDP 19132 listener: yes"; else print "Container UDP 19132 listener: no" }'"'"' /proc/net/udp /proc/net/udp6 2>/dev/null
+              awk '"'"'BEGIN { files=0; found=0 } FNR==1 { files++ } NR>1 && $2 ~ /:4ABC$/ && $4=="0A" { found=1 } END { if (files==0) print "Container TCP 19132 listener: unknown"; else if (found) print "Container TCP 19132 listener: yes"; else print "Container TCP 19132 listener: no" }'"'"' /proc/net/tcp /proc/net/tcp6 2>/dev/null
+            ' 2>/dev/null || true
           else
             echo 'Geyser configuration file: not found'
           fi
@@ -155,6 +160,8 @@ jobs:
           GEYSER_CLONE_REMOTE=$(sed -n -E 's/^Geyser clone remote port: (true|false)$/\1/p' guest.txt | head -n 1)
           GEYSER_DIRECT_CONNECTION=$(sed -n -E 's/^Geyser direct connection: (true|false)$/\1/p' guest.txt | head -n 1)
           PUBLISHED_PORTS=$(sed -n -E 's/^Published container port: ([0-9]{1,5}\/(tcp|udp))$/\1/p' guest.txt | sort -u | paste -sd, -)
+          BEDROCK_UDP_LISTENER=$(sed -n -E 's/^Container UDP 19132 listener: (yes|no|unknown)$/\1/p' guest.txt | head -n 1)
+          BEDROCK_TCP_LISTENER=$(sed -n -E 's/^Container TCP 19132 listener: (yes|no|unknown)$/\1/p' guest.txt | head -n 1)
           echo "audit_complete=$AUDIT_COMPLETE" >> "$GITHUB_OUTPUT"
           echo "audit_reasons=$AUDIT_REASON_LIST" >> "$GITHUB_OUTPUT"
           echo "geyser_bedrock_port=$GEYSER_BEDROCK_PORT" >> "$GITHUB_OUTPUT"
@@ -163,6 +170,8 @@ jobs:
           echo "geyser_clone_remote=$GEYSER_CLONE_REMOTE" >> "$GITHUB_OUTPUT"
           echo "geyser_direct_connection=$GEYSER_DIRECT_CONNECTION" >> "$GITHUB_OUTPUT"
           echo "published_ports=$PUBLISHED_PORTS" >> "$GITHUB_OUTPUT"
+          echo "bedrock_udp_listener=$BEDROCK_UDP_LISTENER" >> "$GITHUB_OUTPUT"
+          echo "bedrock_tcp_listener=$BEDROCK_TCP_LISTENER" >> "$GITHUB_OUTPUT"
           echo "nic_rule_summary=$NIC_RULE_SUMMARY" >> "$GITHUB_OUTPUT"
           echo "subnet_rule_summary=$SUBNET_RULE_SUMMARY" >> "$GITHUB_OUTPUT"
           # Raw Azure and guest output stays on the ephemeral runner and is never exported.
@@ -178,6 +187,8 @@ jobs:
           GEYSER_CLONE_REMOTE: ${{ steps.diag.outputs.geyser_clone_remote }}
           GEYSER_DIRECT_CONNECTION: ${{ steps.diag.outputs.geyser_direct_connection }}
           PUBLISHED_PORTS: ${{ steps.diag.outputs.published_ports }}
+          BEDROCK_UDP_LISTENER: ${{ steps.diag.outputs.bedrock_udp_listener }}
+          BEDROCK_TCP_LISTENER: ${{ steps.diag.outputs.bedrock_tcp_listener }}
         with:
           script: |
             const complete = process.env.AUDIT_COMPLETE === 'true';
@@ -259,6 +270,9 @@ jobs:
             if (safeBool(process.env.GEYSER_DIRECT_CONNECTION)) geyserDetails.push('Direct connection: ' + safeBool(process.env.GEYSER_DIRECT_CONNECTION));
             const published = (process.env.PUBLISHED_PORTS || '').split(',').filter(value => /^\d{1,5}\/(tcp|udp)$/.test(value));
             if (published.length) geyserDetails.push('Published container ports: ' + [...new Set(published)].join(', '));
+            const socketState = value => ['yes', 'no', 'unknown'].includes(value) ? value : 'unknown';
+            geyserDetails.push('Live UDP 19132 listener: ' + socketState(process.env.BEDROCK_UDP_LISTENER));
+            geyserDetails.push('Live TCP 19132 listener: ' + socketState(process.env.BEDROCK_TCP_LISTENER));
             const transportSummary = geyserDetails.length ? '\n\nGeyser transport/config: ' + geyserDetails.join('; ') + '.' : '';
             const body = heading + '\n\n' + note + diagnostic + ruleSummary + transportSummary +
               '\n\nOnly sanitized Minecraft-port rule summaries are published. No rule names, priorities, source addresses, resource identifiers, raw command output, configuration values, or guest diagnostics are published.';
