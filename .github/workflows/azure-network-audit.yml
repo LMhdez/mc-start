@@ -142,7 +142,7 @@ jobs:
               }
               echo "Container UDP 19132 owner class: $(owner_class udp "")"
               echo "Container TCP 19132 owner class: $(owner_class tcp 0A)"
-            ' 2>/dev/null || true            ' 2>/dev/null || true
+            ' 2>/dev/null || true
           else
             echo 'Geyser configuration file: not found'
           fi
