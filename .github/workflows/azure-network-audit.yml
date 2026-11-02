@@ -27,7 +27,7 @@ jobs:
           SUBNET_RULE_SUMMARY='[]'
           add_audit_reason() {
             case "$1" in
-              vm_nic_read_unavailable|nic_nsg_rules_unavailable|subnet_authorization_denied|subnet_resource_not_found|subnet_subscription_unavailable|subnet_provider_unavailable|subnet_read_error_unknown|subnet_nsg_rules_unavailable|guest_diagnostics_unavailable|guest_authorization_denied|guest_agent_unavailable|guest_vm_not_running|guest_runcommand_error_unknown|guest_output_empty|geyser_config_missing)
+              vm_nic_read_unavailable|nic_nsg_rules_unavailable|subnet_authorization_denied|subnet_resource_not_found|subnet_subscription_unavailable|subnet_provider_unavailable|subnet_read_error_unknown|subnet_nsg_rules_unavailable|guest_diagnostics_unavailable|guest_authorization_denied|guest_agent_unavailable|guest_vm_not_running|guest_runcommand_error_unknown|guest_instance_view_unavailable|guest_output_empty|geyser_config_missing)
                 AUDIT_REASONS+=("$1")
                 ;;
             esac
@@ -165,6 +165,13 @@ jobs:
           fi
           EOS
           )
+          # Independent, read-only VM power and agent health check.
+          VM_STATE_JSON=$(az vm get-instance-view -g "$RG" -n "$VM" --query "instanceView.{power:statuses[?starts_with(code, 'PowerState/')].code | [0],agent:vmAgent.statuses[0].code}" -o json 2>/dev/null || echo '{}')
+          VM_POWER_STATE=$(printf '%s' "$VM_STATE_JSON" | jq -r '.power // "unknown"' 2>/dev/null || echo unknown)
+          VM_AGENT_STATE=$(printf '%s' "$VM_STATE_JSON" | jq -r '.agent // "unknown"' 2>/dev/null || echo unknown)
+          case "$VM_POWER_STATE" in PowerState/running) VM_POWER_STATE=running ;; PowerState/deallocated|PowerState/stopped) VM_POWER_STATE=stopped ;; *) VM_POWER_STATE=unknown ;; esac
+          case "$VM_AGENT_STATE" in Ready) VM_AGENT_STATE=ready ;; NotReady) VM_AGENT_STATE=not_ready ;; *) VM_AGENT_STATE=unknown ;; esac
+          if [ "$VM_POWER_STATE" = unknown ] || [ "$VM_AGENT_STATE" = unknown ]; then AUDIT_COMPLETE=false; add_audit_reason guest_instance_view_unavailable; fi
           : > guest-error.txt
           if ! az vm run-command invoke -g "$RG" -n "$VM" --command-id RunShellScript --scripts "$SCRIPT" --query 'value[0].message' -o tsv > guest.txt 2>guest-error.txt; then
             echo 'Guest diagnostics: read denied or unavailable' > guest.txt
@@ -199,6 +206,8 @@ jobs:
           BEDROCK_TCP_LISTENER=$(sed -n -E 's/^Container TCP 19132 listener: (yes|no|unknown)$/\1/p' guest.txt | head -n 1)
           BEDROCK_UDP_OWNER=$(sed -n -E 's/^Container UDP 19132 owner class: (JVM|NON_JVM|unknown)$/\1/p' guest.txt | head -n 1)
           BEDROCK_TCP_OWNER=$(sed -n -E 's/^Container TCP 19132 owner class: (JVM|NON_JVM|unknown)$/\1/p' guest.txt | head -n 1)
+          echo "vm_power_state=$VM_POWER_STATE" >> "$GITHUB_OUTPUT"
+          echo "vm_agent_state=$VM_AGENT_STATE" >> "$GITHUB_OUTPUT"
           echo "audit_complete=$AUDIT_COMPLETE" >> "$GITHUB_OUTPUT"
           echo "audit_reasons=$AUDIT_REASON_LIST" >> "$GITHUB_OUTPUT"
           echo "geyser_bedrock_port=$GEYSER_BEDROCK_PORT" >> "$GITHUB_OUTPUT"
@@ -229,6 +238,8 @@ jobs:
           BEDROCK_UDP_LISTENER: ${{ steps.diag.outputs.bedrock_udp_listener }}
           BEDROCK_TCP_LISTENER: ${{ steps.diag.outputs.bedrock_tcp_listener }}
           BEDROCK_UDP_OWNER: ${{ steps.diag.outputs.bedrock_udp_owner }}
+          VM_POWER_STATE: ${{ steps.diag.outputs.vm_power_state }}
+          VM_AGENT_STATE: ${{ steps.diag.outputs.vm_agent_state }}
           BEDROCK_TCP_OWNER: ${{ steps.diag.outputs.bedrock_tcp_owner }}
         with:
           script: |
@@ -251,12 +262,14 @@ jobs:
               'guest_agent_unavailable',
               'guest_vm_not_running',
               'guest_runcommand_error_unknown',
+              'guest_instance_view_unavailable',
               'guest_output_empty',
               'geyser_config_missing',
             ]);
             const reasons = (process.env.AUDIT_REASONS || '')
               .split(',')
               .filter(reason => allowed.has(reason));
+            const vmState = '\n\nVM power state: ' + (['running','stopped'].includes(process.env.VM_POWER_STATE) ? process.env.VM_POWER_STATE : 'unknown') + '; Azure VM agent: ' + (['ready','not_ready'].includes(process.env.VM_AGENT_STATE) ? process.env.VM_AGENT_STATE : 'unknown') + '.';
             const diagnostic = reasons.length
               ? '\n\nSafe diagnostic categories: ' + [...new Set(reasons)].join(', ') + '.'
               : '';
@@ -324,7 +337,7 @@ jobs:
             geyserDetails.push('UDP 19132 owner class: ' + ownerClass(process.env.BEDROCK_UDP_OWNER));
             geyserDetails.push('TCP 19132 owner class: ' + ownerClass(process.env.BEDROCK_TCP_OWNER));
             const transportSummary = geyserDetails.length ? '\n\nGeyser transport/config: ' + geyserDetails.join('; ') + '.' : '';
-            const body = heading + '\n\n' + note + diagnostic + ruleSummary + transportSummary +
+            const body = heading + '\n\n' + note + diagnostic + vmState + ruleSummary + transportSummary +
               '\n\nOnly sanitized Minecraft-port rule summaries are published. No rule names, priorities, source addresses, resource identifiers, raw command output, configuration values, or guest diagnostics are published.';
             await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:context.issue.number,body});
             await github.rest.issues.update({owner:context.repo.owner,repo:context.repo.repo,issue_number:context.issue.number,state: complete ? 'closed' : 'open'});
