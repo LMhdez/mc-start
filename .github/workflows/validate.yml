@@ -89,3 +89,4 @@ jobs:
             puts "Validated #{path}"
           end
           '
+          bash -n vm/france-preflight.sh
