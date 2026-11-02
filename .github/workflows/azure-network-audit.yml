@@ -107,6 +107,6 @@ jobs:
             const note = complete
               ? 'All required read-only checks completed. Detailed infrastructure output is intentionally withheld.'
               : 'At least one required Azure or guest read was denied or unavailable. Detailed infrastructure output is intentionally withheld; keep this issue open.';
-            const body = heading + '\\n\\n' + note + '\\n\\nNo raw command output, resource identifiers, network ranges, configuration values, or guest diagnostics are published.';
+            const body = heading + '\n\n' + note + '\n\nNo raw command output, resource identifiers, network ranges, configuration values, or guest diagnostics are published.';
             await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:context.issue.number,body});
             await github.rest.issues.update({owner:context.repo.owner,repo:context.repo.repo,issue_number:context.issue.number,state: complete ? 'closed' : 'open'});
