@@ -98,11 +98,21 @@ jobs:
             echo 'Geyser configuration file: found'
             echo '=== GEYSER EFFECTIVE CONFIG KEYS ==='
             docker exec mc-server sh -c 'grep -h -nEi "^[[:space:]]*(bedrock:|port:|clone-remote-port:|broadcast-port:|transport:|webrtc-port:|mode:|use-direct-connection:)" /data/config/Geyser-Fabric/config.yml 2>/dev/null || true' 2>/dev/null | sed -E 's/^[0-9]+:[[:space:]]*([^:]+):.*/\1/' | sort -u | sed 's/^/Geyser key: /'
+            echo '=== GEYSER SAFE TRANSPORT SETTINGS ==='
+            docker exec mc-server sh -c "awk -F: '
+              /^bedrock:[[:space:]]*$/ { in_bedrock=1; next }
+              /^[^[:space:]#][^:]*:/ { in_bedrock=0 }
+              in_bedrock && /^[[:space:]]+port:[[:space:]]*/ { value=\$2; gsub(/[[:space:]\"]/ , \"\", value); if (value ~ /^[0-9]+$/ && value >= 1 && value <= 65535) print \"Geyser Bedrock port: \" value }
+              in_bedrock && /^[[:space:]]+clone-remote-port:/ { value=tolower(\$2); gsub(/[[:space:]\"]/ , \"\", value); if (value == \"true\" || value == \"false\") print \"Geyser clone remote port: \" value }
+              /^[[:space:]]*transport:/ { value=tolower(\$2); gsub(/[[:space:]\"]/ , \"\", value); if (value == \"udp\" || value == \"tcp\" || value == \"webrtc\" || value == \"auto\") print \"Geyser transport: \" toupper(value); else print \"Geyser transport: OTHER\" }
+              /^[[:space:]]*webrtc-port:/ { value=\$2; gsub(/[[:space:]\"]/ , \"\", value); if (value ~ /^[0-9]+$/ && value >= 1 && value <= 65535) print \"Geyser WebRTC port: \" value }
+              /^[[:space:]]*use-direct-connection:/ { value=tolower(\$2); gsub(/[[:space:]\"]/ , \"\", value); if (value == \"true\" || value == \"false\") print \"Geyser direct connection: \" value }
+            ' /data/config/Geyser-Fabric/config.yml" 2>/dev/null || true
           else
             echo 'Geyser configuration file: not found'
           fi
           echo '=== PUBLISHED PORTS ==='
-          docker port mc-server 2>/dev/null | sed -E 's/.*:([0-9]+)$/container port \1/' || true
+          docker port mc-server 2>/dev/null | sed -n -E 's/^([0-9]+\/(tcp|udp)) -> .*/Published container port: \1/p' | sort -u || true
           echo '=== SSH EFFECTIVE AUTHENTICATION POLICY ==='
           if command -v sshd >/dev/null 2>&1; then
             if sshd -T 2>/dev/null | grep -Eq '^(passwordauthentication|permitrootlogin|pubkeyauthentication|kbdinteractiveauthentication|authenticationmethods|usepam|maxauthtries) '; then
@@ -139,8 +149,20 @@ jobs:
           printf -v AUDIT_REASON_LIST '%s,' "${AUDIT_REASONS[@]}"
           AUDIT_REASON_LIST="${AUDIT_REASON_LIST%,}"
           echo "Audit completeness: $AUDIT_COMPLETE" >> report.txt
+          GEYSER_BEDROCK_PORT=$(sed -n -E 's/^Geyser Bedrock port: ([0-9]{1,5})$/\1/p' guest.txt | head -n 1)
+          GEYSER_TRANSPORT=$(sed -n -E 's/^Geyser transport: (UDP|TCP|WEBRTC|AUTO|OTHER)$/\1/p' guest.txt | head -n 1)
+          GEYSER_WEBRTC_PORT=$(sed -n -E 's/^Geyser WebRTC port: ([0-9]{1,5})$/\1/p' guest.txt | head -n 1)
+          GEYSER_CLONE_REMOTE=$(sed -n -E 's/^Geyser clone remote port: (true|false)$/\1/p' guest.txt | head -n 1)
+          GEYSER_DIRECT_CONNECTION=$(sed -n -E 's/^Geyser direct connection: (true|false)$/\1/p' guest.txt | head -n 1)
+          PUBLISHED_PORTS=$(sed -n -E 's/^Published container port: ([0-9]{1,5}\/(tcp|udp))$/\1/p' guest.txt | sort -u | paste -sd, -)
           echo "audit_complete=$AUDIT_COMPLETE" >> "$GITHUB_OUTPUT"
           echo "audit_reasons=$AUDIT_REASON_LIST" >> "$GITHUB_OUTPUT"
+          echo "geyser_bedrock_port=$GEYSER_BEDROCK_PORT" >> "$GITHUB_OUTPUT"
+          echo "geyser_transport=$GEYSER_TRANSPORT" >> "$GITHUB_OUTPUT"
+          echo "geyser_webrtc_port=$GEYSER_WEBRTC_PORT" >> "$GITHUB_OUTPUT"
+          echo "geyser_clone_remote=$GEYSER_CLONE_REMOTE" >> "$GITHUB_OUTPUT"
+          echo "geyser_direct_connection=$GEYSER_DIRECT_CONNECTION" >> "$GITHUB_OUTPUT"
+          echo "published_ports=$PUBLISHED_PORTS" >> "$GITHUB_OUTPUT"
           echo "nic_rule_summary=$NIC_RULE_SUMMARY" >> "$GITHUB_OUTPUT"
           echo "subnet_rule_summary=$SUBNET_RULE_SUMMARY" >> "$GITHUB_OUTPUT"
           # Raw Azure and guest output stays on the ephemeral runner and is never exported.
@@ -150,6 +172,12 @@ jobs:
           AUDIT_REASONS: ${{ steps.diag.outputs.audit_reasons }}
           NIC_RULE_SUMMARY: ${{ steps.diag.outputs.nic_rule_summary }}
           SUBNET_RULE_SUMMARY: ${{ steps.diag.outputs.subnet_rule_summary }}
+          GEYSER_BEDROCK_PORT: ${{ steps.diag.outputs.geyser_bedrock_port }}
+          GEYSER_TRANSPORT: ${{ steps.diag.outputs.geyser_transport }}
+          GEYSER_WEBRTC_PORT: ${{ steps.diag.outputs.geyser_webrtc_port }}
+          GEYSER_CLONE_REMOTE: ${{ steps.diag.outputs.geyser_clone_remote }}
+          GEYSER_DIRECT_CONNECTION: ${{ steps.diag.outputs.geyser_direct_connection }}
+          PUBLISHED_PORTS: ${{ steps.diag.outputs.published_ports }}
         with:
           script: |
             const complete = process.env.AUDIT_COMPLETE === 'true';
@@ -220,7 +248,19 @@ jobs:
             };
             const ruleSummary = '\n\n' + describeRules('NIC NSG', safeRules(process.env.NIC_RULE_SUMMARY)) +
               '\n' + describeRules('Subnet NSG', safeRules(process.env.SUBNET_RULE_SUMMARY));
-            const body = heading + '\n\n' + note + diagnostic + ruleSummary +
+            const safePort = value => /^\d{1,5}$/.test(value || '') && Number(value) >= 1 && Number(value) <= 65535 ? value : '';
+            const safeBool = value => value === 'true' || value === 'false' ? value : '';
+            const safeTransport = ['UDP', 'TCP', 'WEBRTC', 'AUTO', 'OTHER'].includes(process.env.GEYSER_TRANSPORT) ? process.env.GEYSER_TRANSPORT : '';
+            const geyserDetails = [];
+            if (safePort(process.env.GEYSER_BEDROCK_PORT)) geyserDetails.push('Bedrock listener port: ' + safePort(process.env.GEYSER_BEDROCK_PORT));
+            if (safeTransport) geyserDetails.push('Geyser transport: ' + safeTransport);
+            if (safePort(process.env.GEYSER_WEBRTC_PORT)) geyserDetails.push('WebRTC port: ' + safePort(process.env.GEYSER_WEBRTC_PORT));
+            if (safeBool(process.env.GEYSER_CLONE_REMOTE)) geyserDetails.push('Clone remote port: ' + safeBool(process.env.GEYSER_CLONE_REMOTE));
+            if (safeBool(process.env.GEYSER_DIRECT_CONNECTION)) geyserDetails.push('Direct connection: ' + safeBool(process.env.GEYSER_DIRECT_CONNECTION));
+            const published = (process.env.PUBLISHED_PORTS || '').split(',').filter(value => /^\d{1,5}\/(tcp|udp)$/.test(value));
+            if (published.length) geyserDetails.push('Published container ports: ' + [...new Set(published)].join(', '));
+            const transportSummary = geyserDetails.length ? '\n\nGeyser transport/config: ' + geyserDetails.join('; ') + '.' : '';
+            const body = heading + '\n\n' + note + diagnostic + ruleSummary + transportSummary +
               '\n\nOnly sanitized Minecraft-port rule summaries are published. No rule names, priorities, source addresses, resource identifiers, raw command output, configuration values, or guest diagnostics are published.';
             await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:context.issue.number,body});
             await github.rest.issues.update({owner:context.repo.owner,repo:context.repo.repo,issue_number:context.issue.number,state: complete ? 'closed' : 'open'});
