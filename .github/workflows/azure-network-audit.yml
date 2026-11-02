@@ -114,7 +114,7 @@ jobs:
               awk '"'"'BEGIN { files=0; found=0 } FNR==1 { files++ } NR>1 && $2 ~ /:4ABC$/ && $4=="0A" { found=1 } END { if (files==0) print "Container TCP 19132 listener: unknown"; else if (found) print "Container TCP 19132 listener: yes"; else print "Container TCP 19132 listener: no" }'"'"' /proc/net/tcp /proc/net/tcp6 2>/dev/null
             ' 2>/dev/null || true
             echo '=== BEDROCK SOCKET OWNER CLASS ==='
-            docker exec mc-server sh -c '
+            docker exec --user 0 mc-server sh -c '
               owner_class() {
                 proto="$1"
                 state_filter="$2"
