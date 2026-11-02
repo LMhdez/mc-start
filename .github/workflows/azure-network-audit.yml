@@ -60,7 +60,6 @@ jobs:
           done
           SCRIPT=$(cat <<'EOS'
           echo '=== GEYSER CONFIG FILE DISCOVERY ==='
-          GEYSER_CONFIG=/data/config/Geyser-Fabric/config.yml
           if docker exec mc-server sh -c '[ -f /data/config/Geyser-Fabric/config.yml ]'; then
             echo 'Geyser configuration file: found'
             echo '=== GEYSER EFFECTIVE CONFIG KEYS ==='
