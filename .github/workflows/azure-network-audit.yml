@@ -22,11 +22,20 @@ jobs:
         run: |
           set -euo pipefail
           AUDIT_COMPLETE=true
+          AUDIT_REASONS=()
+          add_audit_reason() {
+            case "$1" in
+              vm_nic_read_unavailable|role_assignment_read_unavailable|nic_nsg_rules_unavailable|subnet_authorization_denied|subnet_resource_not_found|subnet_subscription_unavailable|subnet_provider_unavailable|subnet_read_error_unknown|subnet_nsg_rules_unavailable|guest_diagnostics_unavailable|guest_output_empty|geyser_config_missing)
+                AUDIT_REASONS+=("$1")
+                ;;
+            esac
+          }
           echo '=== NIC / NETWORK SECURITY GROUP ===' > report.txt
           NIC_IDS=$(az vm show -g "$RG" -n "$VM" --query 'networkProfile.networkInterfaces[].id' -o tsv 2>/dev/null)
           if [ -z "$NIC_IDS" ]; then
             echo 'VM NIC: not found or unavailable' >> report.txt
             AUDIT_COMPLETE=false
+            add_audit_reason vm_nic_read_unavailable
           fi
           for NIC in $NIC_IDS; do
             echo 'NIC: attached' >> report.txt
@@ -39,11 +48,13 @@ jobs:
               if ! az role assignment list --assignee "$APP_ID" --scope "$NIC_NSG" --include-inherited --query 'length(@)' -o tsv >/dev/null 2>/dev/null; then
                 echo 'Role assignments: read denied or unavailable' >> report.txt
                 AUDIT_COMPLETE=false
+                add_audit_reason role_assignment_read_unavailable
               fi
               echo 'NIC NSG: attached' >> report.txt
               if ! az network nsg rule list -g "$RG" --nsg-name "$NSG_NAME" --query "[?direction=='Inbound'].{name:name,access:access,protocol:protocol,priority:priority,sourceAddressPrefix:sourceAddressPrefix,sourceAddressPrefixes:sourceAddressPrefixes,sourcePortRange:sourcePortRange,sourcePortRanges:sourcePortRanges,destinationPortRange:destinationPortRange,destinationPortRanges:destinationPortRanges}" -o json 2>/dev/null | jq 'map({access,protocol,priority,sourcePortRange,sourcePortRanges,destinationPortRange,destinationPortRanges,sourceScope: (([.sourceAddressPrefix] + (.sourceAddressPrefixes // [])) | map(select(. != null and . != "")) | if any(.[]; . == "*" or . == "Internet" or . == "0.0.0.0/0" or . == "::/0") then "ANY/INTERNET" elif any(.[]; . == "VirtualNetwork" or . == "AzureLoadBalancer") then "AZURE SERVICE SCOPE" elif length > 0 then "RESTRICTED (CIDRs redacted)" else "UNSPECIFIED" end)})' >> report.txt 2>nsg-error.txt; then
                 echo 'NIC NSG rules: read denied or unavailable' >> report.txt
                 AUDIT_COMPLETE=false
+                add_audit_reason nic_nsg_rules_unavailable
               fi
             else echo 'NIC NSG: none' >> report.txt; fi
             for SUBNET in $SUBNET_IDS; do
@@ -52,16 +63,16 @@ jobs:
                 if [ -n "$SUBNET_NSG" ] && [ "$SUBNET_NSG" != "None" ]; then
                   NSG_NAME=$(basename "$SUBNET_NSG")
                   echo 'Subnet NSG: attached' >> report.txt
-                  if ! az network nsg rule list -g "$RG" --nsg-name "$NSG_NAME" --query "[?direction=='Inbound'].{name:name,access:access,protocol:protocol,priority:priority,sourceAddressPrefix:sourceAddressPrefix,sourceAddressPrefixes:sourceAddressPrefixes,sourcePortRange:sourcePortRange,sourcePortRanges:sourcePortRanges,destinationPortRange:destinationPortRange,destinationPortRanges:destinationPortRanges}" -o json 2>/dev/null | jq 'map({access,protocol,priority,sourcePortRange,sourcePortRanges,destinationPortRange,destinationPortRanges,sourceScope: (([.sourceAddressPrefix] + (.sourceAddressPrefixes // [])) | map(select(. != null and . != "")) | if any(.[]; . == "*" or . == "Internet" or . == "0.0.0.0/0" or . == "::/0") then "ANY/INTERNET" elif any(.[]; . == "VirtualNetwork" or . == "AzureLoadBalancer") then "AZURE SERVICE SCOPE" elif length > 0 then "RESTRICTED (CIDRs redacted)" else "UNSPECIFIED" end)})' >> report.txt 2>nsg-error.txt; then echo 'Subnet NSG rules: read denied or unavailable' >> report.txt; AUDIT_COMPLETE=false; fi
+                  if ! az network nsg rule list -g "$RG" --nsg-name "$NSG_NAME" --query "[?direction=='Inbound'].{name:name,access:access,protocol:protocol,priority:priority,sourceAddressPrefix:sourceAddressPrefix,sourceAddressPrefixes:sourceAddressPrefixes,sourcePortRange:sourcePortRange,sourcePortRanges:sourcePortRanges,destinationPortRange:destinationPortRange,destinationPortRanges:destinationPortRanges}" -o json 2>/dev/null | jq 'map({access,protocol,priority,sourcePortRange,sourcePortRanges,destinationPortRange,destinationPortRanges,sourceScope: (([.sourceAddressPrefix] + (.sourceAddressPrefixes // [])) | map(select(. != null and . != "")) | if any(.[]; . == "*" or . == "Internet" or . == "0.0.0.0/0" or . == "::/0") then "ANY/INTERNET" elif any(.[]; . == "VirtualNetwork" or . == "AzureLoadBalancer") then "AZURE SERVICE SCOPE" elif length > 0 then "RESTRICTED (CIDRs redacted)" else "UNSPECIFIED" end)})' >> report.txt 2>nsg-error.txt; then echo 'Subnet NSG rules: read denied or unavailable' >> report.txt; AUDIT_COMPLETE=false; add_audit_reason subnet_nsg_rules_unavailable; fi
                 else echo 'Subnet NSG: none' >> report.txt; fi
               else
                 AZ_READ_ERROR=$(grep -oE 'AuthorizationFailed|Forbidden|ResourceNotFound|SubscriptionNotFound|NoRegisteredProviderFound' subnet-read-error.txt | head -n 1 || true)
                 case "$AZ_READ_ERROR" in
-                  AuthorizationFailed|Forbidden) echo 'Subnet NSG: authorization denied' >> report.txt ;;
-                  ResourceNotFound) echo 'Subnet NSG: resource not found' >> report.txt ;;
-                  SubscriptionNotFound) echo 'Subnet NSG: subscription unavailable' >> report.txt ;;
-                  NoRegisteredProviderFound) echo 'Subnet NSG: provider unavailable' >> report.txt ;;
-                  *) echo 'Subnet NSG: read failed (error category unknown)' >> report.txt ;;
+                  AuthorizationFailed|Forbidden) echo 'Subnet NSG: authorization denied' >> report.txt; add_audit_reason subnet_authorization_denied ;;
+                  ResourceNotFound) echo 'Subnet NSG: resource not found' >> report.txt; add_audit_reason subnet_resource_not_found ;;
+                  SubscriptionNotFound) echo 'Subnet NSG: subscription unavailable' >> report.txt; add_audit_reason subnet_subscription_unavailable ;;
+                  NoRegisteredProviderFound) echo 'Subnet NSG: provider unavailable' >> report.txt; add_audit_reason subnet_provider_unavailable ;;
+                  *) echo 'Subnet NSG: read failed (error category unknown)' >> report.txt; add_audit_reason subnet_read_error_unknown ;;
                 esac
                 AUDIT_COMPLETE=false
               fi
@@ -103,14 +114,26 @@ jobs:
           if ! az vm run-command invoke -g "$RG" -n "$VM" --command-id RunShellScript --scripts "$SCRIPT" --query 'value[0].message' -o tsv > guest.txt 2>/dev/null; then
             echo 'Guest diagnostics: read denied or unavailable' > guest.txt
             AUDIT_COMPLETE=false
+            add_audit_reason guest_diagnostics_unavailable
           fi
-          if [ ! -s guest.txt ] || grep -Fq 'Geyser configuration file: not found' guest.txt; then AUDIT_COMPLETE=false; fi
+          if [ ! -s guest.txt ]; then
+            AUDIT_COMPLETE=false
+            add_audit_reason guest_output_empty
+          fi
+          if grep -Fq 'Geyser configuration file: not found' guest.txt; then
+            AUDIT_COMPLETE=false
+            add_audit_reason geyser_config_missing
+          fi
+          printf -v AUDIT_REASON_LIST '%s,' "${AUDIT_REASONS[@]}"
+          AUDIT_REASON_LIST="${AUDIT_REASON_LIST%,}"
           echo "Audit completeness: $AUDIT_COMPLETE" >> report.txt
           echo "audit_complete=$AUDIT_COMPLETE" >> "$GITHUB_OUTPUT"
+          echo "audit_reasons=$AUDIT_REASON_LIST" >> "$GITHUB_OUTPUT"
           # Raw Azure and guest output stays on the ephemeral runner and is never exported.
       - uses: actions/github-script@v7
         env:
           AUDIT_COMPLETE: ${{ steps.diag.outputs.audit_complete }}
+          AUDIT_REASONS: ${{ steps.diag.outputs.audit_reasons }}
         with:
           script: |
             const complete = process.env.AUDIT_COMPLETE === 'true';
@@ -118,6 +141,26 @@ jobs:
             const note = complete
               ? 'All required read-only checks completed. Detailed infrastructure output is intentionally withheld.'
               : 'At least one required Azure or guest read was denied or unavailable. Detailed infrastructure output is intentionally withheld; keep this issue open.';
-            const body = heading + '\n\n' + note + '\n\nNo raw command output, resource identifiers, network ranges, configuration values, or guest diagnostics are published.';
+            const allowed = new Set([
+              'vm_nic_read_unavailable',
+              'role_assignment_read_unavailable',
+              'nic_nsg_rules_unavailable',
+              'subnet_authorization_denied',
+              'subnet_resource_not_found',
+              'subnet_subscription_unavailable',
+              'subnet_provider_unavailable',
+              'subnet_read_error_unknown',
+              'subnet_nsg_rules_unavailable',
+              'guest_diagnostics_unavailable',
+              'guest_output_empty',
+              'geyser_config_missing',
+            ]);
+            const reasons = (process.env.AUDIT_REASONS || '')
+              .split(',')
+              .filter(reason => allowed.has(reason));
+            const diagnostic = reasons.length
+              ? '\n\nSafe diagnostic categories: ' + [...new Set(reasons)].join(', ') + '.'
+              : '';
+            const body = heading + '\n\n' + note + diagnostic + '\n\nNo raw command output, resource identifiers, network ranges, configuration values, or guest diagnostics are published.';
             await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:context.issue.number,body});
             await github.rest.issues.update({owner:context.repo.owner,repo:context.repo.repo,issue_number:context.issue.number,state: complete ? 'closed' : 'open'});
