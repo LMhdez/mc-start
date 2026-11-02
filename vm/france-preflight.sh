@@ -13,6 +13,16 @@ readonly CANDIDATE_SKUS=(
   "Standard_B2pts_v2"
 )
 
+# Suppress raw Azure CLI diagnostics because they can contain resource and
+# subscription identifiers. Only emit a generic failure marker.
+az_read() {
+  if "$@" 2>/dev/null; then
+    return 0
+  fi
+  echo "ERROR: Azure read-only query failed; diagnostic output suppressed." >&2
+  return 1
+}
+
 for command_name in az jq; do
   command -v "$command_name" >/dev/null 2>&1 || {
     printf 'ERROR: required command is missing: %s\n' "$command_name" >&2
@@ -23,12 +33,11 @@ done
 echo "=== AZURE FRANCE PREFLIGHT (READ-ONLY) ==="
 printf 'Target region: %s\n' "$REGION"
 
-# Confirm that Azure CLI has an authenticated context without printing tenant,
-# subscription, account, resource-group, or VM identifiers.
-az account show --only-show-errors --output none
+# Confirm an authenticated context without printing its identifiers.
+az_read az account show --only-show-errors --output none
 
 CURRENT_VM_JSON="$(
-  az vm show \
+  az_read az vm show \
     --resource-group "$RESOURCE_GROUP" \
     --name "$CURRENT_VM" \
     --query '{location:location,size:hardwareProfile.vmSize}' \
@@ -39,7 +48,7 @@ CURRENT_VM_JSON="$(
 CURRENT_LOCATION="$(jq -r '.location // "unknown"' <<<"$CURRENT_VM_JSON")"
 CURRENT_SIZE="$(jq -r '.size // "unknown"' <<<"$CURRENT_VM_JSON")"
 CURRENT_POWER_STATE="$(
-  az vm get-instance-view \
+  az_read az vm get-instance-view \
     --resource-group "$RESOURCE_GROUP" \
     --name "$CURRENT_VM" \
     --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus | [0]" \
@@ -55,7 +64,7 @@ printf '  Power state: %s\n' "${CURRENT_POWER_STATE:-unknown}"
 printf '\nCandidate SKU visibility in %s (not a free-tier or performance guarantee):\n' "$REGION"
 for sku in "${CANDIDATE_SKUS[@]}"; do
   sku_json="$(
-    az vm list-skus \
+    az_read az vm list-skus \
       --location "$REGION" \
       --size "$sku" \
       --all \
@@ -77,7 +86,7 @@ for sku in "${CANDIDATE_SKUS[@]}"; do
 done
 
 printf '\nRegional VM quota indicators:\n'
-usage_json="$(az vm list-usage --location "$REGION" --only-show-errors --output json)"
+usage_json="$(az_read az vm list-usage --location "$REGION" --only-show-errors --output json)"
 quota_lines="$(
   jq -r '
     .[]
