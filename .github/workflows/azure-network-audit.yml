@@ -289,14 +289,17 @@ jobs:
                 return [];
               }
             };
-            const describeRules = (label, rules) => {
+            const describeRules = (label, rules, unavailable = false) => {
+              if (unavailable) return label + ': rules could not be read; no conclusion about effective inbound rules.';
               if (!rules.length) return label + ': no matching inbound Minecraft-port or wildcard rules reported.';
               return label + ': ' + rules.map((r, i) =>
                 (i + 1) + ') ' + r.access + ' ' + r.protocol + ' destination ' + r.destination + '; source ' + r.scope
               ).join(' | ');
             };
-            const ruleSummary = '\n\n' + describeRules('NIC NSG', safeRules(process.env.NIC_RULE_SUMMARY)) +
-              '\n' + describeRules('Subnet NSG', safeRules(process.env.SUBNET_RULE_SUMMARY));
+            const nicUnavailable = reasons.some(reason => ['vm_nic_read_unavailable', 'nic_nsg_rules_unavailable'].includes(reason));
+            const subnetUnavailable = reasons.some(reason => reason.startsWith('subnet_'));
+            const ruleSummary = '\n\n' + describeRules('NIC NSG', safeRules(process.env.NIC_RULE_SUMMARY), nicUnavailable) +
+              '\n' + describeRules('Subnet NSG', safeRules(process.env.SUBNET_RULE_SUMMARY), subnetUnavailable);
             const safePort = value => /^\d{1,5}$/.test(value || '') && Number(value) >= 1 && Number(value) <= 65535 ? value : '';
             const safeBool = value => value === 'true' || value === 'false' ? value : '';
             const safeTransport = ['NETHERNET', 'BOTH', 'OTHER'].includes(process.env.GEYSER_TRANSPORT) ? process.env.GEYSER_TRANSPORT : '';
