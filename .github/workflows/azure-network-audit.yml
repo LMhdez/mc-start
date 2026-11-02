@@ -47,13 +47,24 @@ jobs:
               fi
             else echo 'NIC NSG: none' >> report.txt; fi
             for SUBNET in $SUBNET_IDS; do
-              if SUBNET_NSG=$(az network vnet subnet show --ids "$SUBNET" --query 'networkSecurityGroup.id' -o tsv 2>/dev/null); then
+              : > subnet-read-error.txt
+              if SUBNET_NSG=$(az network vnet subnet show --ids "$SUBNET" --query 'networkSecurityGroup.id' -o tsv 2>subnet-read-error.txt); then
                 if [ -n "$SUBNET_NSG" ] && [ "$SUBNET_NSG" != "None" ]; then
                   NSG_NAME=$(basename "$SUBNET_NSG")
                   echo 'Subnet NSG: attached' >> report.txt
-                  if ! az network nsg rule list -g "$RG" --nsg-name "$NSG_NAME" --query "[?direction=='Inbound'].{name:name,access:access,protocol:protocol,priority:priority,sourceAddressPrefix:sourceAddressPrefix,sourceAddressPrefixes:sourceAddressPrefixes,sourcePortRange:sourcePortRange,sourcePortRanges:sourcePortRanges,destinationPortRange:destinationPortRange,destinationPortRanges:destinationPortRanges}" -o json 2>/dev/null | jq 'map({access,protocol,priority,sourcePortRange,sourcePortRanges,destinationPortRange,destinationPortRanges,sourceScope: (([.sourceAddressPrefix] + (.sourceAddressPrefixes // [])) | map(select(. != null and . != "")) | if any(.[]; . == "*" or . == "Internet" or . == "0.0.0.0/0" or . == "::/0") then "ANY/INTERNET" elif any(.[]; . == "VirtualNetwork" or . == "AzureLoadBalancer") then "AZURE SERVICE SCOPE" elif length > 0 then "RESTRICTED (CIDRs redacted)" else "UNSPECIFIED" end)})' >> report.txt 2>nsg-error.txt; then echo 'Subnet NSG rules: read denied' >> report.txt; AUDIT_COMPLETE=false; fi
+                  if ! az network nsg rule list -g "$RG" --nsg-name "$NSG_NAME" --query "[?direction=='Inbound'].{name:name,access:access,protocol:protocol,priority:priority,sourceAddressPrefix:sourceAddressPrefix,sourceAddressPrefixes:sourceAddressPrefixes,sourcePortRange:sourcePortRange,sourcePortRanges:sourcePortRanges,destinationPortRange:destinationPortRange,destinationPortRanges:destinationPortRanges}" -o json 2>/dev/null | jq 'map({access,protocol,priority,sourcePortRange,sourcePortRanges,destinationPortRange,destinationPortRanges,sourceScope: (([.sourceAddressPrefix] + (.sourceAddressPrefixes // [])) | map(select(. != null and . != "")) | if any(.[]; . == "*" or . == "Internet" or . == "0.0.0.0/0" or . == "::/0") then "ANY/INTERNET" elif any(.[]; . == "VirtualNetwork" or . == "AzureLoadBalancer") then "AZURE SERVICE SCOPE" elif length > 0 then "RESTRICTED (CIDRs redacted)" else "UNSPECIFIED" end)})' >> report.txt 2>nsg-error.txt; then echo 'Subnet NSG rules: read denied or unavailable' >> report.txt; AUDIT_COMPLETE=false; fi
                 else echo 'Subnet NSG: none' >> report.txt; fi
-              else echo 'Subnet NSG: unavailable (read denied or unavailable)' >> report.txt; AUDIT_COMPLETE=false; fi
+              else
+                AZ_READ_ERROR=$(grep -oE 'AuthorizationFailed|Forbidden|ResourceNotFound|SubscriptionNotFound|NoRegisteredProviderFound' subnet-read-error.txt | head -n 1 || true)
+                case "$AZ_READ_ERROR" in
+                  AuthorizationFailed|Forbidden) echo 'Subnet NSG: authorization denied' >> report.txt ;;
+                  ResourceNotFound) echo 'Subnet NSG: resource not found' >> report.txt ;;
+                  SubscriptionNotFound) echo 'Subnet NSG: subscription unavailable' >> report.txt ;;
+                  NoRegisteredProviderFound) echo 'Subnet NSG: provider unavailable' >> report.txt ;;
+                  *) echo 'Subnet NSG: read failed (error category unknown)' >> report.txt ;;
+                esac
+                AUDIT_COMPLETE=false
+              fi
             done
             PUB=$(az network nic show --ids "$NIC" --query 'ipConfigurations[?publicIpAddress!=null].name' -o tsv 2>/dev/null)
             if [ -n "$PUB" ]; then echo 'Public IP association: YES' >> report.txt; else echo 'Public IP association: NO' >> report.txt; fi
