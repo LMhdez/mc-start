@@ -680,7 +680,7 @@ function renderTechnicalSpecs(d) {
       version.className = "mod-version";
       version.textContent = mod.version ? "v" + mod.version : unknown;
       const desc = document.createElement("p");
-      desc.textContent = descriptions[String(mod.id || mod.name || mod.file || "").toLowerCase().replace(/\\.jar$/, "").replace(/[^a-z0-9_-]/g, "")] || t.modDescUnavailable;
+      desc.textContent = descriptions[String(mod.id || mod.name || mod.file || "").toLowerCase().replace(/\.jar$/, "").replace(/[^a-z0-9_-]/g, "")] || t.modDescUnavailable;
       content.append(name, version, desc);
       item.append(icon, content);
       list.append(item);
