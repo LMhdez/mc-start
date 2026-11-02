@@ -124,6 +124,26 @@ inspect_region() {
       echo "  VM quota: no matching quota rows returned"
     fi
   fi
+  }
+}
+
+# Run at most four region workers at once; preserve deterministic output order.
+RESULT_DIR="$(mktemp -d)"
+trap 'rm -rf "$RESULT_DIR"' EXIT
+for ((offset=0; offset<${#EUROPE_REGIONS[@]}; offset+=MAX_PARALLEL_REGIONS)); do
+  pids=()
+  batch_end=$((offset + MAX_PARALLEL_REGIONS))
+  (( batch_end > ${#EUROPE_REGIONS[@]} )) && batch_end=${#EUROPE_REGIONS[@]}
+  for ((index=offset; index<batch_end; index++)); do
+    inspect_region "${EUROPE_REGIONS[index]}" >"$RESULT_DIR/$index" &
+    pids+=("$!")
+  done
+  for pid in "${pids[@]}"; do
+    if ! wait "$pid"; then echo "WARNING: region worker failed; continuing." >&2; fi
+  done
+  for ((index=offset; index<batch_end; index++)); do
+    if [[ -f "$RESULT_DIR/$index" ]]; then cat "$RESULT_DIR/$index"; fi
+  done
 done
 
 cat <<'SUMMARY'
