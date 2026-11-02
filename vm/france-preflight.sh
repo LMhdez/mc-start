@@ -10,6 +10,12 @@ readonly MAX_PARALLEL_REGIONS=4
 readonly SKU_QUERY_TIMEOUT_SECONDS=150
 readonly QUOTA_QUERY_TIMEOUT_SECONDS=45
 readonly CANDIDATE_SKUS=(
+  # Production baseline: same 2 vCPU / 4 GiB profile as the current VM.
+  "Standard_B2als_v2"
+  # Same vCPU/RAM class for comparison; not assumed to be Free Tier eligible.
+  "Standard_B2s"
+  # Smaller Free Tier candidates are listed only for visibility; they are NOT
+  # performance-equivalent and must never be recommended as like-for-like swaps.
   "Standard_B1s"
   "Standard_B2ats_v2"
   "Standard_B2pts_v2"
