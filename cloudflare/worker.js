@@ -3,6 +3,7 @@ import { DurableObject } from "cloudflare:workers";
 const REPO = "LMhdez/mc-start";
 const API_VERSION = "2022-11-28";
 const STATUS_TTL = 300;
+const MAX_STATUS_ENVELOPE_BYTES = 64 * 1024;
 const RATE_WINDOW = 60;
 const RATE_LIMIT = 10;
 const AUTH_RATE_LIMIT = 20;
@@ -382,6 +383,9 @@ export class R2Budget extends DurableObject {
     this.ctx.storage.sql.exec(
       "INSERT OR IGNORE INTO r2_budget (id, day_key, month_key) VALUES (1, '', '')"
     );
+    this.ctx.storage.sql.exec(
+      "CREATE TABLE IF NOT EXISTS status_results (request_id TEXT PRIMARY KEY, envelope TEXT NOT NULL, expires_at INTEGER NOT NULL)"
+    );
   }
 
   reserveOperation(kind) {
@@ -423,6 +427,70 @@ export class R2Budget extends DurableObject {
       month, monthlyLimit
     ).toArray();
     return rows.length === 1;
+  }
+
+  async storeStatusResult(requestId, serializedEnvelope, expiresAt) {
+    if (!validRequestId(requestId) || typeof serializedEnvelope !== "string" ||
+        new TextEncoder().encode(serializedEnvelope).byteLength > MAX_STATUS_ENVELOPE_BYTES) {
+      return { ok: false, reason: "invalid_status_result" };
+    }
+
+    let envelope;
+    try {
+      envelope = JSON.parse(serializedEnvelope);
+    } catch {
+      return { ok: false, reason: "invalid_status_result" };
+    }
+    if (!envelope || typeof envelope !== "object" || Array.isArray(envelope) ||
+        typeof envelope.salt !== "string" || typeof envelope.iv !== "string" ||
+        typeof envelope.data !== "string") {
+      return { ok: false, reason: "invalid_status_result" };
+    }
+
+    const now = Date.now();
+    if (!Number.isSafeInteger(expiresAt) || expiresAt <= now ||
+        expiresAt > now + (STATUS_TTL + 30) * 1000) {
+      return { ok: false, reason: "invalid_status_expiry" };
+    }
+
+    // Short-lived encrypted results live in SQLite, not Workers KV.
+    // Prune expired rows on writes; successful reads remain idempotent.
+    this.ctx.storage.sql.exec("DELETE FROM status_results WHERE expires_at <= ?", now);
+    this.ctx.storage.sql.exec(
+      "INSERT INTO status_results (request_id, envelope, expires_at) VALUES (?, ?, ?) " +
+      "ON CONFLICT(request_id) DO UPDATE SET envelope = excluded.envelope, expires_at = excluded.expires_at",
+      requestId, serializedEnvelope, expiresAt
+    );
+    return { ok: true };
+  }
+
+  async readStatusResult(requestId) {
+    if (!validRequestId(requestId)) return { ok: false, reason: "invalid_request_id" };
+
+    const rows = this.ctx.storage.sql.exec(
+      "SELECT envelope, expires_at FROM status_results WHERE request_id = ?",
+      requestId
+    ).toArray();
+    if (rows.length === 0) return { ok: true, envelope: null };
+
+    const row = rows[0];
+    if (row.expires_at <= Date.now()) {
+      this.ctx.storage.sql.exec("DELETE FROM status_results WHERE request_id = ?", requestId);
+      return { ok: true, envelope: null };
+    }
+
+    try {
+      const envelope = JSON.parse(row.envelope);
+      if (!envelope || typeof envelope !== "object" || Array.isArray(envelope) ||
+          typeof envelope.salt !== "string" || typeof envelope.iv !== "string" ||
+          typeof envelope.data !== "string") {
+        throw new Error("Invalid status envelope");
+      }
+      return { ok: true, envelope };
+    } catch {
+      this.ctx.storage.sql.exec("DELETE FROM status_results WHERE request_id = ?", requestId);
+      return { ok: false, reason: "invalid_status_result" };
+    }
   }
 
   async readSnapshot() {
@@ -507,7 +575,7 @@ export default {
     // Nunca registar body, password, envelope ou dados privados do servidor.
     if (isStatusCallback) {
       if (request.method !== "POST") return json({ ok: false, code: "method_not_allowed" }, 405);
-      if (!env.ACCESS_PASSWORD || !env.STATUS_KV) return json({ ok: false, code: "configuration_unavailable" }, 503);
+      if (!env.ACCESS_PASSWORD || (!env.R2_BUDGET && !env.STATUS_KV)) return json({ ok: false, code: "configuration_unavailable" }, 503);
       if (!(request.headers.get("Content-Type") || "").toLowerCase().includes("application/json")) {
         return json({ ok: false, code: "invalid_content_type" }, 415);
       }
@@ -545,14 +613,23 @@ export default {
       }
 
       try {
-        await env.STATUS_KV.put(
-          "status:" + body.request_id,
-          JSON.stringify(body.envelope),
-          { expirationTtl: STATUS_TTL }
-        );
+        if (env.R2_BUDGET) {
+          const stored = await getR2BudgetStub(env).storeStatusResult(
+            body.request_id,
+            JSON.stringify(body.envelope),
+            Date.now() + STATUS_TTL * 1000
+          );
+          if (!stored || stored.ok !== true) throw new Error("Status result storage rejected the write");
+        } else {
+          // Compatibility for older deployments without the SQLite-backed Durable Object.
+          await env.STATUS_KV.put(
+            "status:" + body.request_id,
+            JSON.stringify(body.envelope),
+            { expirationTtl: STATUS_TTL }
+          );
+        }
       } catch {
-        // KV write failures must not become unhandled Worker exceptions (HTTP 500).
-        console.error("Callback de estado: escrita temporária em KV indisponível.");
+        console.error("Callback de estado: armazenamento temporário indisponível.");
         return json({ ok: false, code: "storage_unavailable" }, 503);
       }
 
@@ -725,25 +802,31 @@ export default {
           { "Retry-After": "60" }
         );
       }
-      const key = "status:" + body.request_id;
-      const stored = await env.STATUS_KV.get(key);
-      if (!stored) return json({ ok: false, pending: true }, 202, origin);
-      // Keep the encrypted result until its 5-minute TTL expires. Reads are
-      // idempotent and avoid a KV delete write on every completed status request.
+      let envelope = null;
       try {
-        const envelope = JSON.parse(stored);
-        if (!envelope || typeof envelope !== "object" ||
-            typeof envelope.salt !== "string" ||
-            typeof envelope.iv !== "string" ||
-            typeof envelope.data !== "string") {
-          throw new Error("Invalid encrypted status envelope");
+        if (env.R2_BUDGET) {
+          const stored = await getR2BudgetStub(env).readStatusResult(body.request_id);
+          if (!stored || stored.ok !== true) throw new Error("Status result storage unavailable");
+          envelope = stored.envelope;
+        } else {
+          // Compatibility for older deployments without the SQLite-backed Durable Object.
+          const stored = await env.STATUS_KV.get("status:" + body.request_id);
+          if (stored) envelope = JSON.parse(stored);
         }
-        // PBKDF2/AES-GCM decryption runs in the authenticated browser, not on
-        // Workers Free. The encrypted envelope remains unchanged in KV.
-        return json({ ok: true, envelope }, 200, origin);
       } catch {
+        console.error("Leitura temporária do estado indisponível.");
+        return json({ ok: false, message: "Resultado temporariamente indisponivel." }, 503, origin);
+      }
+
+      if (!envelope) return json({ ok: false, pending: true }, 202, origin);
+      if (typeof envelope !== "object" || Array.isArray(envelope) ||
+          typeof envelope.salt !== "string" ||
+          typeof envelope.iv !== "string" ||
+          typeof envelope.data !== "string") {
         return json({ ok: false, message: "Nao foi possivel ler o resultado." }, 500, origin);
       }
+      // PBKDF2/AES-GCM decryption remains in the authenticated browser.
+      return json({ ok: true, envelope }, 200, origin);
     }
 
     if (!["start", "stop", "status"].includes(body.action)) {
