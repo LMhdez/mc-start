@@ -154,7 +154,7 @@ jobs:
           GEYSER_WEBRTC_PORT=$(sed -n -E 's/^Geyser WebRTC port: ([0-9]{1,5})$/\1/p' guest.txt | head -n 1)
           GEYSER_CLONE_REMOTE=$(sed -n -E 's/^Geyser clone remote port: (true|false)$/\1/p' guest.txt | head -n 1)
           GEYSER_DIRECT_CONNECTION=$(sed -n -E 's/^Geyser direct connection: (true|false)$/\1/p' guest.txt | head -n 1)
-          PUBLISHED_PORTS=$(sed -n -E 's/^Published container port: ([0-9]{1,5}\\/(tcp|udp))$/\1/p' guest.txt | sort -u | paste -sd, -)
+          PUBLISHED_PORTS=$(sed -n -E 's/^Published container port: ([0-9]{1,5}\/(tcp|udp))$/\1/p' guest.txt | sort -u | paste -sd, -)
           echo "audit_complete=$AUDIT_COMPLETE" >> "$GITHUB_OUTPUT"
           echo "audit_reasons=$AUDIT_REASON_LIST" >> "$GITHUB_OUTPUT"
           echo "geyser_bedrock_port=$GEYSER_BEDROCK_PORT" >> "$GITHUB_OUTPUT"
