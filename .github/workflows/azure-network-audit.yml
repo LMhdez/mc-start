@@ -173,7 +173,12 @@ jobs:
           case "$VM_AGENT_STATE" in Ready) VM_AGENT_STATE=ready ;; NotReady) VM_AGENT_STATE=not_ready ;; *) VM_AGENT_STATE=unknown ;; esac
           if [ "$VM_POWER_STATE" = unknown ] || [ "$VM_AGENT_STATE" = unknown ]; then AUDIT_COMPLETE=false; add_audit_reason guest_instance_view_unavailable; fi
           : > guest-error.txt
-          if ! az vm run-command invoke -g "$RG" -n "$VM" --command-id RunShellScript --scripts "$SCRIPT" --query 'value[0].message' -o tsv > guest.txt 2>guest-error.txt; then
+          if [ "$VM_POWER_STATE" = stopped ]; then
+            echo 'Guest diagnostics: VM is stopped; Run Command skipped' > guest.txt
+            AUDIT_COMPLETE=false
+            add_audit_reason guest_vm_not_running
+            add_audit_reason guest_diagnostics_unavailable
+          elif ! az vm run-command invoke -g "$RG" -n "$VM" --command-id RunShellScript --scripts "$SCRIPT" --query 'value[0].message' -o tsv > guest.txt 2>guest-error.txt; then
             echo 'Guest diagnostics: read denied or unavailable' > guest.txt
             GUEST_ERROR_CODE=$(grep -oE 'AuthorizationFailed|Forbidden|VMExtensionProvisioningError|VMAgentStatusUnavailable|VMNotRunning|OperationNotAllowed|ResourceNotFound|InternalError|RunCommand' guest-error.txt | head -n 1 || true)
             case "$GUEST_ERROR_CODE" in
