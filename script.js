@@ -27,6 +27,7 @@ const translations = {
     unknownStatus:"Desconhecido", unavailableValue:"Não disponível",
     loadedModsTitle:"Mods do servidor", loadedModsIntro:"Inventário público dos mods instalados no servidor.",
     modsLastStartup:"Último arranque conhecido", modDescUnavailable:"Descrição não disponível em português.",
+    modDescSkinsRestorer:"Permite restaurar e apresentar as skins dos jogadores em servidores Minecraft, incluindo ambientes offline-mode e redes com proxy." ,
     modDescServerCore:"Otimiza o desempenho do servidor e a utilização dos recursos através de várias melhorias configuráveis.",
     modDescAlternateCurrent:"Otimiza o processamento dos circuitos de redstone para reduzir a carga do servidor.",
     modDescSpark:"Ferramenta de diagnóstico que permite analisar TPS, MSPT, CPU, memória e identificar problemas de desempenho.",
@@ -116,6 +117,7 @@ const translations = {
     unknownStatus:"Desconocido", unavailableValue:"No disponible",
     loadedModsTitle:"Mods del servidor", loadedModsIntro:"Inventario público de los mods instalados en el servidor.",
     modsLastStartup:"Último inicio conocido", modDescUnavailable:"Descripción no disponible en español.",
+    modDescSkinsRestorer:"Permite restaurar y mostrar las skins de los jugadores en servidores Minecraft, incluidos entornos offline-mode y redes con proxy.",
     modDescServerCore:"Optimiza el rendimiento del servidor y el uso de recursos mediante varias mejoras configurables.",
     modDescAlternateCurrent:"Optimiza el procesamiento de los circuitos de redstone para reducir la carga del servidor.",
     modDescSpark:"Herramienta de diagnóstico para analizar TPS, MSPT, CPU, memoria e identificar problemas de rendimiento.",
@@ -205,6 +207,7 @@ const translations = {
     unknownStatus:"Unknown", unavailableValue:"Unavailable",
     loadedModsTitle:"Server mods", loadedModsIntro:"Public inventory of mods installed on the server.",
     modsLastStartup:"Last known startup", modDescUnavailable:"Description unavailable.",
+    modDescSkinsRestorer:"Restores and displays player skins on Minecraft servers, including offline-mode setups and proxy networks.",
     modDescServerCore:"Improves server performance and resource usage through a set of configurable optimizations.",
     modDescAlternateCurrent:"Optimizes redstone circuit processing to reduce server workload.",
     modDescSpark:"A diagnostics and profiling tool for analyzing TPS, MSPT, CPU, memory, and performance issues.",
@@ -623,7 +626,10 @@ function renderTechnicalSpecs(d) {
       "essential-commands": t.modDescEssentialCommands,
       chunky: t.modDescChunky,
       "geyser-fabric": t.modDescGeyser,
-      krypton: t.modDescKrypton
+      krypton: t.modDescKrypton,
+      skinsrestorer: t.modDescSkinsRestorer,
+      "skins-restorer": t.modDescSkinsRestorer,
+      skins_restorer: t.modDescSkinsRestorer
     };
     const modMarks = {
       floodgate: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M13 52V29a19 19 0 0 1 38 0v23" fill="none" stroke="#68c9ef" stroke-width="6" stroke-linecap="round"/><path d="M8 52h48" stroke="#68c9ef" stroke-width="6" stroke-linecap="round"/><path d="M16 40c5-5 10 5 15 0s10 5 17 0" fill="none" stroke="#b4ecff" stroke-width="4" stroke-linecap="round"/><circle cx="32" cy="15" r="4" fill="#b4ecff"/></svg>',
