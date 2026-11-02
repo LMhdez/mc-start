@@ -114,7 +114,7 @@ A publicação do Worker e do agente é deliberadamente separada: publica primei
 
 ## Limites desta auditoria
 
-A integração disponível permite inspecionar o repositório, os workflows e a configuração do Worker. Não permite ler valores de secrets nem verificar diretamente regras NSG, discos, backups, RBAC e políticas da subscrição Azure. Esses elementos devem ser auditados no portal Azure.
+A integração permite inspecionar o repositório, os workflows e a configuração/deployments do Worker, e os workflows read-only de auditoria conseguem recolher resumos sanitizados das regras NSG da NIC e da subnet quando a identidade Azure tem permissões. Não permite ler valores de secrets nem fazer uma auditoria completa de discos, backups, RBAC herdado e políticas da subscrição Azure. Não publicar outputs brutos nem identificadores privados.
 
 ## Estado de produção confirmado (2026-11-02)
 
