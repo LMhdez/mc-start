@@ -6,6 +6,9 @@ set -Eeuo pipefail
 
 readonly RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:?AZURE_RESOURCE_GROUP is required}"
 readonly CURRENT_VM="${AZURE_VM_NAME:?AZURE_VM_NAME is required}"
+readonly MAX_PARALLEL_REGIONS=4
+readonly SKU_QUERY_TIMEOUT_SECONDS=150
+readonly QUOTA_QUERY_TIMEOUT_SECONDS=45
 readonly CANDIDATE_SKUS=(
   "Standard_B1s"
   "Standard_B2ats_v2"
@@ -22,10 +25,12 @@ az_read() {
 }
 
 az_try() {
-  "$@" 2>/dev/null
+  local timeout_seconds="$SKU_QUERY_TIMEOUT_SECONDS"
+  if [[ "${1:-}" == "az" && "${2:-}" == "vm" && "${3:-}" == "list-usage" ]]; then timeout_seconds="$QUOTA_QUERY_TIMEOUT_SECONDS"; fi
+  timeout --signal=TERM --kill-after=10s "${timeout_seconds}s" "$@" 2>/dev/null
 }
 
-for command_name in az jq; do
+for command_name in az jq timeout; do
   command -v "$command_name" >/dev/null 2>&1 || {
     printf 'ERROR: required command is missing: %s\n' "$command_name" >&2
     exit 1
@@ -79,7 +84,9 @@ printf '\nEuropean regions returned for this subscription (%s):\n' "${#EUROPE_RE
 jq -r '.[] | "  \(.name) — \(.displayName)"' <<<"$LOCATIONS_JSON"
 
 printf '\nCandidate SKU checks (visibility is not a capacity or Free Tier guarantee):\n'
-for region in "${EUROPE_REGIONS[@]}"; do
+inspect_region() {
+  local region="$1"
+  {
   printf '\n[%s]\n' "$region"
   if ! sku_json="$(az_try az vm list-skus --location "$region" --all --only-show-errors --output json)"; then
     echo "  SKU query: unavailable (diagnostics suppressed)"
