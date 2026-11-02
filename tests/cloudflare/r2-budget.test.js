@@ -305,4 +305,92 @@ describe("R2Budget Durable Object", () => {
     }
   });
 
+  it("stores and reads encrypted status results through SQLite without KV", async () => {
+    const requestId = crypto.randomUUID();
+    const envelope = {
+      salt: "test-salt",
+      iv: "test-iv",
+      data: "test-ciphertext"
+    };
+    const kvGet = vi.fn(async () => {
+      throw new Error("KV read must not be used for status results");
+    });
+    const kvPut = vi.fn(async () => {
+      throw new Error("KV write must not be used for status results");
+    });
+    const bindings = {
+      ACCESS_PASSWORD: "test-password-for-status-flow",
+      ALLOWED_ORIGIN: "https://panel.example",
+      STATUS_KV: { get: kvGet, put: kvPut },
+      R2_BUDGET: { getByName: () => stub }
+    };
+
+    const callback = await worker.fetch(new Request("https://worker.example/api/status-result", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        request_id: requestId,
+        password: bindings.ACCESS_PASSWORD,
+        envelope
+      })
+    }), bindings);
+    expect(callback.status).toBe(200);
+    expect(await callback.json()).toEqual({ ok: true });
+
+    const read = await worker.fetch(new Request("https://worker.example/api/status/read", {
+      method: "POST",
+      headers: {
+        Origin: bindings.ALLOWED_ORIGIN,
+        "Content-Type": "application/json",
+        "CF-Connecting-IP": "192.0.2.44"
+      },
+      body: JSON.stringify({
+        request_id: requestId,
+        password: bindings.ACCESS_PASSWORD
+      })
+    }), bindings);
+    expect(read.status).toBe(200);
+    expect(await read.json()).toEqual({ ok: true, envelope });
+    expect(kvGet).not.toHaveBeenCalled();
+    expect(kvPut).not.toHaveBeenCalled();
+  });
+
+  it("expires encrypted status results after the configured TTL", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-02T00:00:00Z"));
+    try {
+      const requestId = crypto.randomUUID();
+      const envelope = {
+        salt: "test-salt",
+        iv: "test-iv",
+        data: "test-ciphertext"
+      };
+      const stored = await stub.storeStatusResult(
+        requestId,
+        JSON.stringify(envelope),
+        Date.now() + 300_000
+      );
+      expect(stored).toEqual({ ok: true });
+      expect(await stub.readStatusResult(requestId)).toEqual({ ok: true, envelope });
+
+      await vi.advanceTimersByTimeAsync(300_001);
+      expect(await stub.readStatusResult(requestId)).toEqual({ ok: true, envelope: null });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("rejects invalid status envelopes and expiry values", async () => {
+    const requestId = crypto.randomUUID();
+    expect(await stub.storeStatusResult(requestId, "{invalid", Date.now() + 300_000))
+      .toEqual({ ok: false, reason: "invalid_status_result" });
+    expect(await stub.storeStatusResult(
+      requestId,
+      JSON.stringify({ salt: "s", iv: "i", data: "d" }),
+      Date.now() - 1
+    )).toEqual({ ok: false, reason: "invalid_status_expiry" });
+    expect(await stub.readStatusResult("not-a-request-id"))
+      .toEqual({ ok: false, reason: "invalid_request_id" });
+  });
+
 });
