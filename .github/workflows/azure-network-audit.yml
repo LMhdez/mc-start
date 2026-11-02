@@ -124,8 +124,8 @@ jobs:
             AUDIT_COMPLETE=false
             add_audit_reason geyser_config_missing
           fi
-          printf -v AUDIT_REASON_LIST '%s,' "\${AUDIT_REASONS[@]}"
-          AUDIT_REASON_LIST="\${AUDIT_REASON_LIST%,}"
+          printf -v AUDIT_REASON_LIST '%s,' "${AUDIT_REASONS[@]}"
+          AUDIT_REASON_LIST="${AUDIT_REASON_LIST%,}"
           echo "Audit completeness: $AUDIT_COMPLETE" >> report.txt
           echo "audit_complete=$AUDIT_COMPLETE" >> "$GITHUB_OUTPUT"
           echo "audit_reasons=$AUDIT_REASON_LIST" >> "$GITHUB_OUTPUT"
