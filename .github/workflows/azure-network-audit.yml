@@ -23,21 +23,21 @@ jobs:
           set -euo pipefail
           AUDIT_COMPLETE=true
           echo '=== NIC / NETWORK SECURITY GROUP ===' > report.txt
-          NIC_IDS=$(az vm show -g "$RG" -n "$VM" --query 'networkProfile.networkInterfaces[].id' -o tsv)
+          NIC_IDS=$(az vm show -g "$RG" -n "$VM" --query 'networkProfile.networkInterfaces[].id' -o tsv 2>/dev/null)
           for NIC in $NIC_IDS; do
             echo 'NIC: attached' >> report.txt
-            NIC_NSG=$(az network nic show --ids "$NIC" --query 'networkSecurityGroup.id' -o tsv)
-            SUBNET_IDS=$(az network nic show --ids "$NIC" --query 'ipConfigurations[].subnet.id' -o tsv)
+            NIC_NSG=$(az network nic show --ids "$NIC" --query 'networkSecurityGroup.id' -o tsv 2>/dev/null)
+            SUBNET_IDS=$(az network nic show --ids "$NIC" --query 'ipConfigurations[].subnet.id' -o tsv 2>/dev/null)
             if [ -n "$NIC_NSG" ] && [ "$NIC_NSG" != "None" ]; then
               NSG_NAME=$(basename "$NIC_NSG")
               echo '=== AZURE IDENTITY NETWORK PERMISSIONS ===' >> report.txt
-              APP_ID=$(az account show --query user.name -o tsv)
+              APP_ID=$(az account show --query user.name -o tsv 2>/dev/null)
               if ! az role assignment list --assignee "$APP_ID" --scope "$NIC_NSG" --include-inherited --query 'length(@)' -o tsv >/dev/null 2>/dev/null; then
                 echo 'Role assignments: read denied or unavailable' >> report.txt
                 AUDIT_COMPLETE=false
               fi
               echo 'NIC NSG: attached' >> report.txt
-              if ! az network nsg rule list -g "$RG" --nsg-name "$NSG_NAME" --query "[?direction=='Inbound'].{name:name,access:access,protocol:protocol,priority:priority,sourceAddressPrefix:sourceAddressPrefix,sourceAddressPrefixes:sourceAddressPrefixes,sourcePortRange:sourcePortRange,sourcePortRanges:sourcePortRanges,destinationPortRange:destinationPortRange,destinationPortRanges:destinationPortRanges}" -o json | jq 'map({access,protocol,priority,sourcePortRange,sourcePortRanges,destinationPortRange,destinationPortRanges,sourceScope: (([.sourceAddressPrefix] + (.sourceAddressPrefixes // [])) | map(select(. != null and . != "")) | if any(.[]; . == "*" or . == "Internet" or . == "0.0.0.0/0" or . == "::/0") then "ANY/INTERNET" elif any(.[]; . == "VirtualNetwork" or . == "AzureLoadBalancer") then "AZURE SERVICE SCOPE" elif length > 0 then "RESTRICTED (CIDRs redacted)" else "UNSPECIFIED" end)})' >> report.txt 2>nsg-error.txt; then
+              if ! az network nsg rule list -g "$RG" --nsg-name "$NSG_NAME" --query "[?direction=='Inbound'].{name:name,access:access,protocol:protocol,priority:priority,sourceAddressPrefix:sourceAddressPrefix,sourceAddressPrefixes:sourceAddressPrefixes,sourcePortRange:sourcePortRange,sourcePortRanges:sourcePortRanges,destinationPortRange:destinationPortRange,destinationPortRanges:destinationPortRanges}" -o json 2>/dev/null | jq 'map({access,protocol,priority,sourcePortRange,sourcePortRanges,destinationPortRange,destinationPortRanges,sourceScope: (([.sourceAddressPrefix] + (.sourceAddressPrefixes // [])) | map(select(. != null and . != "")) | if any(.[]; . == "*" or . == "Internet" or . == "0.0.0.0/0" or . == "::/0") then "ANY/INTERNET" elif any(.[]; . == "VirtualNetwork" or . == "AzureLoadBalancer") then "AZURE SERVICE SCOPE" elif length > 0 then "RESTRICTED (CIDRs redacted)" else "UNSPECIFIED" end)})' >> report.txt 2>nsg-error.txt; then
                 echo 'NIC NSG rules: read denied or unavailable' >> report.txt
                 AUDIT_COMPLETE=false
               fi
@@ -51,7 +51,7 @@ jobs:
                 else echo 'Subnet NSG: none' >> report.txt; fi
               else echo 'Subnet NSG: unavailable (read denied or unavailable)' >> report.txt; AUDIT_COMPLETE=false; fi
             done
-            PUB=$(az network nic show --ids "$NIC" --query 'ipConfigurations[?publicIpAddress!=null].name' -o tsv)
+            PUB=$(az network nic show --ids "$NIC" --query 'ipConfigurations[?publicIpAddress!=null].name' -o tsv 2>/dev/null)
             if [ -n "$PUB" ]; then echo 'Public IP association: YES' >> report.txt; else echo 'Public IP association: NO' >> report.txt; fi
           done
           SCRIPT=$(cat <<'EOS'
