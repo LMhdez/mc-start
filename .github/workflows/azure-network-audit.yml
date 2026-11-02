@@ -96,18 +96,17 @@ jobs:
           if [ ! -s guest.txt ] || grep -Fq 'Geyser configuration file: not found' guest.txt; then AUDIT_COMPLETE=false; fi
           echo "Audit completeness: $AUDIT_COMPLETE" >> report.txt
           echo "audit_complete=$AUDIT_COMPLETE" >> "$GITHUB_OUTPUT"
-          { echo 'report<<EOF'; cat report.txt; cat guest.txt; echo EOF; } >> "$GITHUB_OUTPUT"
+          # Raw Azure and guest output stays on the ephemeral runner and is never exported.
       - uses: actions/github-script@v7
         env:
-          REPORT: ${{ steps.diag.outputs.report }}
           AUDIT_COMPLETE: ${{ steps.diag.outputs.audit_complete }}
         with:
           script: |
             const complete = process.env.AUDIT_COMPLETE === 'true';
             const heading = complete ? '## Azure / Geyser read-only audit — complete' : '## Azure / Geyser read-only audit — incomplete';
             const note = complete
-              ? 'The read-only checks completed successfully.'
-              : 'Some Azure or guest reads were denied or unavailable. This issue remains open; do not treat the audit as complete.';
-            const body = heading + '\n\n' + note + '\n\n```text\n' + (process.env.REPORT || 'No report') + '\n```';
+              ? 'All required read-only checks completed. Detailed infrastructure output is intentionally withheld.'
+              : 'At least one required Azure or guest read was denied or unavailable. Detailed infrastructure output is intentionally withheld; keep this issue open.';
+            const body = heading + '\n\n' + note + '\n\nNo raw command output, resource identifiers, network ranges, configuration values, or guest diagnostics are published.';
             await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:context.issue.number,body});
             await github.rest.issues.update({owner:context.repo.owner,repo:context.repo.repo,issue_number:context.issue.number,state: complete ? 'closed' : 'open'});
