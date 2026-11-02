@@ -1,4 +1,4 @@
-name: Azure France VM preflight (read-only)
+name: Azure subscription Europe region preflight (read-only)
 
 on:
   workflow_dispatch:
@@ -11,9 +11,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  france-preflight:
+  europe-region-preflight:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -36,12 +36,11 @@ jobs:
           SUBSCRIPTION_ID="$(az account show --query id --only-show-errors --output tsv)"
           echo "::add-mask::$SUBSCRIPTION_ID"
 
-      - name: Executar apenas consultas read-only
+      - name: Executar inventário read-only da subscrição
         shell: bash
         env:
           AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
           AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
-          TARGET_REGION: francecentral
         run: |
           set -euo pipefail
           bash -n vm/france-preflight.sh
