@@ -116,13 +116,18 @@ jobs:
             echo '=== BEDROCK SOCKET OWNER CLASS ==='
             docker exec mc-server sh -c '
               owner_class() {
-                file="$1"
+                proto="$1"
                 state_filter="$2"
-                inode=$(awk -v state="$state_filter" "\$2 ~ /:4ABC\$/ && (state == \"\" || \$4 == state) {print \$10; exit}" "$file" 2>/dev/null || true)
+                case "$proto" in
+                  udp) files="/proc/net/udp /proc/net/udp6" ;;
+                  tcp) files="/proc/net/tcp /proc/net/tcp6" ;;
+                  *) echo unknown; return ;;
+                esac
+                inode=$(awk -v state="$state_filter" "\$2 ~ /:4ABC\$/ && (state == \"\" || \$4 == state) {print \$10; exit}" $files 2>/dev/null || true)
                 [ -n "$inode" ] || { echo unknown; return; }
-                command -v readlink >/dev/null 2>&1 || { echo unknown; return; }
+                found=unknown
                 for fd in /proc/[0-9]*/fd/*; do
-                  target=$(readlink "$fd" 2>/dev/null || true)
+                  target=$(readlink "$fd" 2>/dev/null || ls -l "$fd" 2>/dev/null | sed -n "s/^.* -> //p")
                   [ "$target" = "socket:[$inode]" ] || continue
                   pid=${fd#/proc/}
                   pid=${pid%%/*}
@@ -130,14 +135,14 @@ jobs:
                   case "$comm" in
                     java) echo JVM; return ;;
                     "") ;;
-                    *) echo NON_JVM; return ;;
+                    *) found=NON_JVM ;;
                   esac
                 done
-                echo unknown
+                echo "$found"
               }
-              echo "Container UDP 19132 owner class: $(owner_class /proc/net/udp "")"
-              echo "Container TCP 19132 owner class: $(owner_class /proc/net/tcp 0A)"
-            ' 2>/dev/null || true
+              echo "Container UDP 19132 owner class: $(owner_class udp "")"
+              echo "Container TCP 19132 owner class: $(owner_class tcp 0A)"
+            ' 2>/dev/null || true            ' 2>/dev/null || true
           else
             echo 'Geyser configuration file: not found'
           fi
