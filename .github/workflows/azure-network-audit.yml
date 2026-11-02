@@ -114,35 +114,37 @@ jobs:
               awk '"'"'BEGIN { files=0; found=0 } FNR==1 { files++ } NR>1 && $2 ~ /:4ABC$/ && $4=="0A" { found=1 } END { if (files==0) print "Container TCP 19132 listener: unknown"; else if (found) print "Container TCP 19132 listener: yes"; else print "Container TCP 19132 listener: no" }'"'"' /proc/net/tcp /proc/net/tcp6 2>/dev/null
             ' 2>/dev/null || true
             echo '=== BEDROCK SOCKET OWNER CLASS ==='
-            docker exec --user 0 mc-server sh -c '
-              owner_class() {
-                proto="$1"
-                state_filter="$2"
-                case "$proto" in
-                  udp) files="/proc/net/udp /proc/net/udp6" ;;
-                  tcp) files="/proc/net/tcp /proc/net/tcp6" ;;
-                  *) echo unknown; return ;;
+            # Resolve the container socket inode against the VM host /proc tree.
+            # RunCommand executes on the VM; publish only an allowlisted class.
+            owner_class() {
+              proto="$1"
+              state_filter="$2"
+              case "$proto" in
+                udp) files="/proc/net/udp /proc/net/udp6" ;;
+                tcp) files="/proc/net/tcp /proc/net/tcp6" ;;
+                *) echo unknown; return ;;
+              esac
+              inode=$(docker exec mc-server sh -c "awk -v state='$state_filter' '\$2 ~ /:4ABC\$/ && (state == \"\" || \$4 == state) {print \$10; exit}' $files" 2>/dev/null || true)
+              case "$inode" in
+                ''|*[!0-9]*) echo unknown; return ;;
+              esac
+              found=unknown
+              for fd in /proc/[0-9]*/fd/*; do
+                target=$(readlink "$fd" 2>/dev/null || true)
+                [ "$target" = "socket:[$inode]" ] || continue
+                pid=${fd#/proc/}
+                pid=${pid%%/*}
+                comm=$(cat "/proc/$pid/comm" 2>/dev/null || true)
+                case "$comm" in
+                  java) echo JVM; return ;;
+                  "") ;;
+                  *) found=NON_JVM ;;
                 esac
-                inode=$(awk -v state="$state_filter" "\$2 ~ /:4ABC\$/ && (state == \"\" || \$4 == state) {print \$10; exit}" $files 2>/dev/null || true)
-                [ -n "$inode" ] || { echo unknown; return; }
-                found=unknown
-                for fd in /proc/[0-9]*/fd/*; do
-                  target=$(readlink "$fd" 2>/dev/null || ls -l "$fd" 2>/dev/null | sed -n "s/^.* -> //p")
-                  [ "$target" = "socket:[$inode]" ] || continue
-                  pid=${fd#/proc/}
-                  pid=${pid%%/*}
-                  comm=$(cat "/proc/$pid/comm" 2>/dev/null || true)
-                  case "$comm" in
-                    java) echo JVM; return ;;
-                    "") ;;
-                    *) found=NON_JVM ;;
-                  esac
-                done
-                echo "$found"
-              }
-              echo "Container UDP 19132 owner class: $(owner_class udp "")"
-              echo "Container TCP 19132 owner class: $(owner_class tcp 0A)"
-            ' 2>/dev/null || true
+              done
+              echo "$found"
+            }
+            echo "Container UDP 19132 owner class: $(owner_class udp "")"
+            echo "Container TCP 19132 owner class: $(owner_class tcp 0A)"
           else
             echo 'Geyser configuration file: not found'
           fi
