@@ -8,8 +8,8 @@ Ler o README da raiz antes de usar qualquer workflow. **Inspecionar sempre o YAM
 |---|---|---|
 | `validate.yml` | Validação de código, testes e bundle | CI; sem deploy esperado, confirmar YAML |
 | `build-essential-commands-afk.yml` | Compila JAR AFK personalizado e publica artefacto temporário | Build; não instala na VM |
-| `azure-region-preflight.yml` | Consultas Azure de regiões/SKUs/quota | Read-only; timeout não significa disponibilidade |
-| `preflight-france-vm.yml` | Preflight regional legado | Read-only; plano France supersedido |
+| `azure-region-preflight.yml` | Removido em 2026-11-03; preflight Madrid obsoleto após migração para BelgiumCentral | Eliminado |
+| `preflight-france-vm.yml` | Removido em 2026-11-03; plano regional obsoleto | Eliminado |
 | `azure-network-audit.yml` | Auditoria sanitizada de NSG/Geyser via issue `[MC-AUDIT]` | Read-only, mas consome Run Command |
 | `remote-info.yml` | Diagnóstico remoto | Read-only segundo o script; rever output e escopo |
 | `status-mc-server.yml` | Consulta VM, Docker, RCON e estado para o painel | Read-only remoto; contém segredos no ambiente |
@@ -17,7 +17,7 @@ Ler o README da raiz antes de usar qualquer workflow. **Inspecionar sempre o YAM
 | `install-mc-autostart.yml` | Instala/atualiza serviço systemd | Mutável, pode alterar arranque |
 | `install-private-agent.yml` | Instala agente privado na VM | Mutável, usa SSH e credenciais |
 | `deploy-private-agent.yml` | Atualiza agente privado | Mutável, altera ficheiros/serviço |
-| `install-krypton.yml` | Instala mod Krypton e reinicia Minecraft | Interrupção, backup e reinício |
+| `install-krypton.yml` | Removido em 2026-11-03; não instalar mods adicionais | Eliminado |
 | `secure-minecraft-network.yml` | Altera regras de rede/NSG | Mutável, pode cortar acessos |
 | `start-vm.yml` | Inicia VM Azure | Pode iniciar faturação; proibido sem custo €0 comprovado |
 | `stop-mc-server.yml` | Para jogo e desaloca VM | Interrompe jogadores; pode afetar disponibilidade |
@@ -37,3 +37,26 @@ Ler o README da raiz antes de usar qualquer workflow. **Inspecionar sempre o YAM
 ## Secrets
 
 Os workflows referenciam credenciais via GitHub Actions Secrets. Nunca os consultar ou imprimir. Para saber se um secret existe, usar apenas metadata/validação que não revele o valor. Rotacionar qualquer credencial exposta.
+
+
+## Auditoria pós-migração BelgiumCentral — 2026-11-03
+
+Foram revistos os 16 workflows presentes no repositório. Correções aplicadas:
+
+- `start-vm.yml`: bloqueia arranque de VM desalocada/parada. Iniciar compute pode consumir créditos Azure ou originar custos; a política do projeto não permite despesa pessoal. Se a VM já estiver ligada, o workflow continua idempotente.
+- `stop-mc-server.yml`: antes de parar o contentor/desalocar a VM, exige contentor Docker ativo, resposta RCON interpretável e contagem confirmada de zero jogadores. Se RCON falhar ou existir qualquer jogador, aborta sem parar/desalocar.
+- `install-mc-autostart.yml`: removido o trigger automático `push`; alterações ao próprio workflow deixam de reiniciar serviços na VM. Continua apenas manual.
+- `install-krypton.yml`: eliminado; era uma via para instalar outro mod e reiniciar o servidor, desnecessária e contrária à decisão atual de não acrescentar mods.
+- `preflight-france-vm.yml` e `azure-region-preflight.yml`: eliminados por serem planos de região supersedidos pela migração concluída para BelgiumCentral.
+
+### Workflows operacionais que permanecem
+
+`install-private-agent.yml`, `deploy-private-agent.yml`, `install-mc-autostart.yml`, `secure-minecraft-network.yml`, `toggle-autostop.yml`, `start-vm.yml` e `stop-mc-server.yml` são mutáveis. Não executar automaticamente: exigem revisão do estado atual, backup, jogadores e impacto.
+
+### Limitações ainda conhecidas
+
+- `secure-minecraft-network.yml` altera NSG e permite tráfego público de origem `*`; não executar sem uma revisão da topologia atual e aprovação explícita.
+- `install-private-agent.yml` e `deploy-private-agent.yml` alteram serviços na VM e exigem validação pós-deploy; não foram executados nesta auditoria.
+- `toggle-autostop.yml` altera cron remoto; confirmar backup/autostop e lock atuais antes de o usar.
+- CI e auditorias read-only não foram executados por dispatch nesta passagem. As alterações foram estáticas; a validação YAML/shell e os testes CI ainda devem correr em GitHub Actions.
+- Não foram executados workflows de start/stop, deploy, instalação ou alteração NSG.
