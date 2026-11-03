@@ -30,6 +30,17 @@ O script é exclusivamente read-only; não contém provisionamento. Todas as con
 - Sem criação de recursos no modo de preparação.
 - A VM antiga só poderá ser desligada/eliminada após validação e aprovação explícita.
 
+## Auditoria read-only da origem (2026-11-03)
+
+Resultado concluído em [MC-AUDIT #68](https://github.com/LMhdez/mc-start/issues/68):
+
+- VM em execução; Azure VM Agent pronto.
+- NSG da NIC permite SSH TCP 22, Java TCP 25565 e Bedrock TCP/UDP 19132 a qualquer origem Internet, conforme a preferência de acesso SSH do operador.
+- Nenhuma regra inbound correspondente foi encontrada na NSG da subnet.
+- Geyser confirmou `auth-type=floodgate` e `validate-bedrock-login=false`; transporte NETHERNET; listeners TCP/UDP 19132 ativos na JVM.
+- **Bloqueio de segurança:** não replicar `validate-bedrock-login=false` em Madrid. A configuração upstream alerta para spoofing e perda de funcionalidades Floodgate. Destino deve usar validação Bedrock ativa, salvo exceção de proxy devidamente justificada e isolada.
+- Auditoria não alterou produção, não mudou DNS e não criou recursos.
+
 ## Estado
 
 - [x] Região Madrid selecionada como candidata principal.
