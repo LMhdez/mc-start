@@ -133,4 +133,39 @@ describe("Azure diagnostics for public Worker status", () => {
     expect(JSON.stringify(log.mock.calls)).not.toContain("confidential tenant");
     expect(JSON.stringify(log.mock.calls)).not.toContain("credential material");
   });
+
+  it("redacts unexpected private-agent errors from public status logs", async () => {
+    vi.stubGlobal("fetch", vi.fn(async input => {
+      const url = String(input);
+      if (url.startsWith("https://login.microsoftonline.com/")) {
+        return Response.json({ access_token: "test-only-token" });
+      }
+      if (url.startsWith("https://management.azure.com/")) {
+        return Response.json({
+          statuses: [{ code: "PowerState/running" }]
+        });
+      }
+      throw new Error("Unexpected request");
+    }));
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const env = bindings();
+    env.MC_AGENT = {
+      fetch: vi.fn(async () => {
+        throw new Error("confidential agent endpoint credential material");
+      })
+    };
+
+    const response = await worker.fetch(statusRequest("192.0.2.85"), env);
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toMatchObject({ ok: true, result: { vm: "VM running" } });
+    expect(log).toHaveBeenCalledWith(
+      "Estado publico: agente indisponivel:",
+      "Unexpected internal error"
+    );
+    expect(JSON.stringify(log.mock.calls)).not.toContain("confidential agent endpoint credential material");
+    expect(JSON.stringify(log.mock.calls)).not.toContain("test-only-token");
+    expect(JSON.stringify(log.mock.calls)).not.toContain("test-only-secret");
+  });
 });

@@ -302,6 +302,13 @@ function safeAzureDiagnostic(error) {
   return "Unexpected Azure status error";
 }
 
+function safeOperationalDiagnostic(error) {
+  const diagnostic = safeAzureDiagnostic(error);
+  return diagnostic === "Unexpected Azure status error"
+    ? "Unexpected internal error"
+    : diagnostic;
+}
+
 async function getAzureAccessToken(env) {
   const required = ["AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID",
     "AZURE_SUBSCRIPTION_ID", "AZURE_RESOURCE_GROUP", "AZURE_VM_NAME"];
@@ -723,7 +730,7 @@ export default {
               checked_at: live.checked_at || result.checked_at
             };
           } catch (error) {
-            console.error("Estado publico: agente indisponivel:", error.message);
+            console.error("Estado publico: agente indisponivel:", safeOperationalDiagnostic(error));
           }
         }
         return json({ ok: true, result }, 200, origin);
@@ -778,7 +785,7 @@ export default {
         }
         return json({ ok: true, result: technical, cached: false }, 200, origin);
       } catch (error) {
-        console.error("Consulta tecnica indisponivel:", error.message);
+        console.error("Consulta tecnica indisponivel:", safeOperationalDiagnostic(error));
         if (cached) return json({ ok: true, result: cached, cached: true, stale: true }, 200, origin);
         return json({ ok: false, message: "Dados tecnicos dinamicos indisponiveis." }, 503, origin);
       }
@@ -920,11 +927,11 @@ export default {
             }
             throw new Error("Private MC agent returned an invalid status payload");
           } catch (error) {
-            console.error("Agente privado indisponivel; a usar GitHub Actions:", error.message);
+            console.error("Agente privado indisponivel; a usar GitHub Actions:", safeOperationalDiagnostic(error));
           }
         }
       } catch (error) {
-        console.error("Consulta direta Azure falhou; a usar GitHub Actions:", error.message);
+        console.error("Consulta direta Azure falhou; a usar GitHub Actions:", safeOperationalDiagnostic(error));
       }
 
       file = "status-mc-server.yml";
@@ -949,7 +956,7 @@ export default {
         await performAzureVmAction(env, "start", accessToken);
         return json({ ok: true, message: "Pedido para ligar o servidor enviado diretamente ao Azure." }, 202, origin);
       } catch (error) {
-        console.error("Arranque direto Azure falhou; a usar GitHub Actions:", error.message);
+        console.error("Arranque direto Azure falhou; a usar GitHub Actions:", safeOperationalDiagnostic(error));
         file = WORKFLOWS.start.file;
         inputs = WORKFLOWS.start.inputs;
         message = WORKFLOWS.start.message;
@@ -975,7 +982,7 @@ export default {
         await performAzureVmAction(env, "deallocate", accessToken);
         return json({ ok: true, message: "Pedido para desligar o servidor enviado diretamente ao Azure." }, 202, origin);
       } catch (error) {
-        console.error("Desligamento direto nao concluido; a usar GitHub Actions:", error.message);
+        console.error("Desligamento direto nao concluido; a usar GitHub Actions:", safeOperationalDiagnostic(error));
         file = WORKFLOWS.stop.file;
         inputs = WORKFLOWS.stop.inputs;
         message = WORKFLOWS.stop.message;
