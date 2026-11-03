@@ -19,7 +19,7 @@ Ler o README da raiz antes de usar qualquer workflow. **Inspecionar sempre o YAM
 | `deploy-private-agent.yml` | Atualiza agente privado | Mutável, altera ficheiros/serviço |
 | `install-krypton.yml` | Removido em 2026-11-03; não instalar mods adicionais | Eliminado |
 | `secure-minecraft-network.yml` | Altera regras de rede/NSG | Mutável, pode cortar acessos |
-| `start-vm.yml` | Inicia VM Azure | Pode iniciar faturação; proibido sem custo €0 comprovado |
+| `start-vm.yml` | Inicia VM Azure manualmente pelo GitHub Actions, com confirmação explícita | Mutável; pode consumir créditos Azure ou gerar custos se não houver saldo |
 | `stop-mc-server.yml` | Para jogo e desaloca VM | Interrompe jogadores; pode afetar disponibilidade |
 | `toggle-autostop.yml` | Altera configuração do autostop | Mutável; risco de desligamento automático |
 
@@ -43,7 +43,7 @@ Os workflows referenciam credenciais via GitHub Actions Secrets. Nunca os consul
 
 Foram revistos os 16 workflows presentes no repositório. Correções aplicadas:
 
-- `start-vm.yml`: bloqueia arranque de VM desalocada/parada. Iniciar compute pode consumir créditos Azure ou originar custos; a política do projeto não permite despesa pessoal. Se a VM já estiver ligada, o workflow continua idempotente.
+- `start-vm.yml`: permite ao proprietário iniciar a VM fora do site através de `Actions → Ligar Servidor Minecraft → Run workflow`, exigindo confirmação manual explícita (`confirmar_arranque=true`) quando a VM está parada/desalocada. Eventos automáticos `repository_dispatch` não podem iniciar compute. O arranque pode consumir créditos Azure ou gerar custos se estes se esgotarem; não existe garantia técnica de custo zero. Se a VM já estiver ligada, o workflow continua idempotente.
 - `stop-mc-server.yml`: antes de parar o contentor/desalocar a VM, exige contentor Docker ativo, resposta RCON interpretável e contagem confirmada de zero jogadores. Se RCON falhar ou existir qualquer jogador, aborta sem parar/desalocar.
 - `install-mc-autostart.yml`: removido o trigger automático `push`; alterações ao próprio workflow deixam de reiniciar serviços na VM. Continua apenas manual.
 - `install-krypton.yml`: eliminado; era uma via para instalar outro mod e reiniciar o servidor, desnecessária e contrária à decisão atual de não acrescentar mods.
@@ -51,7 +51,7 @@ Foram revistos os 16 workflows presentes no repositório. Correções aplicadas:
 
 ### Workflows operacionais que permanecem
 
-`install-private-agent.yml`, `deploy-private-agent.yml`, `install-mc-autostart.yml`, `secure-minecraft-network.yml`, `toggle-autostop.yml`, `start-vm.yml` e `stop-mc-server.yml` são mutáveis. Não executar automaticamente: exigem revisão do estado atual, backup, jogadores e impacto.
+`install-private-agent.yml`, `deploy-private-agent.yml`, `install-mc-autostart.yml`, `secure-minecraft-network.yml`, `toggle-autostop.yml`, `start-vm.yml` e `stop-mc-server.yml` são mutáveis. Não executar automaticamente: exigem revisão do estado atual, backup, jogadores e impacto. O `start-vm.yml` é a via manual alternativa ao site para ligar a VM.
 
 ### Limitações ainda conhecidas
 
