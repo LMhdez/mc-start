@@ -7,6 +7,11 @@ on:
         description: 'Motivo ou utilizador a ligar'
         required: false
         default: 'Manual'
+      confirmar_arranque:
+        description: 'Confirmo que o arranque pode consumir créditos Azure ou gerar custos se não houver crédito disponível'
+        required: true
+        type: boolean
+        default: false
   repository_dispatch:
     types: [start-mc-server]
 
@@ -33,6 +38,7 @@ jobs:
         env:
           AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
           AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
+          CONFIRMAR_ARRANQUE: ${{ inputs.confirmar_arranque }}
         run: |
           set -euo pipefail
 
@@ -54,9 +60,14 @@ jobs:
           if [[ "$STATUS" == "VM running" ]]; then
             echo "A VM já está ligada."
           elif [[ "$STATUS" == "VM deallocated" || "$STATUS" == "VM stopped" ]]; then
-            echo "ARRANQUE BLOQUEADO: a VM está desalocada/parada e iniciar compute pode consumir créditos Azure ou gerar custos."
-            echo "A política do projeto exige custo pessoal de 0,00; não foi enviado qualquer pedido de arranque."
-            exit 1
+            if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" || "$CONFIRMAR_ARRANQUE" != "true" ]]; then
+              echo "ARRANQUE BLOQUEADO: para iniciar uma VM parada, usa o dispatch manual no GitHub Actions e confirma explicitamente o possível consumo de créditos/custos."
+              echo "Não foi enviado qualquer pedido de arranque."
+              exit 1
+            fi
+            echo "Confirmação manual recebida. A enviar pedido de arranque da VM..."
+            az vm start --resource-group "$RESOURCE_GROUP" --name "$VM_NAME" --no-wait
+            STATUS="VM starting"
           elif [[ "$STATUS" == "VM starting" ]]; then
             echo "A VM já está em processo de arranque."
           elif [[ "$STATUS" == "VM stopping" ]]; then
@@ -70,8 +81,13 @@ jobs:
                 break
               fi
               if [[ "$STATUS" == "VM deallocated" || "$STATUS" == "VM stopped" ]]; then
-                echo "ARRANQUE BLOQUEADO: iniciar compute pode consumir créditos Azure ou gerar custos."
-                echo "A política do projeto exige custo pessoal de 0,00; não foi enviado qualquer pedido de arranque."
+                if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$CONFIRMAR_ARRANQUE" == "true" ]]; then
+                  echo "Confirmação manual recebida. A enviar pedido de arranque da VM..."
+                  az vm start --resource-group "$RESOURCE_GROUP" --name "$VM_NAME" --no-wait
+                  STATUS="VM starting"
+                  break
+                fi
+                echo "ARRANQUE BLOQUEADO: é necessário dispatch manual com confirmação explícita."
                 exit 1
               fi
             done
