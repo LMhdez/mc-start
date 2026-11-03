@@ -114,4 +114,11 @@ A publicação do Worker e do agente é deliberadamente separada: publica primei
 
 ## Limites desta auditoria
 
-A integração disponível permite inspecionar o repositório, os workflows e a configuração do Worker. Não permite ler valores de secrets nem verificar diretamente regras NSG, discos, backups, RBAC e políticas da subscrição Azure. Esses elementos devem ser auditados no portal Azure.
+A integração permite inspecionar o repositório, os workflows e a configuração/deployments do Worker, e os workflows read-only de auditoria conseguem recolher resumos sanitizados das regras NSG da NIC e da subnet quando a identidade Azure tem permissões. Não permite ler valores de secrets nem fazer uma auditoria completa de discos, backups, RBAC herdado e políticas da subscrição Azure. Não publicar outputs brutos nem identificadores privados.
+
+## Estado de produção confirmado (2026-11-02)
+
+- A PR #40 está **merged e deployed**: a versão 50 do Worker mc-start-control recebe 100% do tráfego e a anotação da deployment identifica a publicação da PR #40. Ver o runbook de deployment para a evidência e histórico.
+- TCP 19132 é utilizado legitimamente por um mod no servidor. Não remover nem substituir essa permissão sem uma nova análise técnica e autorização explícita.
+- O workflow de alteração de NSG não deve ser executado com a premissa de que só são necessários TCP 25565 e UDP 19132; a regra proposta não contempla TCP 19132.
+- A validação de acessibilidade por axe/Chromium é automatizada; uma sessão real NVDA/VoiceOver continua a ser uma verificação manual distinta.
