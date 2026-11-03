@@ -21,8 +21,10 @@ Foram lidos: `cloudflare/worker.js`, `cloudflare/wrangler.toml`, `cloudflare/wra
 ## Validação
 
 - Confirmada no GitHub a existência de `social-preview.png` e metadata OG/Twitter a apontar para PNG 1200×630.
-- A validação local/CI não foi executada nesta alteração documental.
-- Não foram executados workflows, deploys, comandos Azure, alterações de NSG, operações de VM ou comandos Minecraft.
+- GitHub Actions `Validate project` run [41742896435](https://github.com/LMhdez/mc-start/actions/runs/41742896435): **success** — sintaxe JS, testes Cloudflare, Wrangler dry-run, smoke tests públicos, Python e YAML/shell dos workflows.
+- GitHub Pages build/deployment run [41742895508](https://github.com/LMhdez/mc-start/actions/runs/41742895508): **success**.
+- O CI anterior falhou porque quatro testes de diagnóstico esperavam HTTP 503, enquanto o contrato implementado degrada para HTTP 200 com estado Unknown. O log Azure foi também alterado para usar a função de redaction. A nova execução passou.
+- Não foram executados workflows mutáveis, deploy do Worker, comandos Azure, alterações de NSG, operações de VM ou comandos Minecraft.
 - Não foram consultados nem apresentados valores de secrets.
 - Esta auditoria não é uma validação end-to-end de login Java/Bedrock nem do painel num browser real.
 

@@ -18,7 +18,7 @@ O endpoint público do Worker `mc-start-control`, `GET /api/public/status`, devo
 
 ## Impacto e alterações
 
-- A causa do 503 ficou corrigida por RBAC.
+- A causa do 503 ficou corrigida por RBAC. A PR #78 foi posteriormente merged, mas não foi publicada no Worker de produção.
 - Não foi alterado `worker.js`, `wrangler.toml`, frontend, secrets, bindings, Azure VM, rede, Docker ou Minecraft.
 - Não foi feito merge nem deploy de código para esta correção.
 - O Service Principal recebeu `Reader`, não `Contributor` nem `Owner`, e apenas no scope da VM.
@@ -26,11 +26,11 @@ O endpoint público do Worker `mc-start-control`, `GET /api/public/status`, devo
 
 ## PR de diagnósticos adicionais
 
-A [PR #78](https://github.com/LMhdez/mc-start/pull/78) continua **OPEN**, sem merge e sem deploy. Propõe Workers Logs com códigos HTTP/Azure allowlisted e testes para garantir redaction de descrições e valores sensíveis. Como o problema foi resolvido por RBAC, a necessidade desses diagnósticos adicionais fica por decidir.
+A [PR #78](https://github.com/LMhdez/mc-start/pull/78) foi **merged em 2026-11-03 às 23:12 UTC** (merge commit `d2d3361`). A alteração adiciona diagnóstico sanitizado e testes de redaction, mantendo-se dentro das funcionalidades Workers Free conforme a descrição da PR. O merge não fez deploy do Worker; a publicação continua manual e separada. A correção do incidente de produção continua a ser RBAC Reader, não o código da PR.
 
-- Manter a PR aberta até decisão explícita.
-- Não fazer merge/deploy automaticamente.
-- Qualquer uso de observability deve continuar limitado às funcionalidades Free; não ativar add-ons ou serviços pagos.
+- PR #78: merged; não assumir que o código novo está deployed.
+- Não executar deploy como consequência do merge.
+- Manter Free Tier; não ativar add-ons, upgrades ou serviços pagos.
 
 ## Validação ainda pendente
 
