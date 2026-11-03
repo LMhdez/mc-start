@@ -1,0 +1,106 @@
+name: Restaurar automações cron da VM
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Escreve RESTORE para repor backup e autostop na VM de produção
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mc-server-vm-operations
+  cancel-in-progress: false
+
+jobs:
+  restore-cron:
+    if: ${{ inputs.confirmation == 'RESTORE' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Login na Azure
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Restaurar apenas as tarefas de backup e autostop
+        shell: bash
+        env:
+          AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
+        run: |
+          set -euo pipefail
+
+          VM_STATUS=$(az vm get-instance-view \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_VM_NAME" \
+            --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus | [0]" \
+            -o tsv 2>/dev/null) || {
+              echo "Não foi possível confirmar o estado da VM."
+              exit 1
+            }
+
+          if [[ "$VM_STATUS" != "VM running" ]]; then
+            echo "A VM de produção não está ligada; nenhuma alteração foi aplicada."
+            exit 1
+          fi
+
+          REMOTE_SCRIPT=$(cat <<'REMOTE'
+          set -euo pipefail
+
+          CRON_USER="azureuser"
+          AUTOSTOP="/home/azureuser/autostop.sh"
+          BACKUP="/home/azureuser/minecraft/backup.sh"
+          BACKUP_LOG="/home/azureuser/minecraft/backups/backup-cron.log"
+          AUTOSTOP_LOG="/home/azureuser/autostop.log"
+
+          id "$CRON_USER" >/dev/null
+          test -s "$AUTOSTOP"
+          test -s "$BACKUP"
+          test -d "$(dirname "$BACKUP_LOG")"
+
+          TMP=$(mktemp)
+          chmod 600 "$TMP"
+          trap 'rm -f "$TMP"' EXIT
+
+          crontab -u "$CRON_USER" -l 2>/dev/null \
+            | awk -v a="$AUTOSTOP" -v b="$BACKUP" '
+                index($0, a) == 0 && index($0, b) == 0 { print }
+              ' > "$TMP"
+
+          cat >> "$TMP" <<CRON
+          */15 * * * * /bin/bash $BACKUP --if-changed >> $BACKUP_LOG 2>&1
+          */5 * * * * AUTOSTOP_CRON=1 DRY_RUN=0 /bin/bash $AUTOSTOP >> $AUTOSTOP_LOG 2>&1
+          CRON
+
+          crontab -u "$CRON_USER" "$TMP"
+          systemctl enable --now cron.service >/dev/null
+
+          FINAL=$(crontab -u "$CRON_USER" -l)
+          printf '%s\n' "$FINAL" | grep -Fqx "*/15 * * * * /bin/bash $BACKUP --if-changed >> $BACKUP_LOG 2>&1"
+          printf '%s\n' "$FINAL" | grep -Fqx "*/5 * * * * AUTOSTOP_CRON=1 DRY_RUN=0 /bin/bash $AUTOSTOP >> $AUTOSTOP_LOG 2>&1"
+          systemctl is-active --quiet cron.service
+
+          echo "CRON_AUTOMATIONS_RESTORED"
+          REMOTE
+          )
+
+          RESULT=$(az vm run-command invoke \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_VM_NAME" \
+            --command-id RunShellScript \
+            --scripts "$REMOTE_SCRIPT" \
+            --query "value[].message" -o tsv 2>/dev/null) || {
+              echo "A execução remota falhou; consultar o estado da VM sem partilhar logs brutos."
+              exit 1
+            }
+
+          if ! grep -q "CRON_AUTOMATIONS_RESTORED" <<< "$RESULT"; then
+            echo "A restauração não foi confirmada."
+            exit 1
+          fi
+
+          echo "Backup (15 min), autostop (5 min) e serviço cron confirmados."
