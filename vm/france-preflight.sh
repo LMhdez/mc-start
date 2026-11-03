@@ -4,6 +4,13 @@
 
 set -Eeuo pipefail
 
+# Archived after the production move to BelgiumCentral. Explicit opt-in required
+# even for this legacy read-only regional preflight; it is not an operational runbook.
+if [[ "${ALLOW_ARCHIVED_REGION_PREFLIGHT:-}" != "YES" ]]; then
+  echo "ARCHIVED: production is BelgiumCentral. This France/Europe preflight is disabled." >&2
+  exit 2
+fi
+
 readonly RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:?AZURE_RESOURCE_GROUP is required}"
 readonly CURRENT_VM="${AZURE_VM_NAME:?AZURE_VM_NAME is required}"
 readonly MAX_PARALLEL_REGIONS=4

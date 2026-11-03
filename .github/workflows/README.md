@@ -1,71 +1,57 @@
 # GitHub Actions — catálogo e segurança operacional
 
-Ler o README da raiz antes de usar qualquer workflow. **Inspecionar sempre o YAML atual antes de executar**: os nomes e esta tabela não substituem a revisão dos comandos e secrets usados.
+Ler o README da raiz e rever o YAML integral antes de executar qualquer workflow. Esta tabela é um índice, não substitui a inspeção dos comandos, secrets, permissões e efeitos reais.
 
-## Classificação
+## Inventário do branch main
 
-| Workflow | Objetivo conhecido | Classe / risco |
+| Workflow | Função | Classe / risco |
 |---|---|---|
-| `validate.yml` | Validação de código, testes e bundle | CI; sem deploy esperado, confirmar YAML |
-| `toggle-maintenance.yml` | Ativa/desativa o aviso público de manutenção no website via `maintenance.json` | Mutável apenas no conteúdo estático do site; não toca na VM, Worker ou jogo |
-| `build-essential-commands-afk.yml` | Compila JAR AFK personalizado e publica artefacto temporário | Build; não instala na VM |
-| `azure-region-preflight.yml` | Removido em 2026-11-03; preflight Madrid obsoleto após migração para BelgiumCentral | Eliminado |
-| `preflight-france-vm.yml` | Removido em 2026-11-03; plano regional obsoleto | Eliminado |
-| `azure-network-audit.yml` | Auditoria sanitizada de NSG/Geyser via issue `[MC-AUDIT]` | Read-only, mas consome Run Command |
-| `remote-info.yml` | Diagnóstico remoto | Read-only segundo o script; rever output e escopo |
-| `status-mc-server.yml` | Consulta VM, Docker, RCON e estado para o painel | Read-only remoto; contém segredos no ambiente |
-| `ui-browser-audit.yml` | Auditoria UI/Browser | CI/diagnóstico; não é deploy |
-| `install-mc-autostart.yml` | Instala/atualiza serviço systemd | Mutável, pode alterar arranque |
-| `install-private-agent.yml` | Instala agente privado na VM | Mutável, usa SSH e credenciais |
-| `deploy-private-agent.yml` | Atualiza agente privado | Mutável, altera ficheiros/serviço |
-| `install-krypton.yml` | Removido em 2026-11-03; não instalar mods adicionais | Eliminado |
-| `secure-minecraft-network.yml` | Altera regras de rede/NSG | Mutável, pode cortar acessos |
-| `start-vm.yml` | Inicia VM Azure manualmente pelo GitHub Actions, com confirmação explícita | Mutável; pode consumir créditos Azure ou gerar custos se não houver saldo |
-| `stop-mc-server.yml` | Para jogo e desaloca VM | Interrompe jogadores; pode afetar disponibilidade |
-| `toggle-autostop.yml` | Altera configuração do autostop | Mutável; risco de desligamento automático |
+| `validate.yml` | Sintaxe, testes, Wrangler dry-run e smoke tests públicos | CI; sem deploy |
+| `ui-browser-audit.yml` | Chromium, acessibilidade, teclado e responsividade | CI; screenshots temporários |
+| `social-preview.yml` | Converte `social-preview.svg` em PNG 1200×630 e publica o ficheiro | Mutável apenas no repositório; runner GitHub |
+| `toggle-maintenance.yml` | Altera `maintenance.json` | Mutável apenas no website; não toca na VM |
+| `build-essential-commands-afk.yml` | Compila variante AFK do Essential Commands | Build; não instala na VM |
+| `remote-info.yml` | Diagnóstico remoto | Read-only; rever output |
+| `status-mc-server.yml` | Consulta estado VM/Docker/RCON para o painel | Read-only remoto; secrets no ambiente |
+| `azure-network-audit.yml` | Auditoria sanitizada de NSG e Geyser via issue `[MC-AUDIT]` | Read-only; consome Azure Run Command |
+| `install-mc-autostart.yml` | Instala/atualiza serviço systemd | Mutável; pode alterar arranque |
+| `install-private-agent.yml` | Instala agente privado na VM | Mutável; SSH/serviço |
+| `deploy-private-agent.yml` | Atualiza agente privado | Mutável; altera código/serviço |
+| `restore-cron-automations.yml` | Restaura automações cron | Mutável; pode reativar backup/autostop |
+| `toggle-autostop.yml` | Altera entrada cron do autostop | Mutável; pode desligar a produção |
+| `secure-minecraft-network.yml` | Ajusta regras NSG de jogo | Mutável; pode cortar conectividade |
+| `start-vm.yml` | Inicia VM Azure | Pode iniciar compute faturável; bloqueado pela política €0 |
+| `stop-mc-server.yml` | Para Minecraft e desaloca VM | Interrompe jogadores; exige confirmação de zero jogadores |
 
 ## Regras obrigatórias
 
-- Política do projeto: custo total permitido **0,00 € / $0,00**. Não executar start/provision/deploy que possa gerar custo sem prova de gratuitidade efetiva; neste momento não presumir essa prova.
-- Não imprimir valores de GitHub Secrets, env vars, credenciais Azure, chaves SSH, RCON ou conteúdo de ficheiros privados.
-- Antes de workflows que param/reiniciam Minecraft, confirmar zero jogadores online, janela aprovada, backup e rollback.
-- Antes de qualquer NSG change, comparar regras efetivas NIC e subnet e preservar SSH TCP 22, Java TCP 25565 e Bedrock TCP/UDP 19132 conforme estado/requisito documentado.
-- Nunca correr em paralelo workflows que usem Azure Run Command ou alterem a VM, mesmo que não tenham concurrency group.
-- Não usar um workflow de instalação como ferramenta de diagnóstico.
-- Depois de executar, consultar o run/job e resultados sanitizados; não colar logs brutos sem revisão.
-- Se um workflow tiver efeitos não compreendidos, não o executar.
+- **Custo máximo: 0,00 € / $0,00.** Apenas Free Tier efetivo. Não gastar créditos Azure for Students em recursos pagos; não ativar Pay-As-You-Go, trials, upgrades ou runners/serviços pagos. Não executar `start-vm.yml` enquanto o custo total de arranque não estiver comprovadamente dentro do Free Tier.
+- Nunca imprimir secrets, env vars, credenciais Azure, chaves SSH, RCON, nomes de jogadores, IP público ou logs brutos.
+- Não usar workflow mutável para diagnóstico.
+- Antes de parar/reiniciar Minecraft: confirmar jogadores offline, backup recente validado, lock livre, janela e rollback.
+- Antes de qualquer NSG change: comparar regras efetivas NIC e subnet. Preservar SSH TCP 22 conforme política atual, Java TCP 25565, Bedrock UDP 19132 e o uso legítimo Bedrock TCP 19132. O workflow de rede foi corrigido para contemplar TCP 19132, mas continua mutável e não foi executado nesta revisão.
+- Nunca correr em paralelo workflows que usem Azure Run Command ou alterem a VM.
+- Verificar resultados com campos allowlisted; nunca colar logs brutos.
+- O modo manutenção do site é informativo: altera apenas `maintenance.json`, não bloqueia jogadores nem desliga a VM.
+- O PNG social é gerado por GitHub Actions. Monitorizar a utilização dentro das quotas gratuitas; não ativar runners pagos.
 
-## Secrets
+## Evidência pós-migração BelgiumCentral — 2026-11-03
 
-Os workflows referenciam credenciais via GitHub Actions Secrets. Nunca os consultar ou imprimir. Para saber se um secret existe, usar apenas metadata/validação que não revele o valor. Rotacionar qualquer credencial exposta.
+A produção documentada é a VM `MC-VM-BE` em `MCServerBelgiumGroup`, BelgiumCentral. Os workflows usam os secrets Azure para determinar o alvo; confirmar metadata/configuração antes de qualquer operação, sem consultar os valores. Não reutilizar nomes, IPs ou scripts de Austria East/Madrid.
 
+O endpoint público `/api/public/status` voltou a HTTP 200 após atribuir `Reader` ao Service Principal do Worker no scope da VM belga. Ver `cloudflare/WORKER-503-INCIDENT.md`. A confirmação do endpoint não equivale a teste de login Minecraft.
 
-## Auditoria pós-migração BelgiumCentral — 2026-11-03
+## Workflows mutáveis — não executar sem nova revisão
 
-Foram revistos os 16 workflows presentes no repositório. Correções aplicadas:
+`install-private-agent.yml`, `deploy-private-agent.yml`, `install-mc-autostart.yml`, `restore-cron-automations.yml`, `toggle-autostop.yml`, `secure-minecraft-network.yml`, `start-vm.yml` e `stop-mc-server.yml` alteram produção ou disponibilidade. Exigem revisão do estado vivo, custo, jogadores, backup, lock, alvo e rollback. Esta revisão documental não executou nenhum deles.
 
-- `start-vm.yml`: permite ao proprietário iniciar a VM fora do site através de `Actions → Ligar Servidor Minecraft → Run workflow`, exigindo confirmação manual explícita (`confirmar_arranque=true`) quando a VM está parada/desalocada. Eventos automáticos `repository_dispatch` não podem iniciar compute. O arranque pode consumir créditos Azure ou gerar custos se estes se esgotarem; não existe garantia técnica de custo zero. Se a VM já estiver ligada, o workflow continua idempotente.
-- `stop-mc-server.yml`: antes de parar o contentor/desalocar a VM, exige contentor Docker ativo, resposta RCON interpretável e contagem confirmada de zero jogadores. Se RCON falhar ou existir qualquer jogador, aborta sem parar/desalocar.
-- `install-mc-autostart.yml`: removido o trigger automático `push`; alterações ao próprio workflow deixam de reiniciar serviços na VM. Continua apenas manual.
-- `install-krypton.yml`: eliminado; era uma via para instalar outro mod e reiniciar o servidor, desnecessária e contrária à decisão atual de não acrescentar mods.
-- `preflight-france-vm.yml` e `azure-region-preflight.yml`: eliminados por serem planos de região supersedidos pela migração concluída para BelgiumCentral.
+## Modo de manutenção do website
 
-### Workflows operacionais que permanecem
+- `mode=enable` ativa o aviso público; `mode=disable` remove-o.
+- A mensagem é limitada a 240 caracteres.
+- Só altera `maintenance.json` em `main`; o frontend consulta o estado periodicamente.
+- Não altera Worker, Azure, rede, Minecraft ou billing.
 
-`install-private-agent.yml`, `deploy-private-agent.yml`, `install-mc-autostart.yml`, `secure-minecraft-network.yml`, `toggle-autostop.yml`, `start-vm.yml` e `stop-mc-server.yml` são mutáveis. Não executar automaticamente: exigem revisão do estado atual, backup, jogadores e impacto. O `start-vm.yml` é a via manual alternativa ao site para ligar a VM.
+## Histórico
 
-### Modo de manutenção do website
-
-- Executar em `Actions → Alternar modo de manutenção do site → Run workflow`.
-- `mode=enable` ativa o aviso público; `mode=disable` remove-o. A mensagem opcional é limitada a 240 caracteres e só é publicada quando a manutenção está ativa.
-- O workflow altera apenas `maintenance.json` em `main`. O GitHub Pages publica o ficheiro e o frontend consulta-o a cada 30 segundos juntamente com a API pública de estado.
-- O workflow usa apenas `GITHUB_TOKEN` com `contents: write`; não usa Azure, Cloudflare secrets, recursos pagos ou operações no servidor Minecraft.
-- O modo de manutenção é informativo: não bloqueia ligações de jogo nem desliga/para a VM. O operador deve executar separadamente qualquer manutenção real do servidor.
-
-### Limitações ainda conhecidas
-
-- `secure-minecraft-network.yml` altera NSG e permite tráfego público de origem `*`; não executar sem uma revisão da topologia atual e aprovação explícita.
-- `install-private-agent.yml` e `deploy-private-agent.yml` alteram serviços na VM e exigem validação pós-deploy; não foram executados nesta auditoria.
-- `toggle-autostop.yml` altera cron remoto; confirmar backup/autostop e lock atuais antes de o usar.
-- CI e auditorias read-only não foram executados por dispatch nesta passagem. As alterações foram estáticas; a validação YAML/shell e os testes CI ainda devem correr em GitHub Actions.
-- Não foram executados workflows de start/stop, deploy, instalação ou alteração NSG.
+Os preflights Azure de Madrid/France e o workflow de instalação de Krypton foram removidos/arquivados. Não os reintroduzir sem pedido explícito e uma nova análise de custo zero. A configuração Geyser/Floodgate aprovada é para preservar, não para endurecer automaticamente durante uma tarefa de documentação.

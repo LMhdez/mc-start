@@ -10,15 +10,18 @@ permissions:
 
 jobs:
   secure-minecraft:
-    if: github.event.issue.user.login == 'LMhdez' && startsWith(github.event.issue.title, '[MC-SECURE]')
+    # The issue must be opened by the repository owner and contain the exact
+    # confirmation phrase. This is a mutating NSG operation, never diagnostics.
+    if: github.event.issue.user.login == 'LMhdez' && startsWith(github.event.issue.title, '[MC-SECURE]') && contains(github.event.issue.body, 'CONFIRM-NSG-CHANGE')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Azure login
-        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Restrict Minecraft rules to required protocols
+      - name: Preserve required Minecraft protocols
         id: secure
         shell: bash
         env:
@@ -26,86 +29,72 @@ jobs:
           VM: ${{ secrets.AZURE_VM_NAME }}
         run: |
           set -euo pipefail
+          set +x
           stage="discover VM network interface"
           trap 'rc=$?; echo "operation_status=failed" >> "$GITHUB_OUTPUT"; echo "failure_stage=$stage" >> "$GITHUB_OUTPUT"; exit "$rc"' ERR
 
-          NIC=$(az vm show -g "$RG" -n "$VM" --query 'networkProfile.networkInterfaces[0].id' -o tsv)
+          NIC=$(az vm show -g "$RG" -n "$VM" --query 'networkProfile.networkInterfaces[0].id' -o tsv 2>/dev/null)
           if [ -z "$NIC" ] || [ "$NIC" = "None" ]; then
-            echo "No VM network interface found." >&2
+            echo "VM network interface unavailable; no NSG changes made." >&2
             exit 1
           fi
 
           stage="discover NIC network security group"
-          NSG_ID=$(az network nic show --ids "$NIC" --query 'networkSecurityGroup.id' -o tsv)
+          NSG_ID=$(az network nic show --ids "$NIC" --query 'networkSecurityGroup.id' -o tsv 2>/dev/null)
           if [ -z "$NSG_ID" ] || [ "$NSG_ID" = "None" ]; then
-            echo "No NIC-level network security group found; refusing to change network rules." >&2
+            echo "NIC-level NSG unavailable; no NSG changes made." >&2
             exit 1
           fi
           NSG=$(basename "$NSG_ID")
 
-          stage="read current Minecraft rule"
-          EXISTING=$(az network nsg rule list -g "$RG" --nsg-name "$NSG" --query "[?name=='Minecraft'] | [0].priority" -o tsv)
-          if [ -z "$EXISTING" ] || [ "$EXISTING" = "None" ]; then
-            echo "Expected Minecraft rule was not found; refusing to create replacement rules blindly." >&2
+          stage="read existing Minecraft rule"
+          EXISTING=$(az network nsg rule list -g "$RG" --nsg-name "$NSG" --query "[?name=='Minecraft'] | [0].priority" -o tsv 2>/dev/null)
+          if ! [[ "$EXISTING" =~ ^[0-9]+$ ]]; then
+            echo "Expected Minecraft rule not found; refusing blind NSG changes." >&2
             exit 1
           fi
 
-          # Keep Java publicly reachable, but only over its required TCP transport.
           stage="update Java TCP rule"
-          if ! az network nsg rule update -g "$RG" --nsg-name "$NSG" -n Minecraft \
-            --priority "$EXISTING" --direction Inbound --access Allow --protocol Tcp \
-            --source-address-prefixes '*' --source-port-ranges '*' \
-            --destination-address-prefixes '*' --destination-port-ranges 25565 \
-            --description "Minecraft Java TCP only" >/dev/null 2>nsg-update-error.txt; then
-            if grep -Eqi 'AuthorizationFailed|does not have authorization|forbidden|\\b403\\b' nsg-update-error.txt; then
-              stage="Azure identity lacks NSG write permission"
-            else
-              stage="Azure rejected Java NSG rule update"
-            fi
-            echo "operation_status=failed" >> "$GITHUB_OUTPUT"
-            echo "failure_stage=$stage" >> "$GITHUB_OUTPUT"
-            exit 1
-          fi
+          az network nsg rule update -g "$RG" --nsg-name "$NSG" -n Minecraft             --priority "$EXISTING" --direction Inbound --access Allow --protocol Tcp             --source-address-prefixes '*' --source-port-ranges '*'             --destination-address-prefixes '*' --destination-port-ranges 25565             --description "Minecraft Java TCP" --output none
 
-          # Select a free priority after the existing Minecraft rule.
-          stage="inspect Bedrock rule and choose priority"
-          if az network nsg rule show -g "$RG" --nsg-name "$NSG" -n Minecraft-Bedrock >/dev/null 2>&1; then
-            BEDROCK_PRIORITY=$(az network nsg rule show -g "$RG" --nsg-name "$NSG" -n Minecraft-Bedrock --query priority -o tsv)
-          else
-            USED=$(az network nsg rule list -g "$RG" --nsg-name "$NSG" --query '[].priority' -o tsv)
-            BEDROCK_PRIORITY=""
+          find_priority() {
+            local used p
+            used=$(az network nsg rule list -g "$RG" --nsg-name "$NSG" --query '[].priority' -o tsv 2>/dev/null)
             for p in $(seq $((EXISTING + 1)) 4096); do
-              if ! printf '%s\n' "$USED" | grep -qx "$p"; then
-                BEDROCK_PRIORITY="$p"
-                break
+              if ! printf '%s\n' "$used" | grep -qx "$p"; then
+                printf '%s' "$p"
+                return 0
               fi
             done
-            if [ -z "$BEDROCK_PRIORITY" ]; then
-              echo "No free NSG priority available for Bedrock rule." >&2
-              exit 1
+            return 1
+          }
+
+          ensure_rule() {
+            local name="$1" protocol="$2" port="$3" description="$4" priority
+            if az network nsg rule show -g "$RG" --nsg-name "$NSG" -n "$name" >/dev/null 2>&1; then
+              priority=$(az network nsg rule show -g "$RG" --nsg-name "$NSG" -n "$name" --query priority -o tsv 2>/dev/null)
+              [[ "$priority" =~ ^[0-9]+$ ]] || return 1
+              az network nsg rule update -g "$RG" --nsg-name "$NSG" -n "$name"                 --priority "$priority" --direction Inbound --access Allow --protocol "$protocol"                 --source-address-prefixes '*' --source-port-ranges '*'                 --destination-address-prefixes '*' --destination-port-ranges "$port"                 --description "$description" --output none
+            else
+              priority=$(find_priority) || return 1
+              az network nsg rule create -g "$RG" --nsg-name "$NSG" -n "$name"                 --priority "$priority" --direction Inbound --access Allow --protocol "$protocol"                 --source-address-prefixes '*' --source-port-ranges '*'                 --destination-address-prefixes '*' --destination-port-ranges "$port"                 --description "$description" --output none
             fi
-          fi
+          }
 
-          stage="create or update Bedrock UDP rule"
-          BEDROCK_ARGS=(-g "$RG" --nsg-name "$NSG" -n Minecraft-Bedrock
-            --priority "$BEDROCK_PRIORITY" --direction Inbound --access Allow --protocol Udp
-            --source-address-prefixes '*' --source-port-ranges '*'
-            --destination-address-prefixes '*' --destination-port-ranges 19132
-            --description "Minecraft Bedrock UDP only")
-          if az network nsg rule show -g "$RG" --nsg-name "$NSG" -n Minecraft-Bedrock >/dev/null 2>&1; then
-            az network nsg rule update "${BEDROCK_ARGS[@]}" >/dev/null
-          else
-            az network nsg rule create "${BEDROCK_ARGS[@]}" >/dev/null
-          fi
+          stage="ensure Bedrock UDP 19132"
+          ensure_rule Minecraft-Bedrock-UDP Udp 19132 "Minecraft Bedrock UDP"
 
-          # Emit only a non-sensitive summary; never print IPs, CIDRs, credentials, or raw rule objects.
+          stage="ensure Bedrock TCP 19132"
+          ensure_rule Minecraft-Bedrock-TCP Tcp 19132 "Minecraft Bedrock TCP"
+
+          # SSH and unrelated NSG rules are not changed. No raw rule objects,
+          # IPs, CIDRs, resource IDs, credentials or command output are emitted.
           stage="complete"
           echo "operation_status=success" >> "$GITHUB_OUTPUT"
           echo "failure_stage=none" >> "$GITHUB_OUTPUT"
-          echo "nsg_name=$NSG" >> "$GITHUB_OUTPUT"
           echo "java_rule=TCP/25565" >> "$GITHUB_OUTPUT"
-          echo "bedrock_rule=UDP/19132" >> "$GITHUB_OUTPUT"
-          echo "bedrock_priority=$BEDROCK_PRIORITY" >> "$GITHUB_OUTPUT"
+          echo "bedrock_udp_rule=UDP/19132" >> "$GITHUB_OUTPUT"
+          echo "bedrock_tcp_rule=TCP/19132" >> "$GITHUB_OUTPUT"
 
       - name: Report safe summary
         if: always()
@@ -117,8 +106,8 @@ jobs:
           script: |
             const ok = process.env.OPERATION_STATUS === 'success';
             const body = ok
-              ? '## Minecraft network rules updated\\n\\n- Java: TCP 25565 only\\n- Bedrock: UDP 19132 only\\n- Public player access retained.\\n- SSH rule unchanged.\\n- No IPs, CIDRs, credentials, or raw configuration included.'
-              : '## Minecraft network hardening did not complete\\n\\nThe workflow stopped at: ' + (process.env.FAILURE_STAGE || 'unknown') + '.\\nNo raw command output or sensitive configuration is included. The rule state must be checked before retrying.';
+              ? '## Minecraft network rules updated\n\n- Java: TCP 25565\n- Bedrock: UDP 19132 and TCP 19132\n- SSH and unrelated rules unchanged.\n- No IPs, CIDRs, credentials, or raw configuration included.'
+              : '## Minecraft network update did not complete\n\nThe workflow stopped at: ' + (process.env.FAILURE_STAGE || 'unknown') + '.\nReview the effective NSG before retrying; no raw output is included.';
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,

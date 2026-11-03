@@ -1,3 +1,13 @@
+# Current operational note — reviewed 2026-11-03
+
+Production is Azure BelgiumCentral (`MC-VM-BE`, `MCServerBelgiumGroup`); the authoritative VM state lives in the private infrastructure repository. Do not use Austria/Madrid/France migration material as an active target. The project permits **€0 / $0 spend, Free Tier only**; Azure Student credits are not permission to consume paid resources.
+
+The public Worker status endpoint returned HTTP 200 after a narrowly scoped Azure RBAC Reader assignment to the Worker service principal on the Belgian VM. This was an Azure RBAC correction, not a code deployment. The current social preview is PNG 1200×630 at `https://lmhdez.github.io/mc-start/social-preview.png`; the SVG remains its source. The PNG and page metadata were verified in GitHub, but external social-platform cache refresh has not been tested.
+
+The NSG automation was revised to preserve Java TCP 25565, Bedrock UDP 19132 and Bedrock TCP 19132. It now requires the exact issue-body confirmation phrase `CONFIRM-NSG-CHANGE`. This change is code-only: the workflow has **not** been executed and no NSG rule was changed. Continue to treat all network changes as mutating operations requiring a fresh review.
+
+---
+
 # MC SERVER — Runbook de publicação controlada do Worker
 
 **Estado:** PR #27 merged em 2026-11-01. Preparação de publicação apenas; este documento não autoriza nem executa deploy, alterações no Dashboard ou alterações de billing.

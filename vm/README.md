@@ -1,21 +1,26 @@
-# VM — agente privado e planos de migração
+# VM — agente privado e referências históricas
 
-Esta pasta contém código e documentação auxiliar para a VM Minecraft. A fonte operacional principal e atualizada da infraestrutura é o repositório privado `LMhdez/mc-server-infrastructure`.
+Esta pasta contém o agente privado ativo e documentos antigos de preflight/migração. A fonte operacional atual da infraestrutura é o repositório [mc-server-infrastructure](https://github.com/LMhdez/mc-server-infrastructure), em particular `docs/current-state.md`.
 
 ## Ficheiros
 
-- `mc-agent.py`: agente Python privado que expõe operações/status para o Worker através da ligação VPC/Tunnel.
-- `MADRID-MIGRATION-PLAN.md`: resumo e links para o plano atual Madrid.
-- `FRANCE-MIGRATION-PLAN.md`: plano histórico/supersedido; não usar como destino atual.
-- Não confundir o agente com o servidor Minecraft nem com o Cloudflare Worker.
+- `mc-agent.py`: agente Python privado usado pelo Worker através do Cloudflare Tunnel/VPC. É código operacional; rever testes, autenticação e rollback antes de alterar.
+- `MADRID-MIGRATION-PLAN.md`: **ARQUIVADO**. Plano supersedido pela migração concluída para BelgiumCentral.
+- `FRANCE-MIGRATION-PLAN.md`: **ARQUIVADO**. Preflight regional antigo, sem destino operacional.
+- `france-preflight.sh`: script read-only legado, desativado por defeito; não executar.
+
+## Produção conhecida
+
+Último estado documentado em 2026-11-03: Azure BelgiumCentral, VM `MC-VM-BE`, resource group `MCServerBelgiumGroup`. Não reutilizar nomes/IPs de Austria East, France Central ou Madrid. Confirmar estado vivo na infraestrutura antes de operações.
 
 ## Segurança do agente
 
 - Escutar apenas em loopback na VM e encaminhar via binding VPC; nunca publicar a porta 8765 na Internet/NSG.
 - Validar autenticação, método, path e payload antes de cada operação.
 - Nunca registar passwords, tokens, RCON, listas de jogadores ou dados de mundo.
-- Alterações ao agente são deployments mutáveis; confirmar compatibilidade Worker/agent e rollback.
+- Alterações ao agente são deployments mutáveis; confirmar compatibilidade Worker/agent, testes e rollback.
+- Não executar comandos que possam devolver segredos sem redaction/allowlist.
 
-## Migração
+## Custos
 
-Madrid/Spain Central é apenas uma hipótese técnica. A migração está bloqueada enquanto não houver arquitetura completa e comprovadamente €0. Não criar VM, disco, IP, snapshots, rede ou qualquer recurso faturável. Ler o runbook atualizado em `mc-server-infrastructure/docs/` e preservar a VM austríaca.
+Custo permitido absoluto: 0,00 € / $0,00. Não provisionar, iniciar compute pago, criar IP/disco/rede, consumir créditos para recursos pagos ou ativar Pay-As-You-Go.
