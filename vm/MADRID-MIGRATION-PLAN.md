@@ -20,7 +20,7 @@ O script é exclusivamente read-only; não contém provisionamento. Todas as con
 - Ubuntu Server 24.04 LTS
 - Disco Premium SSD 30 GB
 - Identidade SystemAssigned
-- Portas: SSH TCP 22; Java TCP 25565; Bedrock UDP/TCP 19132
+- Portas: SSH TCP 22 aberto a qualquer origem (pedido explícito); Java TCP 25565; Bedrock UDP/TCP 19132
 
 ## Salvaguardas
 
