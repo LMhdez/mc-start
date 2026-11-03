@@ -11,7 +11,7 @@ O one-shot Azure Cloud Shell e o runbook operacional vivem no repositório priva
 - [Plano Madrid e custos](https://github.com/LMhdez/mc-server-infrastructure/blob/main/docs/madrid-migration-plan.md)
 - [One-shot Azure Cloud Shell](https://github.com/LMhdez/mc-server-infrastructure/blob/main/scripts/azure-madrid-once.sh)
 
-O script começa sempre em modo read-only. A criação só é possível com confirmação de créditos Azure for Students, custo total e confirmação interativa. Não existe autorização para despesas pessoais.
+O script é exclusivamente read-only; não contém provisionamento. Todas as consultas Azure têm timeout. Não existe autorização para criar recursos, consumir créditos ou incorrer em despesas pessoais. Qualquer proposta futura exige primeiro estimativa discriminada, confirmação de saldo e aprovação explícita; despesa pessoal permitida: 0 €.
 
 ## Alvo planeado
 
@@ -34,12 +34,14 @@ O script começa sempre em modo read-only. A criação só é possível com conf
 
 - [x] Região Madrid selecionada como candidata principal.
 - [x] Inventário da origem confirmado.
-- [x] Portas e política SSH confirmadas.
-- [x] One-shot preparado no repositório privado de infraestrutura.
-- [ ] Revisão/merge do PR.
-- [ ] Preflight read-only executado.
-- [ ] Créditos e custo total confirmados.
-- [ ] Infraestrutura criada.
+- [x] Portas de origem e preferência de SSH público documentadas; validar NSG efetiva no destino.
+- [x] One-shot read-only no repositório privado; sem código de criação.
+- [x] Preflight parcial: Ubuntu 24.04 e quota BASv2 confirmados.
+- [ ] SKU Standard_B2als_v2 em Spain Central — list-skus excede timeout; disponibilidade não confirmada.
+- [ ] Disco Premium_LRS em Spain Central — comando de listagem não suportado; disponibilidade não confirmada.
+- [ ] Restauro funcional validado numa máquina local isolada sem custos cloud.
+- [ ] Créditos disponíveis e custo total máximo confirmados antes de qualquer provisionamento.
+- [ ] Provisionamento (bloqueado até todos os pré-requisitos e aprovação explícita).
 - [ ] Dados migrados e serviços validados.
 - [ ] Latência real comparada.
 - [ ] Cutover aprovado.
