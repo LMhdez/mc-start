@@ -22,6 +22,13 @@ Este repositório contém o website/painel do servidor Minecraft, o Cloudflare W
 
 Antes de qualquer tarefa de servidor, consultar também o README de `mc-server-infrastructure`. Nunca inferir estado atual da VM apenas pelo código deste repo.
 
+## Política de cloud para agentes (decisão do operador, 2026-11-03)
+
+- A subscrição disponível é **Azure for Students**; concentrar nela a investigação da migração para Madrid.
+- **Não propor OCI:** o operador reporta que OCI nunca tem quota utilizável. OCI/Always Free está fora de âmbito, salvo pedido explícito posterior.
+- Orçamento pessoal absoluto: **0,00 € / $0,00**. Não ativar Pay-As-You-Go, não criar recursos faturáveis e não assumir que créditos Azure for Students são Free Tier. Qualquer utilização de crédito para recurso pago exige autorização explícita e confirmação de zero despesa pessoal.
+- Não alterar a VM austríaca durante a preparação nem provisionar destino sem aprovação explícita.
+
 ## Arquitetura resumida
 
 1. **Website estático:** `index.html`, `style.css`, `script.js`; publicado por GitHub Pages.
