@@ -274,6 +274,34 @@ async function dispatchWorkflow(env, file, inputs) {
   );
 }
 
+async function getSafeAzureErrorCode(response) {
+  try {
+    const payload = await response.clone().json();
+    const candidate = typeof payload?.error === "string"
+      ? payload.error
+      : payload?.error?.code;
+    return typeof candidate === "string" &&
+      /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(candidate)
+      ? candidate
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function azureHttpError(operation, response, code) {
+  return `${operation} failed (HTTP ${response.status}${code ? `, ${code}` : ""})`;
+}
+
+function safeAzureDiagnostic(error) {
+  const message = error instanceof Error ? error.message : "";
+  if (/^Azure (?:token|VM status) request failed \(HTTP [1-5]\d{2}(?:, [A-Za-z][A-Za-z0-9_.-]{0,63})?\)$/.test(message)) {
+    return message;
+  }
+  if (message === "Azure token missing") return message;
+  return "Unexpected Azure status error";
+}
+
 async function getAzureAccessToken(env) {
   const required = ["AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID",
     "AZURE_SUBSCRIPTION_ID", "AZURE_RESOURCE_GROUP", "AZURE_VM_NAME"];
@@ -292,7 +320,10 @@ async function getAzureAccessToken(env) {
       })
     }
   );
-  if (!tokenResponse.ok) throw new Error("Azure token request failed");
+  if (!tokenResponse.ok) {
+    const code = await getSafeAzureErrorCode(tokenResponse);
+    throw new Error(azureHttpError("Azure token request", tokenResponse, code));
+  }
   const tokenData = await tokenResponse.json();
   if (!tokenData.access_token) throw new Error("Azure token missing");
   return tokenData.access_token;
@@ -314,7 +345,10 @@ async function getAzureVmPowerState(env, accessToken = null) {
     "https://management.azure.com/" + azureVmResource(env) + "/instanceView?api-version=2024-07-01",
     { headers: { "Authorization": "Bearer " + token } }
   );
-  if (!vmResponse.ok) throw new Error("Azure VM status request failed");
+  if (!vmResponse.ok) {
+    const code = await getSafeAzureErrorCode(vmResponse);
+    throw new Error(azureHttpError("Azure VM status request", vmResponse, code));
+  }
   const vmData = await vmResponse.json();
   const power = (vmData.statuses || []).find(item =>
     typeof item.code === "string" && item.code.startsWith("PowerState/")
@@ -694,7 +728,7 @@ export default {
         }
         return json({ ok: true, result }, 200, origin);
       } catch (error) {
-        console.error("Consulta publica falhou:", error.message);
+        console.error("Consulta publica falhou:", safeAzureDiagnostic(error));
         return json({ ok: false, message: "Nao foi possivel consultar o estado." }, 503, origin);
       }
     }
