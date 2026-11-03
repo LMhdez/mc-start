@@ -25,12 +25,12 @@ jobs:
           file social-preview.png
       - name: Commit generated PNG
         run: |
-          if git diff --quiet -- social-preview.png; then
-            echo "PNG already up to date"
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add social-preview.png
+          if git diff --cached --quiet; then
+            echo "PNG already up to date"
+            exit 0
+          fi
           git commit -m "Build social preview PNG"
           git push
