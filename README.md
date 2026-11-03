@@ -24,10 +24,10 @@ Antes de qualquer tarefa de servidor, consultar também o README de `mc-server-i
 
 ## Política de cloud para agentes (decisão do operador, 2026-11-03)
 
-- A subscrição disponível é **Azure for Students**; a migração ativa usa Belgium Central. Spain Central/Madrid foi rejeitada por política regional.
+- A subscrição em uso é **Azure for Students**; a infraestrutura ativa está em Belgium Central. Spain Central/Madrid foi rejeitada.
 - **Não propor OCI:** o operador reporta que OCI nunca tem quota utilizável. OCI/Always Free está fora de âmbito, salvo pedido explícito posterior.
 - Orçamento pessoal absoluto: **0,00 € / $0,00**. Não ativar Pay-As-You-Go, não criar recursos faturáveis e não assumir que créditos Azure for Students são Free Tier. A utilização de créditos Azure for Students para esta migração está autorizada; confirmar que o saldo cobre integralmente todos os custos e que não existe risco de despesa pessoal.
-- Não alterar a VM austríaca durante a preparação nem provisionar destino sem aprovação explícita.
+- A migração para Belgium Central foi executada; não assumir que a VM austríaca continua disponível.
 
 ## Arquitetura resumida
 
@@ -74,7 +74,7 @@ Os workflows podem executar comandos Azure, SSH, Docker, RCON, criar/instalar mo
 ## Estado conhecido / incertezas
 
 - Servidor Minecraft 26.3 Fabric em Azure, contentor `mc-server`; os valores operacionais e limitações devem ser confirmados no repo de infraestrutura.
-- Estado atual: VM de destino criada em Belgium Central, Zone 2. Minecraft está parado, systemd disabled, autostop cron removido e backup cron preservado. VM austríaca está desalocada e preservada como rollback. Consultar [runbook atual da Bélgica](https://github.com/LMhdez/mc-server-infrastructure/blob/main/docs/belgium-central-migration.md). Não iniciar Minecraft, reativar autostop ou fazer cutover sem autorização específica.
+- Estado atual: VM `MC-VM-BE` em Belgium Central, Zone 2; container Minecraft running/healthy e RCON funcional na última auditoria. Backup cron */15 ativo. A VM austríaca foi eliminada. Consultar [runbook atual da Bélgica](https://github.com/LMhdez/mc-server-infrastructure/blob/main/docs/belgium-central-migration.md). Geyser/Floodgate mantém intencionalmente autenticação Xbox desativada e `validate-bedrock-login=false`; não alterar sem autorização.
 - Worker e site são componentes distintos; não confundir URL do Worker com endereço de jogo.
 - Build AFK 25/30 min instalada e validada em produção em 2026-11-03; consultar o runbook de infraestrutura.
 - Configurações sanitizadas não são ficheiros restauráveis; segredos e dados reais permanecem fora do Git.
