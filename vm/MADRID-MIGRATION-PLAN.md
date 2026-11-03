@@ -52,6 +52,7 @@ Resultado concluído em [MC-AUDIT #68](https://github.com/LMhdez/mc-start/issues
 - [ ] Disco Premium_LRS em Spain Central — comando de listagem não suportado; disponibilidade não confirmada.
 - [ ] Restauro funcional validado numa máquina local isolada sem custos cloud.
 - [ ] Créditos disponíveis e custo total máximo confirmados antes de qualquer provisionamento.
+- [ ] Resultado do preflight Azure subscription-scoped de SKU VM/disco — [issue #70](https://github.com/LMhdez/mc-start/issues/70); workflow read-only com timeout.
 - [ ] Provisionamento (bloqueado até todos os pré-requisitos e aprovação explícita).
 - [ ] Dados migrados e serviços validados.
 - [ ] Latência real comparada.
