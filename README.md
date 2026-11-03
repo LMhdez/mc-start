@@ -38,6 +38,15 @@ Antes de qualquer tarefa de servidor, consultar também o README de `mc-server-i
 5. **Testes:** `tests/`, Vitest e verificações UI.
 6. **Build AFK:** `scripts/patch-essential-commands-afk.py` + workflow dedicado; compila uma variante do Essential Commands já usado, sem adicionar outro mod. A build 0.42.0-afk1-mc26.3 foi instalada e testada em produção em 2026-11-03; consultar o runbook de infraestrutura para SHA-256 e rollback.
 
+## Endereço de jogo e ligações (produção BelgiumCentral)
+
+- O endereço Minecraft **não é configurado no frontend**: nunca colocar IP público em HTML, JavaScript, CSS, workflows ou documentação versionada.
+- O botão autenticado **«Mostrar endereço»** chama `POST /api/action` com `action: "status"`; o Worker consulta o agente privado `MC_AGENT` em `/status` e devolve o IP público atual dentro do resultado autenticado. O browser apresenta esse IP; a consulta pública `/api/public/status` nunca devolve IP.
+- O agente obtém o IPv4 de saída dinamicamente através de `api.ipify.org`, com cache local de 5 minutos e fallback para o último valor confirmado. Assim, uma alteração de IP público não exige commit nem novo deploy do site.
+- Produção atual: VM `MC-VM-BE`, resource group `MCServerBelgiumGroup`, região BelgiumCentral. Não usar endereços históricos da Áustria.
+- Ligações de jogo: Java TCP `25565`; Bedrock/Geyser TCP e UDP `19132`. Não alterar regras de rede com base apenas nesta documentação; consultar o estado efetivo e os runbooks de rede.
+- O domínio `workers.dev` é apenas a API do painel, não é o endereço Minecraft. O site é publicado por GitHub Pages.
+
 ## Onde começar por tarefa
 
 - Interface, acessibilidade, idiomas e disponibilidade pública: `index.html`, `script.js`, `maintenance-status.js`, `maintenance.json`, `style.css`, `tests/ui-audit.cjs`.
