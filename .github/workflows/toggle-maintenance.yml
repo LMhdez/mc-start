@@ -1,0 +1,71 @@
+name: Alternar modo de manutenção do site
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Estado do modo de manutenção
+        required: true
+        type: choice
+        options:
+          - enable
+          - disable
+      message:
+        description: Mensagem opcional apresentada aos visitantes (máximo 240 caracteres)
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: public-maintenance-mode
+  cancel-in-progress: false
+
+jobs:
+  toggle-maintenance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Obter repositório
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          persist-credentials: true
+
+      - name: Atualizar estado público
+        shell: bash
+        env:
+          MODE: ${{ inputs.mode }}
+          MESSAGE: ${{ inputs.message }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          mode = os.environ["MODE"]
+          if mode not in {"enable", "disable"}:
+              raise SystemExit("Modo inválido.")
+          message = os.environ.get("MESSAGE", "").strip()[:240] if mode == "enable" else ""
+          state = {"enabled": mode == "enable", "message": message}
+          Path("maintenance.json").write_text(
+              json.dumps(state, ensure_ascii=False, indent=2) + "\\n",
+              encoding="utf-8"
+          )
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add maintenance.json
+          if git diff --cached --quiet; then
+            echo "O modo de manutenção já está no estado pedido."
+            exit 0
+          fi
+          if [ "$MODE" = "enable" ]; then
+            git commit -m "chore: enable public maintenance mode"
+          else
+            git commit -m "chore: disable public maintenance mode"
+          fi
+          git push origin HEAD:main
