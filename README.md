@@ -31,7 +31,7 @@ Antes de qualquer tarefa de servidor, consultar também o README de `mc-server-i
 
 ## Arquitetura resumida
 
-1. **Website estático:** `index.html`, `style.css`, `script.js`; publicado por GitHub Pages.
+1. **Website estático:** `index.html`, `style.css`, `script.js` e `maintenance-status.js`; publicado por GitHub Pages. `maintenance.json` é o estado público de manutenção, alterado pelo workflow manual `toggle-maintenance.yml`.
 2. **Cloudflare Worker:** `cloudflare/worker.js`; API do painel, autenticação, chamadas Azure, fallback GitHub Actions e comunicação com o agente.
 3. **Agente privado:** `vm/mc-agent.py`; consulta operações locais da VM através de ligação privada VPC/Tunnel. Não expor a porta do agente à Internet.
 4. **GitHub Actions:** `.github/workflows/`; validação, diagnóstico e operações remotas Azure/VM.
@@ -40,7 +40,8 @@ Antes de qualquer tarefa de servidor, consultar também o README de `mc-server-i
 
 ## Onde começar por tarefa
 
-- Interface, acessibilidade, idiomas: `index.html`, `script.js`, `style.css`, `tests/ui-audit.cjs`.
+- Interface, acessibilidade, idiomas e disponibilidade pública: `index.html`, `script.js`, `maintenance-status.js`, `maintenance.json`, `style.css`, `tests/ui-audit.cjs`.
+- Modo manutenção: workflow `.github/workflows/toggle-maintenance.yml`; consultar também `.github/workflows/README.md`.
 - API, autenticação, status e operações: `cloudflare/README.md`, `cloudflare/DEPLOYMENT-RUNBOOK.md`, `cloudflare/worker.js`.
 - Agente/SSH/VPC: `vm/README.md`, `vm/mc-agent.py`, workflows `install-private-agent.yml` e `deploy-private-agent.yml`.
 - Azure Actions: `.github/workflows/README.md`; depois ler o workflow específico na íntegra.
@@ -76,6 +77,7 @@ Os workflows podem executar comandos Azure, SSH, Docker, RCON, criar/instalar mo
 - Servidor Minecraft 26.3 Fabric em Azure, contentor `mc-server`; os valores operacionais e limitações devem ser confirmados no repo de infraestrutura.
 - Produção atual: BelgiumCentral. O site GitHub Pages e o Worker Cloudflare são componentes separados; o painel obtém o endereço de jogo dinamicamente pela API autenticada, não por IP hardcoded no HTML.
 - Worker e site são componentes distintos; não confundir URL do Worker com endereço de jogo.
+- O estado público do site é atualizado a cada 30 segundos. A manutenção é controlada pelo `maintenance.json`, publicado com GitHub Pages; o workflow `toggle-maintenance.yml` altera apenas esse ficheiro e não toca na VM, no Worker, no Minecraft ou na faturação.
 - Build AFK 25/30 min instalada e validada em produção em 2026-11-03; consultar o runbook de infraestrutura.
 - Configurações sanitizadas não são ficheiros restauráveis; segredos e dados reais permanecem fora do Git.
 
