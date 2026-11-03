@@ -51,7 +51,7 @@ jobs:
           message = os.environ.get("MESSAGE", "").strip()[:240] if mode == "enable" else ""
           state = {"enabled": mode == "enable", "message": message}
           Path("maintenance.json").write_text(
-              json.dumps(state, ensure_ascii=False, indent=2) + "\\n",
+              json.dumps(state, ensure_ascii=False, indent=2) + "\n",
               encoding="utf-8"
           )
           PY
