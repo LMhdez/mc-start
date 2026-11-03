@@ -87,6 +87,7 @@ Os workflows podem executar comandos Azure, SSH, Docker, RCON, criar/instalar mo
 - Produção atual: BelgiumCentral. O site GitHub Pages e o Worker Cloudflare são componentes separados; o painel obtém o endereço de jogo dinamicamente pela API autenticada, não por IP hardcoded no HTML.
 - Worker e site são componentes distintos; não confundir URL do Worker com endereço de jogo.
 - O estado público do site é atualizado a cada 30 segundos. A manutenção é controlada pelo `maintenance.json`, publicado com GitHub Pages; o workflow `toggle-maintenance.yml` altera apenas esse ficheiro e não toca na VM, no Worker, no Minecraft ou na faturação.
+- Em 2026-11-03, o endpoint `/api/public/status` voltou a HTTP 200 após atribuir `Reader` (Built-in) ao Service Principal `mc-start-status-reader` no scope da VM belga. Não houve alteração de código nem deploy para resolver o 503; ver [incidente e resolução RBAC](cloudflare/WORKER-503-INCIDENT.md). A confirmação visual do GitHub Pages continua pendente.
 - Build AFK 25/30 min instalada e validada em produção em 2026-11-03; consultar o runbook de infraestrutura.
 - Configurações sanitizadas não são ficheiros restauráveis; segredos e dados reais permanecem fora do Git.
 

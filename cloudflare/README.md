@@ -18,7 +18,7 @@ Este diretório contém o código do Worker `mc-start-control`, a configuração
 
 ## Estado público e manutenção do website
 
-O estado público do servidor continua a ser consultado por `GET /api/public/status`. O frontend combina essa resposta com `maintenance.json`, publicado no GitHub Pages e controlado pelo workflow `.github/workflows/toggle-maintenance.yml`. O modo de manutenção não é um estado do Worker nem uma operação Minecraft: não altera Azure, não bloqueia jogadores e não exige deploy do Worker. Se a API pública falhar, o frontend apresenta `Estado indisponível` em vez de conservar um estado online antigo.
+O estado público do servidor continua a ser consultado por `GET /api/public/status`. Em 2026-11-03, o endpoint foi recuperado exclusivamente por RBAC: atribuição `Reader` (Built-in) ao Service Principal `mc-start-status-reader` no scope da VM belga. O teste autenticado por Origin permitido devolveu HTTP 200; ver [registo do incidente](WORKER-503-INCIDENT.md). O frontend combina essa resposta com `maintenance.json`, publicado no GitHub Pages e controlado pelo workflow `.github/workflows/toggle-maintenance.yml`. O modo de manutenção não é um estado do Worker nem uma operação Minecraft: não altera Azure, não bloqueia jogadores e não exige deploy do Worker. Se a API pública falhar, o frontend apresenta `Estado indisponível` em vez de conservar um estado online antigo.
 
 ## Endpoints e contratos
 
