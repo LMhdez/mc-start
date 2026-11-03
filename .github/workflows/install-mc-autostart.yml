@@ -2,11 +2,6 @@ name: Instalar arranque automático do Minecraft
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - .github/workflows/install-mc-autostart.yml
 
 permissions:
   contents: read
