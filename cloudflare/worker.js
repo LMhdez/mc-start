@@ -293,6 +293,15 @@ function azureHttpError(operation, response, code) {
   return `${operation} failed (HTTP ${response.status}${code ? `, ${code}` : ""})`;
 }
 
+function safeAzureDiagnostic(error) {
+  const message = error instanceof Error ? error.message : "";
+  if (/^Azure (?:token|VM status) request failed \\(HTTP [1-5]\\d{2}(?:, [A-Za-z][A-Za-z0-9_.-]{0,63})?\\)$/.test(message)) {
+    return message;
+  }
+  if (message === "Azure token missing") return message;
+  return "Unexpected Azure status error";
+}
+
 async function getAzureAccessToken(env) {
   const required = ["AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID",
     "AZURE_SUBSCRIPTION_ID", "AZURE_RESOURCE_GROUP", "AZURE_VM_NAME"];
@@ -712,7 +721,7 @@ export default {
         }
         return json({ ok: true, result }, 200, origin);
       } catch (error) {
-        console.error("Consulta publica falhou:", error.message);
+        console.error("Consulta publica falhou:", safeAzureDiagnostic(error));
         return json({ ok: false, message: "Nao foi possivel consultar o estado." }, 503, origin);
       }
     }
