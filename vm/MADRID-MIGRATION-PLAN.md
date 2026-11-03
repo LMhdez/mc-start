@@ -1,6 +1,6 @@
 # Madrid (Spain Central) — plano de migração Minecraft
 
-**Estado:** destino candidato; preparação apenas. Nenhum recurso Azure foi criado.
+**Estado:** destino candidato; preparação e alinhamento documental em curso. Nenhum recurso Azure foi criado.
 
 A região Madrid substitui France Central como hipótese principal após o Azure Speed Test fornecido indicar cerca de 35 ms para Spain Central contra 67 ms para Austria East. Esta diferença é indicativa e tem de ser validada com TCP Minecraft, jitter e perda de pacotes a partir das redes dos jogadores.
 
@@ -28,6 +28,7 @@ O script é exclusivamente read-only; não contém provisionamento. Todas as con
 - Sem alterações de DNS ou cutover automático.
 - Sem publicação de backups, mundos, logs ou segredos no GitHub.
 - Sem criação de recursos no modo de preparação.
+- A migração deve ser transparente para os jogadores: preservar hostname/endereço de ligação sempre que o DNS/IP atual o permita, reduzir a janela de manutenção e manter a origem intacta para rollback.
 - A VM antiga só poderá ser desligada/eliminada após validação e aprovação explícita.
 
 ## Auditoria read-only da origem (2026-11-03)
@@ -37,8 +38,8 @@ Resultado concluído em [MC-AUDIT #68](https://github.com/LMhdez/mc-start/issues
 - VM em execução; Azure VM Agent pronto.
 - NSG da NIC permite SSH TCP 22, Java TCP 25565 e Bedrock TCP/UDP 19132 a qualquer origem Internet, conforme a preferência de acesso SSH do operador.
 - Nenhuma regra inbound correspondente foi encontrada na NSG da subnet.
-- Geyser confirmou `auth-type=floodgate` e `validate-bedrock-login=false`; transporte NETHERNET; listeners TCP/UDP 19132 ativos na JVM.
-- **Bloqueio de segurança:** não replicar `validate-bedrock-login=false` em Madrid. A configuração upstream alerta para spoofing e perda de funcionalidades Floodgate. Destino deve usar validação Bedrock ativa, salvo exceção de proxy devidamente justificada e isolada.
+- Geyser confirmou `auth-type=floodgate` e `validate-bedrock-login=false`; transporte NETHERNET, ligação direta e listeners TCP/UDP 19132 ativos na JVM.
+- O operador confirmou que esta configuração é intencional e determinou uma réplica 1:1. Preservar exatamente o comportamento da origem em Madrid; não alterar autenticação, validação Bedrock, transporte ou ligação direta. Os avisos da documentação upstream ficam registados como contexto, não como alteração aprovada.
 - Auditoria não alterou produção, não mudou DNS e não criou recursos.
 
 ## Estado
@@ -50,10 +51,12 @@ Resultado concluído em [MC-AUDIT #68](https://github.com/LMhdez/mc-start/issues
 - [x] Preflight parcial: Ubuntu 24.04 e quota BASv2 confirmados.
 - [ ] SKU Standard_B2als_v2 em Spain Central — list-skus excede timeout; disponibilidade não confirmada.
 - [ ] Disco Premium_LRS em Spain Central — comando de listagem não suportado; disponibilidade não confirmada.
-- [ ] Restauro funcional validado numa máquina local isolada sem custos cloud.
+- [x] Operador dispensou teste funcional isolado prévio; validar integridade/checksum e executar testes funcionais no destino, mantendo Áustria para rollback.
 - [ ] Créditos disponíveis e custo total máximo confirmados antes de qualquer provisionamento.
-- [ ] Resultado do preflight Azure subscription-scoped de SKU VM/disco — [issue #70](https://github.com/LMhdez/mc-start/issues/70); workflow read-only com timeout.
-- [ ] Provisionamento (bloqueado até todos os pré-requisitos e aprovação explícita).
+- [ ] Resultado do preflight Azure subscription-scoped de SKU VM/disco — [issue #71](https://github.com/LMhdez/mc-start/issues/71); workflow terminou, mas as duas consultas excederam o timeout.
+- [ ] Confirmar saldo de Azure for Students e custo total máximo; despesa pessoal permitida: 0 €.
+- [ ] Confirmar SKU Standard_B2als_v2 e disco Premium_LRS em Spain Central (as consultas atuais terminaram em timeout).
+- [ ] Provisionamento (bloqueado até SKU/disco e cobertura integral por créditos estarem confirmados e consumo máximo aprovado).
 - [ ] Dados migrados e serviços validados.
 - [ ] Latência real comparada.
 - [ ] Cutover aprovado.
