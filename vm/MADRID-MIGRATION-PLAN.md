@@ -1,3 +1,5 @@
+> **SUPERSEDIDO EM 2026-11-03 — NÃO EXECUTAR.** Spain Central/Madrid foi rejeitada por política regional. O destino real é Belgium Central, Zone 2, VM `MC-VM-BE`. O estado autoritativo está em [mc-server-infrastructure/docs/belgium-central-migration.md](https://github.com/LMhdez/mc-server-infrastructure/blob/main/docs/belgium-central-migration.md). O conteúdo abaixo é histórico e não representa a infraestrutura atual.
+
 # Madrid (Spain Central) — plano de migração Minecraft
 
 **Estado:** destino candidato; preparação e alinhamento documental em curso. Nenhum recurso Azure foi criado.
