@@ -29,7 +29,7 @@ Antes de qualquer tarefa de servidor, consultar também o README de `mc-server-i
 3. **Agente privado:** `vm/mc-agent.py`; consulta operações locais da VM através de ligação privada VPC/Tunnel. Não expor a porta do agente à Internet.
 4. **GitHub Actions:** `.github/workflows/`; validação, diagnóstico e operações remotas Azure/VM.
 5. **Testes:** `tests/`, Vitest e verificações UI.
-6. **Build AFK:** `scripts/patch-essential-commands-afk.py` + workflow dedicado; compila uma variante do Essential Commands já usado, sem adicionar outro mod. Build validado, mas o JAR não deve ser considerado instalado em produção sem confirmação independente.
+6. **Build AFK:** `scripts/patch-essential-commands-afk.py` + workflow dedicado; compila uma variante do Essential Commands já usado, sem adicionar outro mod. A build 0.42.0-afk1-mc26.3 foi instalada e testada em produção em 2026-11-03; consultar o runbook de infraestrutura para SHA-256 e rollback.
 
 ## Onde começar por tarefa
 
@@ -69,7 +69,7 @@ Os workflows podem executar comandos Azure, SSH, Docker, RCON, criar/instalar mo
 - Servidor Minecraft 26.3 Fabric em Azure, contentor `mc-server`; os valores operacionais e limitações devem ser confirmados no repo de infraestrutura.
 - Região atual documentada: Austria East. Madrid/Spain Central é apenas candidata técnica e a migração está bloqueada pela política de custo zero.
 - Worker e site são componentes distintos; não confundir URL do Worker com endereço de jogo.
-- Build AFK 25/30 min foi produzido em CI e documentado, mas não declarar instalação/runtime validado sem evidência.
+- Build AFK 25/30 min instalada e validada em produção em 2026-11-03; consultar o runbook de infraestrutura.
 - Configurações sanitizadas não são ficheiros restauráveis; segredos e dados reais permanecem fora do Git.
 
 ## Instruções para agentes de IA
