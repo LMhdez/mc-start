@@ -11,7 +11,7 @@ O one-shot Azure Cloud Shell e o runbook operacional vivem no repositório priva
 - [Plano Madrid e custos](https://github.com/LMhdez/mc-server-infrastructure/blob/main/docs/madrid-migration-plan.md)
 - [One-shot Azure Cloud Shell](https://github.com/LMhdez/mc-server-infrastructure/blob/main/scripts/azure-madrid-once.sh)
 
-O script é exclusivamente read-only; não contém provisionamento. Todas as consultas Azure têm timeout. Não existe autorização para criar recursos, consumir créditos ou incorrer em despesas pessoais. Qualquer proposta futura exige primeiro estimativa discriminada, confirmação de saldo e aprovação explícita; despesa pessoal permitida: 0 €.
+O script é exclusivamente read-only; não contém provisionamento. Todas as consultas Azure têm timeout. O operador autorizou expressamente a utilização dos créditos Azure for Students para a migração Madrid. Esta autorização não permite ativar Pay-As-You-Go, mudar de oferta, incorrer em despesas pessoais ou avançar automaticamente para provisionamento/cutover. A despesa pessoal permitida continua a ser 0 €. Antes de provisionar, confirmar saldo e validade dos créditos, estimativa discriminada do custo total e cobertura integral por créditos. Se houver risco de cobrança pessoal, parar.
 
 ## Alvo planeado
 
@@ -52,11 +52,9 @@ Resultado concluído em [MC-AUDIT #68](https://github.com/LMhdez/mc-start/issues
 - [ ] SKU Standard_B2als_v2 em Spain Central — list-skus excede timeout; disponibilidade não confirmada.
 - [ ] Disco Premium_LRS em Spain Central — comando de listagem não suportado; disponibilidade não confirmada.
 - [x] Operador dispensou teste funcional isolado prévio; validar integridade/checksum e executar testes funcionais no destino, mantendo Áustria para rollback.
-- [ ] Créditos disponíveis e custo total máximo confirmados antes de qualquer provisionamento.
+- [ ] Saldo/validade dos créditos Azure for Students e custo total máximo confirmados antes de qualquer provisionamento; o custo acumulado apresentado no portal não equivale ao saldo disponível.
 - [ ] Resultado do preflight Azure subscription-scoped de SKU VM/disco — [issue #71](https://github.com/LMhdez/mc-start/issues/71); workflow terminou, mas as duas consultas excederam o timeout.
-- [ ] Confirmar saldo de Azure for Students e custo total máximo; despesa pessoal permitida: 0 €.
-- [ ] Confirmar SKU Standard_B2als_v2 e disco Premium_LRS em Spain Central (as consultas atuais terminaram em timeout).
-- [ ] Provisionamento (bloqueado até SKU/disco e cobertura integral por créditos estarem confirmados e consumo máximo aprovado).
+- [ ] Provisionamento — apenas depois de confirmar cobertura integral dos custos pelos créditos Azure for Students, disponibilidade do SKU/disco e ausência de risco de cobrança pessoal.
 - [ ] Dados migrados e serviços validados.
 - [ ] Latência real comparada.
 - [ ] Cutover aprovado.
