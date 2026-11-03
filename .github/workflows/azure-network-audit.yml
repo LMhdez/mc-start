@@ -102,6 +102,8 @@ jobs:
               /^[[:space:]]*transport:/ { value=tolower(\$2); gsub(/[[:space:]\"]/ , \"\", value); if (value == \"nethernet\" || value == \"both\") print \"Geyser transport: \" toupper(value); else print \"Geyser transport: OTHER\" }
               /^[[:space:]]*webrtc-port:/ { value=\$2; gsub(/[[:space:]\"]/ , \"\", value); if (value ~ /^[0-9]+$/ && value >= 1 && value <= 65535) print \"Geyser WebRTC port: \" value }
               /^[[:space:]]*use-direct-connection:/ { value=tolower(\$2); gsub(/[[:space:]\"]/ , \"\", value); if (value == \"true\" || value == \"false\") print \"Geyser direct connection: \" value }
+              /^[[:space:]]*validate-bedrock-login:/ { value=tolower(\$2); gsub(/[[:space:]\"]/ , \"\", value); if (value == \"true\" || value == \"false\") print \"Geyser Bedrock login validation: \" value }
+              /^[[:space:]]*auth-type:/ { value=tolower(\$2); gsub(/[[:space:]\"]/ , \"\", value); if (value == \"floodgate\" || value == \"online\" || value == \"offline\") print \"Geyser auth type: \" value }
             ' /data/config/Geyser-Fabric/config.yml" 2>/dev/null || true
             echo '=== LIVE BEDROCK SOCKETS ==='
             docker exec mc-server sh -c '
@@ -212,6 +214,8 @@ jobs:
           GEYSER_WEBRTC_PORT=$(sed -n -E 's/^Geyser WebRTC port: ([0-9]{1,5})$/\1/p' guest.txt | head -n 1)
           GEYSER_CLONE_REMOTE=$(sed -n -E 's/^Geyser clone remote port: (true|false)$/\1/p' guest.txt | head -n 1)
           GEYSER_DIRECT_CONNECTION=$(sed -n -E 's/^Geyser direct connection: (true|false)$/\1/p' guest.txt | head -n 1)
+          GEYSER_VALIDATE_BEDROCK_LOGIN=$(sed -n -E 's/^Geyser Bedrock login validation: (true|false)$/\1/p' guest.txt | head -n 1)
+          GEYSER_AUTH_TYPE=$(sed -n -E 's/^Geyser auth type: (floodgate|online|offline)$/\1/p' guest.txt | head -n 1)
           PUBLISHED_PORTS=$(sed -n -E 's/^Published container port: ([0-9]{1,5}\/(tcp|udp))$/\1/p' guest.txt | sort -u | paste -sd, -)
           BEDROCK_UDP_LISTENER=$(sed -n -E 's/^Container UDP 19132 listener: (yes|no|unknown)$/\1/p' guest.txt | head -n 1)
           BEDROCK_TCP_LISTENER=$(sed -n -E 's/^Container TCP 19132 listener: (yes|no|unknown)$/\1/p' guest.txt | head -n 1)
@@ -226,6 +230,8 @@ jobs:
           echo "geyser_webrtc_port=$GEYSER_WEBRTC_PORT" >> "$GITHUB_OUTPUT"
           echo "geyser_clone_remote=$GEYSER_CLONE_REMOTE" >> "$GITHUB_OUTPUT"
           echo "geyser_direct_connection=$GEYSER_DIRECT_CONNECTION" >> "$GITHUB_OUTPUT"
+          echo "geyser_validate_bedrock_login=$GEYSER_VALIDATE_BEDROCK_LOGIN" >> "$GITHUB_OUTPUT"
+          echo "geyser_auth_type=$GEYSER_AUTH_TYPE" >> "$GITHUB_OUTPUT"
           echo "published_ports=$PUBLISHED_PORTS" >> "$GITHUB_OUTPUT"
           echo "bedrock_udp_listener=$BEDROCK_UDP_LISTENER" >> "$GITHUB_OUTPUT"
           echo "bedrock_tcp_listener=$BEDROCK_TCP_LISTENER" >> "$GITHUB_OUTPUT"
@@ -245,6 +251,8 @@ jobs:
           GEYSER_WEBRTC_PORT: ${{ steps.diag.outputs.geyser_webrtc_port }}
           GEYSER_CLONE_REMOTE: ${{ steps.diag.outputs.geyser_clone_remote }}
           GEYSER_DIRECT_CONNECTION: ${{ steps.diag.outputs.geyser_direct_connection }}
+          GEYSER_VALIDATE_BEDROCK_LOGIN: ${{ steps.diag.outputs.geyser_validate_bedrock_login }}
+          GEYSER_AUTH_TYPE: ${{ steps.diag.outputs.geyser_auth_type }}
           PUBLISHED_PORTS: ${{ steps.diag.outputs.published_ports }}
           BEDROCK_UDP_LISTENER: ${{ steps.diag.outputs.bedrock_udp_listener }}
           BEDROCK_TCP_LISTENER: ${{ steps.diag.outputs.bedrock_tcp_listener }}
@@ -339,6 +347,8 @@ jobs:
             if (safePort(process.env.GEYSER_WEBRTC_PORT)) geyserDetails.push('WebRTC port: ' + safePort(process.env.GEYSER_WEBRTC_PORT));
             if (safeBool(process.env.GEYSER_CLONE_REMOTE)) geyserDetails.push('Clone remote port: ' + safeBool(process.env.GEYSER_CLONE_REMOTE));
             if (safeBool(process.env.GEYSER_DIRECT_CONNECTION)) geyserDetails.push('Direct connection: ' + safeBool(process.env.GEYSER_DIRECT_CONNECTION));
+            if (safeBool(process.env.GEYSER_VALIDATE_BEDROCK_LOGIN)) geyserDetails.push('Bedrock login validation: ' + (process.env.GEYSER_VALIDATE_BEDROCK_LOGIN === 'true' ? 'enabled' : 'DISABLED'));
+            const authType = ['floodgate', 'online', 'offline'].includes(process.env.GEYSER_AUTH_TYPE) ? process.env.GEYSER_AUTH_TYPE : ''; if (authType) geyserDetails.push('Geyser auth type: ' + authType);
             const published = (process.env.PUBLISHED_PORTS || '').split(',').filter(value => /^\d{1,5}\/(tcp|udp)$/.test(value));
             if (published.length) geyserDetails.push('Published container ports: ' + [...new Set(published)].join(', '));
             const socketState = value => ['yes', 'no', 'unknown'].includes(value) ? value : 'unknown';
