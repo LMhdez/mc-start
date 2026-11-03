@@ -306,7 +306,7 @@ jobs:
                       if (!match) return false;
                       const low = Number(match[1]);
                       const high = Number(match[2] || match[1]);
-                      return (low <= 25565 && high >= 25565) || (low <= 19132 && high >= 19132);
+                      return (low <= 22 && high >= 22) || (low <= 25565 && high >= 25565) || (low <= 19132 && high >= 19132);
                     });
                   });
                 };
@@ -359,6 +359,6 @@ jobs:
             geyserDetails.push('TCP 19132 owner class: ' + ownerClass(process.env.BEDROCK_TCP_OWNER));
             const transportSummary = geyserDetails.length ? '\n\nGeyser transport/config: ' + geyserDetails.join('; ') + '.' : '';
             const body = heading + '\n\n' + note + diagnostic + vmState + ruleSummary + transportSummary +
-              '\n\nOnly sanitized Minecraft-port rule summaries are published. No rule names, priorities, source addresses, resource identifiers, raw command output, configuration values, or guest diagnostics are published.';
+              '\n\nOnly sanitized SSH and Minecraft-port rule summaries are published. No rule names, priorities, source addresses, resource identifiers, raw command output, configuration values, or guest diagnostics are published.';
             await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,issue_number:context.issue.number,body});
             await github.rest.issues.update({owner:context.repo.owner,repo:context.repo.repo,issue_number:context.issue.number,state: complete ? 'closed' : 'open'});
