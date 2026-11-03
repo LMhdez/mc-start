@@ -647,7 +647,14 @@ export default {
         return json({ ok: false, message: "Demasiados pedidos. Aguarda um minuto." }, 429, origin);
       }
       try {
-        const vm = await getAzureVmPowerState(env);
+        // Azure control-plane failures must not turn a public status read into
+        // an endpoint outage. Report an explicit unknown VM state instead.
+        let vm = null;
+        try {
+          vm = await getAzureVmPowerState(env);
+        } catch (error) {
+          console.error("Estado publico: Azure indisponivel; estado da VM desconhecido:", error.message);
+        }
         let result = {
           vm: vm || "Unknown",
           players: vm === "VM running" ? null : 0,
