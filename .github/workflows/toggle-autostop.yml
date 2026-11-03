@@ -61,7 +61,7 @@ jobs:
           AUTOSTOP_SCRIPT="/home/azureuser/autostop.sh"
           AUTOSTOP_LOG="/home/azureuser/autostop.log"
           AUTOSTOP_ACTION="__AUTOSTOP_ACTION__"
-          CRON_LINE="*/5 * * * * /bin/bash $AUTOSTOP_SCRIPT >> $AUTOSTOP_LOG 2>&1"
+          CRON_LINE="*/5 * * * * AUTOSTOP_CRON=1 DRY_RUN=0 /bin/bash $AUTOSTOP_SCRIPT >> $AUTOSTOP_LOG 2>&1"
 
           id "$CRON_USER" >/dev/null
           systemctl is-active --quiet cron
