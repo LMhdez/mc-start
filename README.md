@@ -6,7 +6,7 @@
 
 Este repositório contém o website/painel do servidor Minecraft, o Cloudflare Worker de controlo, o agente privado, testes e GitHub Actions. **Não é a fonte de verdade da infraestrutura Azure nem do estado real da VM.**
 
-- **Custo permitido: 0,00 € / $0,00.** Usar exclusivamente tiers gratuitos efetivos. Não comprar planos, ativar trials, consumir créditos para recursos pagos ou criar recursos com custos, mesmo temporários.
+- **Despesa pessoal máxima: 0,00 € / $0,00.** O operador autorizou explicitamente o consumo de créditos Azure for Students para a migração Bélgica Central. Não ativar Pay-As-You-Go, não mudar de oferta, não aceitar cobranças pessoais e parar se a cobertura por créditos for incerta. Esta autorização não é ilimitada e não autoriza cutover ou eliminação da origem.
 - Não executar workflows de instalação, deploy, start, stop, migração ou alteração de rede sem confirmar alvo, efeitos, jogadores online, backup e aprovação aplicável.
 - Nunca imprimir, copiar ou publicar passwords, tokens, secrets, chaves privadas, outputs brutos de autenticação, listas de jogadores ou dados do mundo.
 - Não assumir que um workflow é read-only pelo nome: ler o YAML completo e identificar comandos mutáveis antes de o executar.
@@ -24,9 +24,9 @@ Antes de qualquer tarefa de servidor, consultar também o README de `mc-server-i
 
 ## Política de cloud para agentes (decisão do operador, 2026-11-03)
 
-- A subscrição disponível é **Azure for Students**; concentrar nela a investigação da migração para Madrid.
+- A subscrição disponível é **Azure for Students**; a migração ativa usa Belgium Central. Spain Central/Madrid foi rejeitada por política regional.
 - **Não propor OCI:** o operador reporta que OCI nunca tem quota utilizável. OCI/Always Free está fora de âmbito, salvo pedido explícito posterior.
-- Orçamento pessoal absoluto: **0,00 € / $0,00**. Não ativar Pay-As-You-Go, não criar recursos faturáveis e não assumir que créditos Azure for Students são Free Tier. Qualquer utilização de crédito para recurso pago exige autorização explícita e confirmação de zero despesa pessoal.
+- Orçamento pessoal absoluto: **0,00 € / $0,00**. Não ativar Pay-As-You-Go, não criar recursos faturáveis e não assumir que créditos Azure for Students são Free Tier. A utilização de créditos Azure for Students para esta migração está autorizada; confirmar que o saldo cobre integralmente todos os custos e que não existe risco de despesa pessoal.
 - Não alterar a VM austríaca durante a preparação nem provisionar destino sem aprovação explícita.
 
 ## Arquitetura resumida
@@ -53,7 +53,7 @@ Antes de qualquer tarefa de servidor, consultar também o README de `mc-server-i
 1. Identificar objetivo, repo, pasta, branch e estado de produção relevante.
 2. Ler README da raiz e da pasta afetada; ler workflow/script inteiro.
 3. Classificar operações: read-only, alteração reversível, interrupção, destrutiva ou faturável.
-4. Bloquear qualquer passo com custo potencial ou não comprovadamente €0.
+4. Bloquear qualquer passo que possa gerar despesa pessoal. Créditos Azure for Students só podem ser consumidos dentro da autorização existente e da cobertura confirmada.
 5. Antes de alterações VM: verificar estado, jogadores, backup recente e concorrência; preservar produção e plano de rollback.
 6. Validar sintaxe, testes e CI. Verificar diff e estado final.
 7. Atualizar documentação e changelog/README quando arquitetura, interface ou operação mudarem.
@@ -74,7 +74,7 @@ Os workflows podem executar comandos Azure, SSH, Docker, RCON, criar/instalar mo
 ## Estado conhecido / incertezas
 
 - Servidor Minecraft 26.3 Fabric em Azure, contentor `mc-server`; os valores operacionais e limitações devem ser confirmados no repo de infraestrutura.
-- Região atual documentada: Austria East. Madrid/Spain Central é apenas candidata técnica e a migração está bloqueada pela política de custo zero.
+- Estado atual: VM de destino criada em Belgium Central, Zone 2. Minecraft está parado, systemd disabled, autostop cron removido e backup cron preservado. VM austríaca está desalocada e preservada como rollback. Consultar [runbook atual da Bélgica](https://github.com/LMhdez/mc-server-infrastructure/blob/main/docs/belgium-central-migration.md). Não iniciar Minecraft, reativar autostop ou fazer cutover sem autorização específica.
 - Worker e site são componentes distintos; não confundir URL do Worker com endereço de jogo.
 - Build AFK 25/30 min instalada e validada em produção em 2026-11-03; consultar o runbook de infraestrutura.
 - Configurações sanitizadas não são ficheiros restauráveis; segredos e dados reais permanecem fora do Git.
