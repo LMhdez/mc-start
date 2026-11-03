@@ -24,10 +24,10 @@ Antes de qualquer tarefa de servidor, consultar também o README de `mc-server-i
 
 ## Política de cloud para agentes (decisão do operador, 2026-11-03)
 
-- A subscrição disponível é **Azure for Students**; concentrar nela a investigação da migração para Madrid.
+- A produção foi migrada para Azure BelgiumCentral (VM `MC-VM-BE`, resource group `MCServerBelgiumGroup`). Confirmar o estado vivo no repositório privado de infraestrutura antes de operações.
 - **Não propor OCI:** o operador reporta que OCI nunca tem quota utilizável. OCI/Always Free está fora de âmbito, salvo pedido explícito posterior.
 - Orçamento pessoal absoluto: **0,00 € / $0,00**. Não ativar Pay-As-You-Go, não criar recursos faturáveis e não assumir que créditos Azure for Students são Free Tier. Qualquer utilização de crédito para recurso pago exige autorização explícita e confirmação de zero despesa pessoal.
-- Não alterar a VM austríaca durante a preparação nem provisionar destino sem aprovação explícita.
+- A VM austríaca foi substituída como produção; não usar scripts/runbooks antigos de Madrid/Áustria sem rever o alvo atual.
 
 ## Arquitetura resumida
 
@@ -74,7 +74,7 @@ Os workflows podem executar comandos Azure, SSH, Docker, RCON, criar/instalar mo
 ## Estado conhecido / incertezas
 
 - Servidor Minecraft 26.3 Fabric em Azure, contentor `mc-server`; os valores operacionais e limitações devem ser confirmados no repo de infraestrutura.
-- Região atual documentada: Austria East. Madrid/Spain Central é apenas candidata técnica e a migração está bloqueada pela política de custo zero.
+- Produção atual: BelgiumCentral. O site GitHub Pages e o Worker Cloudflare são componentes separados; o painel obtém o endereço de jogo dinamicamente pela API autenticada, não por IP hardcoded no HTML.
 - Worker e site são componentes distintos; não confundir URL do Worker com endereço de jogo.
 - Build AFK 25/30 min instalada e validada em produção em 2026-11-03; consultar o runbook de infraestrutura.
 - Configurações sanitizadas não são ficheiros restauráveis; segredos e dados reais permanecem fora do Git.
