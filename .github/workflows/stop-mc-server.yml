@@ -74,12 +74,27 @@ jobs:
                   echo "Docker nao esta disponivel na VM."
                   exit 1
                 fi
-                if systemctl is-active --quiet docker && docker inspect mc-server >/dev/null 2>&1; then
-                  CONTAINER_STATE=$(docker inspect -f "{{.State.Status}}" mc-server)
-                  if [ "$CONTAINER_STATE" = "running" ]; then
-                    docker stop --time 30 mc-server
-                  fi
+                if ! systemctl is-active --quiet docker || ! docker inspect mc-server >/dev/null 2>&1; then
+                  echo "MC_STOP_ABORT: Docker/container unavailable; refusing VM deallocation."
+                  exit 1
                 fi
+                CONTAINER_STATE=$(docker inspect -f "{{.State.Status}}" mc-server)
+                if [ "$CONTAINER_STATE" != "running" ]; then
+                  echo "MC_STOP_ABORT: Minecraft container is not running; refusing VM deallocation."
+                  exit 1
+                fi
+                PLAYERS=$(docker exec mc-server rcon-cli list 2>/dev/null || true)
+                if ! printf "%s\\n" "$PLAYERS" | grep -qE "There are [0-9]+ of"; then
+                  echo "MC_STOP_ABORT: RCON player count unavailable; refusing to stop players or deallocate VM."
+                  exit 1
+                fi
+                COUNT=$(printf "%s\\n" "$PLAYERS" | sed -nE "s/.*There are ([0-9]+) of.*/\\1/p" | head -n 1)
+                case "$COUNT" in ""|*[!0-9]*) echo "MC_STOP_ABORT: invalid RCON player count."; exit 1 ;; esac
+                if [ "$COUNT" -gt 0 ]; then
+                  echo "MC_STOP_ABORT: $COUNT player(s) online; server and VM left untouched."
+                  exit 1
+                fi
+                docker stop --time 30 mc-server >/dev/null
                 echo MC_STOP_OK
               ' \
               --query "value[].message" -o tsv)
