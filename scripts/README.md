@@ -5,7 +5,7 @@ Scripts deste diretório são auxiliares do repositório `mc-start`; não assume
 ## Inventário
 
 - `patch-essential-commands-afk.py`: aplica uma patch estrita e fail-closed à fonte upstream do Essential Commands 26.x. Espera exatamente um match por transformação; falha se a fonte divergir. Usado por `.github/workflows/build-essential-commands-afk.yml`.
-- O workflow compila um artefacto personalizado (warning 25 min / kick 30 min, isenções); não instala nem substitui automaticamente o JAR da VM.
+- O workflow compila um artefacto personalizado (warning 25 min / kick 30 min, isenções); não instala nem substitui automaticamente o JAR da VM. A build `0.42.0-afk1-mc26.3` foi instalada e testada em produção em 2026-11-03. O SHA-256, localização, rollback e checklist de migração estão no runbook `mc-server-infrastructure/docs/afk-policy.md`.
 
 ## Como validar
 
