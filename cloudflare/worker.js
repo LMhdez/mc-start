@@ -295,7 +295,7 @@ function azureHttpError(operation, response, code) {
 
 function safeAzureDiagnostic(error) {
   const message = error instanceof Error ? error.message : "";
-  if (/^Azure (?:token|VM status) request failed \\(HTTP [1-5]\\d{2}(?:, [A-Za-z][A-Za-z0-9_.-]{0,63})?\\)$/.test(message)) {
+  if (/^Azure (?:token|VM status) request failed \(HTTP [1-5]\d{2}(?:, [A-Za-z][A-Za-z0-9_.-]{0,63})?\)$/.test(message)) {
     return message;
   }
   if (message === "Azure token missing") return message;
