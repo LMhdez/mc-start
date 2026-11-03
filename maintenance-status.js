@@ -35,10 +35,7 @@
   }
   async function refresh() {
     try {
-      const [maintenanceResponse, statusResponse] = await Promise.all([
-        fetch("./maintenance.json?ts=" + Date.now(), { cache: "no-store" }),
-        fetch(WORKER_URL + "/api/public/status", { cache: "no-store" })
-      ]);
+      const maintenanceResponse = await fetch("./maintenance.json?ts=" + Date.now(), { cache: "no-store" });
       if (!maintenanceResponse.ok) throw new Error("maintenance config unavailable");
       const config = await maintenanceResponse.json();
       maintenance = config.enabled === true;
@@ -47,6 +44,7 @@
         setState(t().maintenance, "maintenance", message || t().maintenanceCopy);
         return;
       }
+      const statusResponse = await fetch(WORKER_URL + "/api/public/status", { cache: "no-store" });
       if (!statusResponse.ok) throw new Error("status endpoint unavailable");
       const payload = await statusResponse.json();
       if (!payload || payload.ok !== true || !payload.result) throw new Error("invalid status payload");
