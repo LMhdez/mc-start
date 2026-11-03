@@ -1,0 +1,36 @@
+name: Generate social preview PNG
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "social-preview.svg"
+      - ".github/workflows/social-preview.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Render SVG as PNG
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y librsvg2-bin
+          rsvg-convert --format=png --width=1200 --height=630 social-preview.svg > social-preview.png
+          file social-preview.png
+      - name: Commit generated PNG
+        run: |
+          if git diff --quiet -- social-preview.png; then
+            echo "PNG already up to date"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add social-preview.png
+          git commit -m "Build social preview PNG"
+          git push
