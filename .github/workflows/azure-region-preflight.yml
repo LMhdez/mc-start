@@ -11,7 +11,7 @@ jobs:
   preflight:
     if: github.event.issue.user.login == 'LMhdez' && startsWith(github.event.issue.title, '[MC-REGION]')
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 6
     steps:
       - name: Login Azure
         uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906
@@ -32,8 +32,8 @@ jobs:
           inspect_sku() {
             local resource_type="$1" target_name="$2" output_file="$3"
             shift 3
-            if ! timeout --signal=TERM --kill-after=5s 45s az vm list-skus \
-              --location "$LOCATION" --resource-type "$resource_type" "$@" --all -o json \
+            if ! timeout --signal=TERM --kill-after=5s 75s az vm list-skus \
+              --location "$LOCATION" --resource-type "$resource_type" "$@" -o json \
               >"$output_file" 2>/dev/null; then
               printf 'QUERY_TIMEOUT_OR_ERROR'
               return
@@ -67,6 +67,7 @@ jobs:
           PY
           }
 
+          # Without --all, Azure returns SKUs available to this subscription in this region.
           VM_STATUS=$(inspect_sku virtualMachines "$VM_SIZE" "$TMP_DIR/vm.json" --size "$VM_SIZE")
           DISK_STATUS=$(inspect_sku disks Premium_LRS "$TMP_DIR/disk.json")
           echo "vm_sku_status=$VM_STATUS" >> "$GITHUB_OUTPUT"
@@ -87,7 +88,7 @@ jobs:
               'VM Standard_B2als_v2: ' + vm,
               'OS disk Premium_LRS: ' + disk,
               '',
-              'This is subscription-scoped SKU metadata only. It does not guarantee physical capacity, allocation success, credit balance, or zero personal cost. No Azure resources were created or changed.',
+              'The query omits --all and checks SKUs returned as available to this subscription in Spain Central. NOT_LISTED is not treated as confirmation. This metadata does not guarantee physical capacity, allocation success, credit balance, or zero personal cost. No Azure resources were created or changed.',
               '',
               'Provisioning remains blocked until the SKU and disk are confirmed as usable, the full cost is covered by Azure for Students credits, and the user explicitly approves the maximum credit consumption. Personal spend must remain 0 €.'
             ].join('\n');
