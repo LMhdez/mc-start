@@ -69,6 +69,12 @@
     }
   }
   refresh();
+  const statusObserver = new MutationObserver(() => {
+    if (maintenance && stateNode.textContent !== t().maintenance) {
+      setState(t().maintenance, "maintenance", message || t().maintenanceCopy);
+    }
+  });
+  statusObserver.observe(stateNode, { childList: true, characterData: true, subtree: true });
   window.setInterval(refresh, POLL_MS);
   window.addEventListener("languagechange", refresh);
 })();
