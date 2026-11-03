@@ -181,3 +181,22 @@ Só considerar concluído quando os testes pós-deploy passarem, os bindings/sec
 - As auditorias de rede são read-only. azure-network-audit.yml recolhe resumo da NSG NIC/subnet e estado/configuração Geyser; não publicar endereços, CIDRs, nomes de recursos privados, outputs brutos ou secrets.
 - Não usar o fecho de uma issue como prova de deployment. Atualizar a issue com evidência concreta de produção quando existir.
 - A auditoria assistiva automatizada (axe/Chromium/teclado) não substitui uma sessão real com NVDA ou VoiceOver. Não declarar conformidade WCAG sem essa validação.
+
+
+## Atualização após migração para BelgiumCentral — 2026-11-03
+
+- A VM de produção atual é `MC-VM-BE` no resource group `MCServerBelgiumGroup` (Azure BelgiumCentral). A VM austríaca e o respetivo IP são históricos; não os reutilizar como alvo.
+- O Cloudflare Tunnel `mc-start-vm-private` foi consultado em modo read-only e devolveu estado `healthy`, com quatro ligações ativas provenientes da VM belga.
+- O Worker `mc-start-control` mantém o binding VPC `MC_AGENT` e os bindings KV, R2 e Durable Object. Os bindings foram inspecionados apenas por metadata.
+- Os secrets Azure `AZURE_RESOURCE_GROUP` e `AZURE_VM_NAME` foram atualizados para os nomes da VM/resource group belgas. Nenhum valor secreto foi lido ou incluído no repositório.
+- O website estático é GitHub Pages, não Cloudflare Pages. A conta Cloudflare consultada não apresentou zonas DNS nem projetos Pages. O Worker continua em `workers.dev`, sem custom domain configurado.
+- O frontend mantém o endpoint do Worker na CSP e obtém o endereço de jogo através do fluxo autenticado; não deve conter IP público hardcoded. O IP não deve ser versionado.
+- Verificação HTTP externa feita a partir do ambiente de auditoria devolveu 403 tanto no Worker como no GitHub Pages. Esta resposta não permite concluir que o site esteja indisponível no browser normal; confirmar no browser do operador.
+- Não foi executado deploy, alteração de DNS, alteração de rotas do Tunnel, restart da VM ou workflow de start/stop nesta atualização.
+
+### Validação pendente
+
+1. Abrir o site GitHub Pages num browser normal e confirmar carregamento de HTML/CSS/JS.
+2. Confirmar atualização de status e fluxo autenticado «Mostrar endereço»; não partilhar o endereço retornado em logs/commits.
+3. Testar Java TCP 25565 e Bedrock UDP 19132 com clientes reais.
+4. Testar start/stop do painel numa janela aprovada, depois de verificar jogadores online e backup recente.
