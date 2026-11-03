@@ -7,6 +7,7 @@ Ler o README da raiz antes de usar qualquer workflow. **Inspecionar sempre o YAM
 | Workflow | Objetivo conhecido | Classe / risco |
 |---|---|---|
 | `validate.yml` | Validação de código, testes e bundle | CI; sem deploy esperado, confirmar YAML |
+| `toggle-maintenance.yml` | Ativa/desativa o aviso público de manutenção no website via `maintenance.json` | Mutável apenas no conteúdo estático do site; não toca na VM, Worker ou jogo |
 | `build-essential-commands-afk.yml` | Compila JAR AFK personalizado e publica artefacto temporário | Build; não instala na VM |
 | `azure-region-preflight.yml` | Removido em 2026-11-03; preflight Madrid obsoleto após migração para BelgiumCentral | Eliminado |
 | `preflight-france-vm.yml` | Removido em 2026-11-03; plano regional obsoleto | Eliminado |
@@ -52,6 +53,14 @@ Foram revistos os 16 workflows presentes no repositório. Correções aplicadas:
 ### Workflows operacionais que permanecem
 
 `install-private-agent.yml`, `deploy-private-agent.yml`, `install-mc-autostart.yml`, `secure-minecraft-network.yml`, `toggle-autostop.yml`, `start-vm.yml` e `stop-mc-server.yml` são mutáveis. Não executar automaticamente: exigem revisão do estado atual, backup, jogadores e impacto. O `start-vm.yml` é a via manual alternativa ao site para ligar a VM.
+
+### Modo de manutenção do website
+
+- Executar em `Actions → Alternar modo de manutenção do site → Run workflow`.
+- `mode=enable` ativa o aviso público; `mode=disable` remove-o. A mensagem opcional é limitada a 240 caracteres e só é publicada quando a manutenção está ativa.
+- O workflow altera apenas `maintenance.json` em `main`. O GitHub Pages publica o ficheiro e o frontend consulta-o a cada 30 segundos juntamente com a API pública de estado.
+- O workflow usa apenas `GITHUB_TOKEN` com `contents: write`; não usa Azure, Cloudflare secrets, recursos pagos ou operações no servidor Minecraft.
+- O modo de manutenção é informativo: não bloqueia ligações de jogo nem desliga/para a VM. O operador deve executar separadamente qualquer manutenção real do servidor.
 
 ### Limitações ainda conhecidas
 

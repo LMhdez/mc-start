@@ -16,6 +16,10 @@ Este diretório contém o código do Worker `mc-start-control`, a configuração
 - R2 privado para fotografia técnica; Durable Object SQLite para orçamento/estado temporário cifrado; KV mantém compatibilidade/migração legada conforme implementação atual.
 - O estado privado é desencriptado no browser; não mover trabalho criptográfico pesado para o Worker Free sem medir CPU.
 
+## Estado público e manutenção do website
+
+O estado público do servidor continua a ser consultado por `GET /api/public/status`. O frontend combina essa resposta com `maintenance.json`, publicado no GitHub Pages e controlado pelo workflow `.github/workflows/toggle-maintenance.yml`. O modo de manutenção não é um estado do Worker nem uma operação Minecraft: não altera Azure, não bloqueia jogadores e não exige deploy do Worker. Se a API pública falhar, o frontend apresenta `Estado indisponível` em vez de conservar um estado online antigo.
+
 ## Endpoints e contratos
 
 Consultar o router e validações atuais em `worker.js` antes de usar endpoints; não assumir que esta lista é exaustiva nem que o contrato não mudou. A API pública não deve revelar IP privado, credenciais, nomes de jogadores ou dados de mundo. A autenticação não pode depender apenas de `Origin`.
