@@ -10,23 +10,6 @@ const bindings = () => ({
   AZURE_SUBSCRIPTION_ID: "test-subscription-id",
   AZURE_RESOURCE_GROUP: "test-resource-group",
   AZURE_VM_NAME: "test-vm"
-  it("redacts unexpected fetch exceptions instead of logging their message", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => {
-      throw new Error("network failure with confidential tenant and credential material");
-    }));
-    const log = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    const response = await worker.fetch(statusRequest("192.0.2.84"), bindings());
-
-    expect(response.status).toBe(503);
-    expect(log).toHaveBeenCalledWith(
-      "Consulta publica falhou:",
-      "Unexpected Azure status error"
-    );
-    expect(JSON.stringify(log.mock.calls)).not.toContain("confidential tenant");
-    expect(JSON.stringify(log.mock.calls)).not.toContain("credential material");
-  });
-
 });
 
 function statusRequest(ip) {
@@ -124,5 +107,22 @@ describe("Azure diagnostics for public Worker status", () => {
       "Azure VM status request failed (HTTP 403)"
     );
     expect(JSON.stringify(log.mock.calls)).not.toContain("NEVER LOG THIS");
+  });
+
+  it("redacts unexpected fetch exceptions instead of logging their message", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      throw new Error("network failure with confidential tenant and credential material");
+    }));
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = await worker.fetch(statusRequest("192.0.2.84"), bindings());
+
+    expect(response.status).toBe(503);
+    expect(log).toHaveBeenCalledWith(
+      "Consulta publica falhou:",
+      "Unexpected Azure status error"
+    );
+    expect(JSON.stringify(log.mock.calls)).not.toContain("confidential tenant");
+    expect(JSON.stringify(log.mock.calls)).not.toContain("credential material");
   });
 });
