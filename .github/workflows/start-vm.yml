@@ -54,8 +54,9 @@ jobs:
           if [[ "$STATUS" == "VM running" ]]; then
             echo "A VM já está ligada."
           elif [[ "$STATUS" == "VM deallocated" || "$STATUS" == "VM stopped" ]]; then
-            echo "A iniciar a máquina virtual..."
-            az vm start --resource-group "$RESOURCE_GROUP" --name "$VM_NAME" --no-wait
+            echo "ARRANQUE BLOQUEADO: a VM está desalocada/parada e iniciar compute pode consumir créditos Azure ou gerar custos."
+            echo "A política do projeto exige custo pessoal de 0,00; não foi enviado qualquer pedido de arranque."
+            exit 1
           elif [[ "$STATUS" == "VM starting" ]]; then
             echo "A VM já está em processo de arranque."
           elif [[ "$STATUS" == "VM stopping" ]]; then
@@ -69,9 +70,9 @@ jobs:
                 break
               fi
               if [[ "$STATUS" == "VM deallocated" || "$STATUS" == "VM stopped" ]]; then
-                echo "A iniciar a VM..."
-                az vm start --resource-group "$RESOURCE_GROUP" --name "$VM_NAME" --no-wait
-                break
+                echo "ARRANQUE BLOQUEADO: iniciar compute pode consumir créditos Azure ou gerar custos."
+                echo "A política do projeto exige custo pessoal de 0,00; não foi enviado qualquer pedido de arranque."
+                exit 1
               fi
             done
           else
