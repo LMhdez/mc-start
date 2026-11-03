@@ -42,9 +42,11 @@ describe("Azure diagnostics for public Worker status", () => {
 
     const response = await worker.fetch(statusRequest("192.0.2.81"), bindings());
 
-    expect(response.status).toBe(503);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toMatchObject({ ok: true, result: { vm: "Unknown" } });
     expect(log).toHaveBeenCalledWith(
-      "Consulta publica falhou:",
+      "Estado publico: Azure indisponivel; estado da VM desconhecido:",
       "Azure token request failed (HTTP 401, invalid_client)"
     );
     expect(JSON.stringify(log.mock.calls)).not.toContain("NEVER LOG THIS OAUTH DESCRIPTION");
@@ -71,9 +73,11 @@ describe("Azure diagnostics for public Worker status", () => {
 
     const response = await worker.fetch(statusRequest("192.0.2.82"), bindings());
 
-    expect(response.status).toBe(503);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toMatchObject({ ok: true, result: { vm: "Unknown" } });
     expect(log).toHaveBeenCalledWith(
-      "Consulta publica falhou:",
+      "Estado publico: Azure indisponivel; estado da VM desconhecido:",
       "Azure VM status request failed (HTTP 403, AuthorizationFailed)"
     );
     expect(JSON.stringify(log.mock.calls)).not.toContain("NEVER LOG THIS ARM ERROR DESCRIPTION");
@@ -101,9 +105,11 @@ describe("Azure diagnostics for public Worker status", () => {
 
     const response = await worker.fetch(statusRequest("192.0.2.83"), bindings());
 
-    expect(response.status).toBe(503);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toMatchObject({ ok: true, result: { vm: "Unknown" } });
     expect(log).toHaveBeenCalledWith(
-      "Consulta publica falhou:",
+      "Estado publico: Azure indisponivel; estado da VM desconhecido:",
       "Azure VM status request failed (HTTP 403)"
     );
     expect(JSON.stringify(log.mock.calls)).not.toContain("NEVER LOG THIS");
@@ -117,9 +123,11 @@ describe("Azure diagnostics for public Worker status", () => {
 
     const response = await worker.fetch(statusRequest("192.0.2.84"), bindings());
 
-    expect(response.status).toBe(503);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toMatchObject({ ok: true, result: { vm: "Unknown" } });
     expect(log).toHaveBeenCalledWith(
-      "Consulta publica falhou:",
+      "Estado publico: Azure indisponivel; estado da VM desconhecido:",
       "Unexpected Azure status error"
     );
     expect(JSON.stringify(log.mock.calls)).not.toContain("confidential tenant");

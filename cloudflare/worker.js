@@ -687,7 +687,7 @@ export default {
         try {
           vm = await getAzureVmPowerState(env);
         } catch (error) {
-          console.error("Estado publico: Azure indisponivel; estado da VM desconhecido:", error.message);
+          console.error("Estado publico: Azure indisponivel; estado da VM desconhecido:", safeAzureDiagnostic(error));
         }
         let result = {
           vm: vm || "Unknown",
