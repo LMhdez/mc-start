@@ -210,3 +210,12 @@ Só considerar concluído quando os testes pós-deploy passarem, os bindings/sec
 2. Confirmar atualização de status e fluxo autenticado «Mostrar endereço»; não partilhar o endereço retornado em logs/commits.
 3. Testar Java TCP 25565 e Bedrock UDP 19132 com clientes reais.
 4. Testar start/stop do painel numa janela aprovada, depois de verificar jogadores online e backup recente.
+
+
+## Reconciliação SSE e manutenção — 2026-11-04
+
+- O código SSE está presente em `main`, mas a publicação do Worker de produção não foi confirmada e o agente Python da VM ainda não foi atualizado.
+- A PR #81 unifica manutenção no contrato `GET /api/public/status`; não fazer merge antes de publicar primeiro o Worker e confirmar `result.maintenance`, conforme a sequência de compatibilidade documentada na própria PR.
+- A branch da PR #81 estava 1 commit atrás de `main` nesta revisão. Reconciliar a branch e repetir `Validate project` e `Browser UI and accessibility audit` antes de qualquer merge.
+- A PR #82 está fechada, mas a sua descrição ainda diz que não houve merge; rever esse registo porque os ficheiros SSE estão presentes em `main`.
+- Não executar deploy do Worker ou agente como parte de uma atualização documental. Confirmar plano Free, bindings e gates do runbook antes de qualquer publicação.
