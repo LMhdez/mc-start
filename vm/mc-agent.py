@@ -5,6 +5,8 @@ import re
 import ipaddress
 import time
 import socket
+import threading
+import queue
 import subprocess
 import urllib.request
 import tempfile
@@ -83,7 +85,63 @@ def probe_bedrock_udp(host="127.0.0.1", port=19132, timeout=1):
         return False
 
 
-def read_status():
+_GEYSER_STATUS_CACHE_LOCK = threading.Lock()
+_GEYSER_STATUS_CACHE = {"started_at": None, "result": None}
+
+
+def read_geyser_status(container_state, container_started):
+    defaults = {
+        "geyser_ready": False,
+        "geyser_state": "not_ready",
+        "geyser_udp_ready": None,
+        "geyser_udp_state": "unknown",
+        "geyser_udp_diagnostic": "not_checked",
+        "geyser_transport": "unknown",
+    }
+    if container_state != "running" or not container_started:
+        return defaults
+
+    with _GEYSER_STATUS_CACHE_LOCK:
+        cached = _GEYSER_STATUS_CACHE["result"]
+        if (
+            _GEYSER_STATUS_CACHE["started_at"] == container_started
+            and cached
+            and cached["geyser_ready"]
+        ):
+            return dict(cached)
+
+    log_check = run_command(
+        [
+            "bash", "-lc",
+            "docker logs --since \"$1\" \"$2\" 2>&1 | "
+            "grep -Ei 'Loading Geyser version|Built-in signaling started' | tail -n 30",
+            "_", container_started, CONTAINER,
+        ],
+        timeout=10,
+    )
+    geyser_logs = log_check.stdout + "\n" + log_check.stderr
+    geyser_loaded = re.search(r"Loading Geyser version", geyser_logs, re.IGNORECASE)
+    signaling_ready = re.search(r"Built-in signaling started", geyser_logs, re.IGNORECASE)
+    result = dict(defaults)
+    if geyser_loaded:
+        result["geyser_state"] = "initializing"
+    if geyser_loaded and signaling_ready:
+        result.update({
+            "geyser_ready": True,
+            "geyser_state": "ready",
+            "geyser_transport": "nethernet",
+            "geyser_udp_ready": None,
+            "geyser_udp_state": "not_applicable",
+            "geyser_udp_diagnostic": "nethernet_signaling_ready_external_access_unverified",
+        })
+
+    with _GEYSER_STATUS_CACHE_LOCK:
+        _GEYSER_STATUS_CACHE["started_at"] = container_started
+        _GEYSER_STATUS_CACHE["result"] = dict(result)
+    return result
+
+
+def read_status(include_ip=True):
     docker_state = "inactive"
     container_state = "not_found"
     players = 0
@@ -93,14 +151,14 @@ def read_status():
     if docker.returncode == 0 and docker.stdout.strip() == "active":
         docker_state = "active"
 
-    inspect = run_command(["docker", "inspect", CONTAINER], timeout=5)
+    inspect = run_command(
+        ["docker", "inspect", "-f", "{{.State.Status}}|{{.State.StartedAt}}", CONTAINER],
+        timeout=5,
+    )
+    container_started = ""
     if inspect.returncode == 0:
-        state = run_command(
-            ["docker", "inspect", "-f", "{{.State.Status}}", CONTAINER],
-            timeout=5,
-        )
-        if state.returncode == 0:
-            container_state = state.stdout.strip() or "unknown"
+        container_state, _, container_started = inspect.stdout.strip().partition("|")
+        container_state = container_state or "unknown"
 
         if container_state == "running":
             players = None
@@ -137,50 +195,19 @@ def read_status():
     # RCON só pode estar pronto quando o contentor está ativo e a consulta respondeu.
     rcon_ready = container_state == "running" and players is not None
 
-    # O estado do Geyser e do NetherNet é confirmado pelos registos do arranque
-    # atual do contentor; uma porta TCP/UDP aberta, por si só, não é suficiente.
-    geyser_ready = False
-    geyser_state = "not_ready"
-    geyser_udp_ready = None
-    geyser_udp_state = "unknown"
-    geyser_udp_diagnostic = "not_checked"
-    geyser_transport = "unknown"
-    if container_state == "running":
-        started = run_command(
-            ["docker", "inspect", "-f", "{{.State.StartedAt}}", CONTAINER],
-            timeout=5,
-        )
-        if started.returncode == 0 and started.stdout.strip():
-            log_check = run_command(
-                [
-                    "bash", "-lc",
-                    "docker logs --since \"$1\" \"$2\" 2>&1 | "
-                    "grep -Ei 'Loading Geyser version|Built-in signaling started' | tail -n 30",
-                    "_", started.stdout.strip(), CONTAINER,
-                ],
-                timeout=10,
-            )
-            geyser_logs = log_check.stdout + "\n" + log_check.stderr
-            geyser_loaded = re.search(r"Loading Geyser version", geyser_logs, re.IGNORECASE)
-            signaling_ready = re.search(r"Built-in signaling started", geyser_logs, re.IGNORECASE)
-            if geyser_loaded:
-                geyser_state = "initializing"
-            if geyser_loaded and signaling_ready:
-                geyser_ready = True
-                geyser_state = "ready"
-                # O signaling integrado confirma que o serviço NetherNet arrancou.
-                # NetherNet não responde ao Unconnected Ping RakNet usado no
-                # teste UDP legado. Não tratar a ausência desse pong como falha.
-                # A acessibilidade externa e uma sessão Bedrock real continuam
-                # por confirmar por este agente.
-                geyser_transport = "nethernet"
-                geyser_udp_ready = None
-                geyser_udp_state = "not_applicable"
-                geyser_udp_diagnostic = "nethernet_signaling_ready_external_access_unverified"
+    # O estado do Geyser é analisado uma vez por arranque e fica em cache
+    # após ficar pronto, evitando reler continuamente os logs do contentor.
+    geyser = read_geyser_status(container_state, container_started)
+    geyser_ready = geyser["geyser_ready"]
+    geyser_state = geyser["geyser_state"]
+    geyser_udp_ready = geyser["geyser_udp_ready"]
+    geyser_udp_state = geyser["geyser_udp_state"]
+    geyser_udp_diagnostic = geyser["geyser_udp_diagnostic"]
+    geyser_transport = geyser["geyser_transport"]
 
     return {
         "vm": "VM running",
-        "ip": get_public_ip(),
+        "ip": get_public_ip() if include_ip else "",
         "port_open": port_open,
         "rcon_ready": rcon_ready,
         "geyser_ready": geyser_ready,
@@ -454,6 +481,110 @@ def stop_server():
     return {"ok": True, "message": "Minecraft container stopped."}
 
 
+# Shared, passive player-event watcher. It exists only while at least one SSE
+# client is connected. It performs read-only local status queries; it never starts,
+# stops, restarts, or changes the Minecraft container or VM.
+_PLAYER_EVENT_LOCK = threading.Lock()
+_PLAYER_EVENT_SUBSCRIBERS = set()
+_PLAYER_EVENT_THREAD = None
+_PLAYER_EVENT_SNAPSHOT = None
+_PLAYER_EVENT_LAST_CHECKED_AT = None
+
+
+def _publish_player_snapshot(snapshot):
+    global _PLAYER_EVENT_SNAPSHOT, _PLAYER_EVENT_LAST_CHECKED_AT
+    public_fields = (
+        "vm", "docker", "container", "port_open", "rcon_ready",
+        "geyser_ready", "geyser_state", "geyser_transport",
+        "geyser_udp_ready", "geyser_udp_state", "players",
+    )
+    signature = tuple(snapshot.get(key) for key in public_fields)
+    checked_at = datetime.now(timezone.utc).isoformat()
+    with _PLAYER_EVENT_LOCK:
+        _PLAYER_EVENT_LAST_CHECKED_AT = checked_at
+        previous = None if _PLAYER_EVENT_SNAPSHOT is None else tuple(
+            _PLAYER_EVENT_SNAPSHOT.get(key) for key in public_fields
+        )
+        if signature == previous:
+            return
+        payload = dict(snapshot)
+        payload["checked_at"] = checked_at
+        _PLAYER_EVENT_SNAPSHOT = payload
+        subscribers = list(_PLAYER_EVENT_SUBSCRIBERS)
+
+    for subscriber in subscribers:
+        try:
+            subscriber.put_nowait(payload)
+        except queue.Full:
+            try:
+                subscriber.get_nowait()
+            except queue.Empty:
+                pass
+            try:
+                subscriber.put_nowait(payload)
+            except queue.Full:
+                pass
+
+
+def _watch_player_events():
+    global _PLAYER_EVENT_THREAD, _PLAYER_EVENT_SNAPSHOT, _PLAYER_EVENT_LAST_CHECKED_AT
+    while True:
+        with _PLAYER_EVENT_LOCK:
+            if not _PLAYER_EVENT_SUBSCRIBERS:
+                _PLAYER_EVENT_SNAPSHOT = None
+                _PLAYER_EVENT_LAST_CHECKED_AT = None
+                _PLAYER_EVENT_THREAD = None
+                return
+        try:
+            live = read_status(include_ip=False)
+            snapshot = {
+                "available": True,
+                "vm": live.get("vm", "Unknown"),
+                "docker": live.get("docker", "unknown"),
+                "container": live.get("container", "unknown"),
+                "port_open": live.get("port_open"),
+                "rcon_ready": live.get("rcon_ready"),
+                "geyser_ready": live.get("geyser_ready"),
+                "geyser_state": live.get("geyser_state", "unknown"),
+                "geyser_transport": live.get("geyser_transport", "unknown"),
+                "geyser_udp_ready": live.get("geyser_udp_ready"),
+                "geyser_udp_state": live.get("geyser_udp_state", "unknown"),
+                "players": live.get("players"),
+            }
+        except Exception:
+            snapshot = {"available": False}
+        _publish_player_snapshot(snapshot)
+        # Check the subscriber set frequently so the watcher exits promptly
+        # after the last browser disconnects. Read-only status/RCON is queried every 5 seconds.
+        for _ in range(50):
+            time.sleep(0.1)
+            with _PLAYER_EVENT_LOCK:
+                if not _PLAYER_EVENT_SUBSCRIBERS:
+                    break
+
+
+def subscribe_player_events():
+    global _PLAYER_EVENT_THREAD
+    subscriber = queue.Queue(maxsize=1)
+    with _PLAYER_EVENT_LOCK:
+        _PLAYER_EVENT_SUBSCRIBERS.add(subscriber)
+        if _PLAYER_EVENT_SNAPSHOT is not None:
+            subscriber.put_nowait(dict(_PLAYER_EVENT_SNAPSHOT))
+        if _PLAYER_EVENT_THREAD is None or not _PLAYER_EVENT_THREAD.is_alive():
+            _PLAYER_EVENT_THREAD = threading.Thread(
+                target=_watch_player_events,
+                name="mc-player-events",
+                daemon=True,
+            )
+            _PLAYER_EVENT_THREAD.start()
+    return subscriber
+
+
+def unsubscribe_player_events(subscriber):
+    with _PLAYER_EVENT_LOCK:
+        _PLAYER_EVENT_SUBSCRIBERS.discard(subscriber)
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "MCPrivateAgent/1.0"
 
@@ -472,6 +603,51 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"ok": True, "result": read_technical()})
             except Exception:
                 self.send_json({"ok": False, "message": "Technical check failed"}, 500)
+            return
+        if self.path == "/events":
+            subscriber = subscribe_player_events()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache, no-transform")
+            self.send_header("Connection", "keep-alive")
+            self.send_header("X-Accel-Buffering", "no")
+            self.end_headers()
+            try:
+                self.wfile.write(b"retry: 5000\n: connected\n\n")
+                self.wfile.flush()
+                while True:
+                    try:
+                        payload = subscriber.get(timeout=15)
+                        if payload.get("available") is True:
+                            event_name = "status"
+                            data = {
+                                key: payload.get(key)
+                                for key in (
+                                    "vm", "docker", "container", "port_open",
+                                    "rcon_ready", "geyser_ready", "geyser_state",
+                                    "geyser_transport", "geyser_udp_ready",
+                                    "geyser_udp_state", "players",
+                                )
+                            }
+                            data["checked_at"] = payload["checked_at"]
+                        else:
+                            event_name = "unavailable"
+                            data = {"vm": "Unknown", "players": None}
+                        message = "event: " + event_name + "\ndata: " + json.dumps(data, separators=(",", ":")) + "\n\n"
+                        self.wfile.write(message.encode("utf-8"))
+                    except queue.Empty:
+                        with _PLAYER_EVENT_LOCK:
+                            checked_at = _PLAYER_EVENT_LAST_CHECKED_AT
+                        if checked_at:
+                            heartbeat = json.dumps({"checked_at": checked_at}, separators=(",", ":"))
+                            self.wfile.write(("event: heartbeat\ndata: " + heartbeat + "\n\n").encode("utf-8"))
+                        else:
+                            self.wfile.write(b": keepalive\n\n")
+                    self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                pass
+            finally:
+                unsubscribe_player_events(subscriber)
             return
         if self.path != "/status":
             self.send_json({"ok": False, "message": "Not found"}, 404)
