@@ -52,13 +52,17 @@ describe("public player SSE endpoint", () => {
     expect(agent.fetch).not.toHaveBeenCalled();
   });
 
-  it("does not contact the agent or control the VM when it is not running", async () => {
+  it("streams the authoritative Azure power state without contacting or controlling the VM", async () => {
     mockAzure("PowerState/deallocated");
     const agent = { fetch: vi.fn() };
     const response = await worker.fetch(request(), bindings(agent));
-    expect(response.status).toBe(503);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toContain("text/event-stream");
     expect(agent.fetch).not.toHaveBeenCalled();
-    expect(await response.json()).toMatchObject({ ok: false, code: "vm_unavailable" });
+    const body = await response.text();
+    expect(body).toContain("event: status\\ndata: ");
+    expect(body).toContain('"vm":"VM deallocated"');
+    expect(body.endsWith("\\n\\n")).toBe(true);
   });
 
   it("forwards the agent event stream without buffering or exposing private data", async () => {
