@@ -708,7 +708,8 @@ export default {
             geyser_state: "not_ready",
             geyser_transport: "unknown",
             geyser_udp_ready: false,
-            geyser_udp_state: "unknown"
+            geyser_udp_state: "unknown",
+            checked_at: new Date().toISOString()
           };
           const body = "event: status\ndata: " + JSON.stringify(stoppedSnapshot) + "\n\n";
           return new Response(body, {
