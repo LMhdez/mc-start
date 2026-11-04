@@ -25,6 +25,8 @@ Ler o README da raiz e rever o YAML integral antes de executar qualquer workflow
 
 ## Regras obrigatórias
 
+- **Operador único:** todos os workflows com `workflow_dispatch` verificam `github.actor == 'LMhdez'` antes de executar jobs. Os workflows de arranque e paragem também exigem essa identidade nos eventos `repository_dispatch`; o deploy do agente exige-a nos disparos manuais e nos pushes. O token do Worker usado para iniciar workflows tem de pertencer a `LMhdez`; caso contrário, os pedidos são bloqueados.
+
 - **Despesa pessoal máxima: 0,00 € / $0,00.** Os créditos Azure for Students podem financiar compute Azure pago deliberadamente escolhido pela melhor relação custo/desempenho. Antes de `start-vm.yml` ou de qualquer alteração de consumo, confirmar preço regional, estimativa, saldo e validade dos créditos, incluindo o risco de esgotamento/expiração; bloquear se existir risco de cobrança pessoal. Não ativar Pay-As-You-Go nem aceitar billing pessoal sem autorização explícita. GitHub runners e serviços de terceiros têm billing separado e devem permanecer nas quotas gratuitas aprovadas, salvo autorização separada.
 - Nunca imprimir secrets, env vars, credenciais Azure, chaves SSH, RCON, nomes de jogadores, IP público ou logs brutos.
 - Não usar workflow mutável para diagnóstico.
