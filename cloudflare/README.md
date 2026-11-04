@@ -46,3 +46,11 @@ Wrangler declara bindings, mas não autoriza divulgar valores. Nunca ler/imprimi
 - Não ativar planos pagos nem aceitar qualquer prompt de billing.
 - Redigir logs; nunca publicar secrets, IPs, dados de jogadores ou payloads cifrados.
 - Se o agente VPC falhar, seguir fallback documentado; nunca expor a porta do agente publicamente como workaround.
+
+
+### Limites Free e continuidade
+
+- Cloudflare Workers Free permite 100.000 pedidos de entrada por dia; uma ligação SSE longa conta como um pedido, não um pedido por evento. Cada reconexão conta como um novo pedido. Os pedidos estáticos do GitHub Pages não invocam este Worker.
+- HTTP Workers não têm limite fixo de duração enquanto o cliente permanece ligado. Desconexões e atualizações do runtime podem interromper a ligação; o frontend reconecta com backoff.
+- Workers VPC está gratuito durante a beta aberta; aplicam-se os limites e custos normais de Workers para pedidos e CPU. Não ativar Workers Paid nem qualquer plano pago.
+- A VM só faz leituras locais de estado a cada 5 segundos enquanto pelo menos um browser está ligado; vários browsers partilham o mesmo watcher. Não são feitos pedidos periódicos ao Worker/Azure por cada evento.
