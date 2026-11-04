@@ -2,7 +2,7 @@ name: Generate social preview PNG
 
 on:
   push:
-    branches: [main]
+    branches: [main, "feature/**"]
     paths:
       - "social-preview.svg"
       - "social-preview-en.svg"
