@@ -1,6 +1,6 @@
 # Current operational note — reviewed 2026-11-04
 
-Production is Azure BelgiumCentral (`MC-VM-BE`, `MCServerBelgiumGroup`); the authoritative VM state lives in the private infrastructure repository. Do not use Austria/Madrid/France migration material as an active target. The project permits **€0 / $0 spend, Free Tier only**; Azure Student credits are not permission to consume paid resources. The currently documented VM SKU is `Standard_B2als_v2`, which must not be assumed to qualify as Free Tier; billing eligibility was not checked in this documentation pass. Do not start, resize, or create paid compute.
+Production is Azure BelgiumCentral (`MC-VM-BE`, `MCServerBelgiumGroup`); the authoritative VM state lives in the private infrastructure repository. Do not use Austria/Madrid/France migration material as an active target. The operator deliberately uses Azure for Students credits for paid Azure compute when it is the most economical technically viable option, with personal out-of-pocket spend capped at **€0 / $0**. The documented VM SKU `Standard_B2als_v2` is paid compute, not Free Tier, and is an accepted cost/performance choice. Before any operation that changes billable usage, verify regional price, estimated consumption, remaining credit and expiry; never enable Pay-As-You-Go or accept personal billing without explicit authorization.
 
 The public Worker status endpoint returned HTTP 200 after a narrowly scoped Azure RBAC Reader assignment to the Worker service principal on the Belgian VM. This was an Azure RBAC correction, not a code deployment. PR #78 merged at 23:12 UTC on 2026-11-03; its diagnostics and follow-up redaction hardening are in `main`, but neither change has been deployed to the production Worker. Validate project run [41743225155](https://github.com/LMhdez/mc-start/actions/runs/41743225155) and GitHub Pages deployment [41743224895](https://github.com/LMhdez/mc-start/actions/runs/41743224895) passed. The current social preview is PNG 1200×630 at `https://lmhdez.github.io/mc-start/social-preview.png`; the SVG remains its source. The PNG and page metadata were verified in GitHub, but external social-platform cache refresh has not been tested.
 
@@ -68,7 +68,7 @@ A publicação que introduziu `[exports.R2Budget]` provisionou o namespace SQLit
 
 O rollback de uma versão também não reverte o estado de recursos externos como KV, R2 ou Durable Objects.
 
-### 2.3 Free Tier — bloqueio obrigatório
+### 2.3 Cloudflare Free plan — bloqueio obrigatório
 
 - O Dashboard confirmou **Workers Free — Active** em 2026-11-01. A API de Billing não permitiu uma verificação independente (403); não inferir o plano apenas a partir de `usage_model = "standard"`.
 - Workers Free tem limite nominal de 10 ms de CPU por pedido. A implementação anterior executava PBKDF2-SHA256 (100 000 iterações) em `/api/status/read`, o que excedia esse limite na medição isolada descrita acima.
@@ -171,7 +171,7 @@ Se qualquer verificação falhar, parar os testes e não atualizar o agente priv
 
 ## 8. Critério para considerar a publicação concluída
 
-Só considerar concluído quando os testes pós-deploy passarem, os bindings/secrets e triggers estiverem preservados, Workers Free estiver confirmado sem Workers Paid ou custos adicionais, os endpoints públicos e o fluxo privado de estado funcionarem e não houver consumo inesperado de R2/DO.
+Só considerar concluído quando os testes pós-deploy passarem, os bindings/secrets e triggers estiverem preservados, o plano Cloudflare esperado estiver confirmado sem Workers Paid ou custos adicionais, os endpoints públicos e o fluxo privado de estado funcionarem e não houver consumo inesperado de R2/DO.
 
 ## Referências oficiais
 
