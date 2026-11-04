@@ -17,6 +17,7 @@ concurrency:
 jobs:
   deploy-agent:
     runs-on: ubuntu-latest
+    if: github.actor == 'LMhdez'
     timeout-minutes: 8
     steps:
       - name: Obter codigo
