@@ -22,6 +22,12 @@ The NSG automation was revised to preserve Java TCP 25565, Bedrock UDP 19132 and
 - **PR #32:** também consta como deployed na sequência de versões, com 100% do tráfego na deployment observada em 2026-11-01 às 17:23 UTC. Não confundir essa publicação com a posterior PR #40.
 - Manter Cloudflare Workers no plano Free quando suficiente. A decisão de usar créditos Azure Student aplica-se a Azure e não cobre custos Cloudflare; upgrades/trials/funcionalidades pagas Cloudflare exigem avaliação de custo e autorização separadas.
 - **Rede Minecraft:** TCP 19132 tem utilização legítima por um mod, confirmada pelo utilizador. Não o remover nem voltar a propor uma regra Java TCP 25565 + Bedrock UDP 19132 como se fossem os únicos protocolos necessários. A issue #19 permanece not_planned: nenhuma alteração de firewall foi aplicada.
+## Contrato unificado de estado e manutenção — PR #81 (em revisão)
+
+A proposta na PR #81 inclui `result.maintenance = { enabled, message }` em `GET /api/public/status`. O Worker lê o ficheiro público `maintenance.json` da branch `main` e conserva o último estado conhecido em cache por 30 segundos por isolate. O frontend passa a usar apenas esta resposta para os estados operacionais e a sobreposição de manutenção; o script independente, o polling de `maintenance.json` e o `MutationObserver` foram removidos.
+
+A manutenção continua a ser informativa e não altera a VM, o Minecraft, Azure ou as ligações. O workflow `toggle-maintenance.yml` mantém-se como mecanismo de publicação do ficheiro. **A PR não publica o Worker**: depois do merge, a nova resposta só estará disponível quando uma publicação separada do Worker for revista, validada e autorizada. Até essa publicação, o frontend atualizado não deve ser considerado funcional em produção com o contrato novo.
+
 ## 1. Histórico de auditoria — 2026-11-01
 
 - PR #27: merged e fechado através de squash.
