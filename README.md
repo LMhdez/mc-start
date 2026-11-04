@@ -43,8 +43,10 @@
 ## Website e pré-visualização social
 
 - O estado público do servidor, o contador de jogadores e os detalhes de ligação são obtidos numa única consulta a `/api/public/status`; a barra de manutenção consome apenas o ficheiro estático `maintenance.json` e reutiliza o estado recebido. Isto evita duplicar chamadas ao Worker, Azure ARM e agente privado.
-- A página atualiza o estado a cada 15 segundos enquanto está visível e faz uma consulta imediata quando regressa ao primeiro plano. Em separadores ocultos, suspende as consultas periódicas. A manutenção é verificada separadamente a cada 30 segundos.
-- A atualização é polling, não SSE/WebSockets: o Worker atual executa uma verificação Azure e uma consulta ao agente privado por pedido e não existe um emissor de eventos no host Minecraft. Manter uma ligação SSE sem uma fonte real de eventos apenas acrescentaria ligações e trabalho no Worker; não reduziria as verificações no host. Reavaliar SSE apenas se for criada uma fonte push com orçamento Free comprovado.
+- O estado geral é consultado uma vez ao abrir a página e por ação manual; a contagem de jogadores é atualizada por SSE em `/api/public/events`, sem polling periódico do browser.
+- O Worker valida a origem e o estado da VM uma vez por ligação e encaminha o fluxo do agente privado sem o armazenar em KV/R2 nem usar Durable Objects. O agente faz consultas RCON locais de leitura a cada 5 segundos apenas enquanto houver clientes SSE; publica apenas alterações na contagem, nunca nomes.
+- Separadores ocultos fecham a ligação SSE; ao regressar, é feita uma consulta normal de estado e abre-se uma nova ligação. Falhas reconectam com backoff até 5 minutos.
+- A manutenção continua a usar `maintenance.json`. SSE não chama, agenda, cancela ou altera ações/workflows de ligar/desligar; estes mantêm os seus fluxos e regras atuais.
 
 - Metadados Open Graph e Twitter usam `https://lmhdez.github.io/mc-start/social-preview.png`, PNG 1200×630.
 - `social-preview.svg` é a fonte editável; `.github/workflows/social-preview.yml` gera e publica o PNG quando o SVG muda.
