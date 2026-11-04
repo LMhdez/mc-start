@@ -20,7 +20,7 @@ Ler o README da raiz e rever o YAML integral antes de executar qualquer workflow
 | `restore-cron-automations.yml` | Restaura automações cron | Mutável; pode reativar backup/autostop |
 | `toggle-autostop.yml` | Altera entrada cron do autostop | Mutável; pode desligar a produção |
 | `secure-minecraft-network.yml` | Ajusta regras NSG de jogo | Mutável; pode cortar conectividade |
-| `start-vm.yml` | Inicia VM Azure | Pode iniciar compute faturável; bloqueado pela política €0 |
+| `start-vm.yml` | Inicia VM Azure | Pode iniciar compute faturável; exige preflight de créditos Azure Student, confirmação de ausência de despesa pessoal e autorização explícita |
 | `stop-mc-server.yml` | Para Minecraft e desaloca VM | Interrompe jogadores; exige confirmação de zero jogadores |
 
 ## Regras obrigatórias
@@ -56,4 +56,4 @@ O endpoint público `/api/public/status` voltou a HTTP 200 após atribuir `Reade
 
 ## Histórico
 
-Os preflights Azure de Madrid/France e o workflow de instalação de Krypton foram removidos/arquivados. Não os reintroduzir sem pedido explícito e uma nova análise de custo zero. A configuração Geyser/Floodgate aprovada é para preservar, não para endurecer automaticamente durante uma tarefa de documentação.
+Os preflights Azure de Madrid/France e o workflow de instalação de Krypton foram removidos/arquivados. Não os reintroduzir sem pedido explícito, revisão técnica e preflight financeiro segundo a política Azure Student atual. A configuração Geyser/Floodgate aprovada é para preservar, não para endurecer automaticamente durante uma tarefa de documentação.
