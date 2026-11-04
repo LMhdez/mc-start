@@ -43,3 +43,11 @@ A [PR #78](https://github.com/LMhdez/mc-start/pull/78) foi **merged em 2026-11-0
 - Nunca consultar ou imprimir valores de Cloudflare secrets, tokens OAuth/ARM, headers de autenticação, IDs de subscrição/tenant/principal ou IP público.
 - Em testes, apresentar apenas HTTP status e campos explicitamente allowlisted.
 - Não ampliar RBAC como workaround se o endpoint voltar a falhar; verificar primeiro a identidade e o scope exatos.
+
+
+## Follow-up — sanitized diagnostics code (2026-11-03)
+
+- PR #78 was merged at 23:12 UTC (merge commit `d2d3361`); this did not deploy the Worker.
+- A follow-up review found raw exception messages in Azure/agent/fallback error logs. `worker.js` now uses allowlisted Azure diagnostics and a generic `Unexpected internal error` for unexpected operational exceptions. No raw exception message is logged in these paths.
+- Tests cover OAuth/ARM descriptions, malformed codes, unexpected fetch exceptions and private-agent exceptions containing confidential fixture text.
+- Validation: [Validate project #41743225155](https://github.com/LMhdez/mc-start/actions/runs/41743225155) passed; [GitHub Pages #41743224895](https://github.com/LMhdez/mc-start/actions/runs/41743224895) passed. No Worker production deploy was performed.
