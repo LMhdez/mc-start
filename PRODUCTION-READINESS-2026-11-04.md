@@ -2,7 +2,7 @@
 
 ## Resultado executivo
 
-**Estado: apto para disponibilização controlada ao grupo, condicionado ao resultado do novo smoke test SSE.** A infraestrutura principal, o painel, o Worker e o agente privado têm evidência de publicação/atualização bem-sucedida. Não declarar a PR #81 nem o contrato unificado de manutenção como publicados.
+**Estado: apto para disponibilização controlada ao grupo.** A infraestrutura principal, o painel, o Worker e o agente privado têm evidência de publicação/atualização bem-sucedida. Não declarar a PR #81 nem o contrato unificado de manutenção como publicados.
 
 Esta auditoria não substitui uma verificação ao vivo da VM imediatamente antes de uma operação de manutenção. A última evidência operacional da VM foi recolhida em 2026-11-04 e está registada no repositório privado de infraestrutura.
 
