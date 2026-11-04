@@ -710,7 +710,7 @@ export default {
             geyser_udp_ready: false,
             geyser_udp_state: "unknown"
           };
-          const body = "event: status\\ndata: " + JSON.stringify(stoppedSnapshot) + "\\n\\n";
+          const body = "event: status\ndata: " + JSON.stringify(stoppedSnapshot) + "\n\n";
           return new Response(body, {
             status: 200,
             headers: {
