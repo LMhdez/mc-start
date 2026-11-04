@@ -9,7 +9,7 @@
 - GitHub validation run `41806676851` passed, including the R2/Durable Object tests and `wrangler deploy --dry-run`. The Pages deployment for the same commit (`41806676512`) also succeeded.
 - The automated `public-events.test.js` coverage passed as part of the Cloudflare test suite.
 - Private agent deployment workflow [41795652240](https://github.com/LMhdez/mc-start/actions/runs/41795652240) succeeded at 07:56 UTC. Its source file SHA matches `main`; the workflow syntax-checked the new file, restarted `mc-private-agent.service`, verified it active, and required `/status` to return `ok=true`.
-- A production SSE handshake smoke test was added to `validate.yml` on 2026-11-04. Its first result is pending; it must confirm HTTP 200, `text/event-stream`, and an SSE handshake/event from `/api/public/events` without logging payloads.
+- The production SSE smoke test passed in Validate project [41836572573](https://github.com/LMhdez/mc-start/actions/runs/41836572573): `/api/public/events` returned HTTP 200, `text/event-stream`, and an initial `status` event. The workflow does not log the event payload.
 - PR #81 remains excluded from this deployment.
 
 
