@@ -53,7 +53,9 @@ function checkLocalRateLimit(request, scope, limit, now) {
 const WORKFLOWS = {
   start: {
     file: "start-vm.yml",
-    inputs: { notificar: "Painel web" },
+    // O pedido só é criado depois da autenticação da palavra-passe do painel.
+    // A ação explícita “Ligar servidor” é a confirmação do utilizador para este arranque.
+    inputs: { notificar: "Painel web", confirmar_arranque: "true" },
     message: "Pedido para ligar o servidor enviado."
   },
   stop: {
