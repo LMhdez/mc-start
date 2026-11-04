@@ -37,7 +37,7 @@ A decisão do operador é aproveitar os créditos Azure for Students para obter 
 
 ## Arquitetura
 
-1. Website estático: `index.html`, `style.css`, `script.js`, `maintenance-status.js` e `maintenance.json`; publicado por GitHub Pages.
+1. Website estático: `index.html`, `style.css`, `script.js` e `maintenance.json`; publicado por GitHub Pages. A manutenção é incluída pelo Worker no endpoint de estado, sem script ou polling independente no browser.
 2. Cloudflare Worker: `cloudflare/worker.js`; autenticação, API, Azure ARM, fallback GitHub Actions e agente privado.
 3. Agente: `vm/mc-agent.py`; operações/status através de ligação privada.
 4. GitHub Actions: CI, auditorias e operações remotas. Os workflows mutáveis nunca são ferramentas de diagnóstico.
@@ -53,7 +53,7 @@ A decisão do operador é aproveitar os créditos Azure for Students para obter 
 - As páginas localizadas usam uma base relativa à raiz para reutilizar os mesmos recursos, API e `maintenance.json`; não duplicam o frontend nem alteram o Worker.
 - As pré-visualizações preservam o desenho original em três SVGs editáveis: `social-preview.svg`, `social-preview-en.svg` e `social-preview-es.svg`. O workflow gera os PNGs 1200×630 correspondentes.
 - O HTML de cada idioma aponta para a respetiva imagem PNG. Alterações de metadados/imagens não obrigam as plataformas a invalidar imediatamente previews em cache; a atualização do WhatsApp pode demorar ou exigir novo URL para forçar nova leitura.
-- O estado inicial é obtido por `/api/public/status`; as alterações ao estado público e à contagem de jogadores chegam por SSE em `/api/public/events`, sem polling periódico do browser. A barra de manutenção continua a usar `maintenance.json`.
+- O estado inicial é obtido por `/api/public/status`; as alterações ao estado público e à contagem de jogadores chegam por SSE em `/api/public/events`, sem polling periódico do browser. O endpoint de estado inclui também `maintenance`, lido pelo Worker a partir de `maintenance.json`; o browser não faz um segundo pedido para a manutenção.
 - O Worker valida a origem e o estado Azure uma vez por ligação e encaminha o fluxo do agente privado sem buffering, KV, R2 ou Durable Objects. Cada ligação SSE é um pedido Worker; os eventos transmitidos não criam novos pedidos. As reconexões contam como novos pedidos.
 - No agente, um único watcher partilhado faz leituras locais de estado/Docker/RCON/Geyser a cada 5 segundos apenas enquanto existirem clientes SSE. Só transmite alterações dos campos públicos permitidos; heartbeats atualizam apenas o carimbo temporal. Nunca transmite nomes nem IP. Este polling é local à VM, não faz pedidos periódicos ao Worker/Azure.
 - Separadores ocultos fecham a ligação; ao regressar, o site consulta o estado inicial e abre SSE. Se a VM estiver parada/desalocada, o Worker transmite esse estado e o browser volta a verificar lentamente (60 segundos); falhas transitórias usam backoff.

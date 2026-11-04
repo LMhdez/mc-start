@@ -20,7 +20,7 @@ Este diretório contém o Worker `mc-start-control`, configuração Wrangler e r
 
 `GET /api/public/status` é o endpoint público. Em 2026-11-03, voltou a HTTP 200 após atribuir `Reader` (Built-in) ao Service Principal `mc-start-status-reader` no scope da VM BelgiumCentral. Não houve alteração de código nem deploy para resolver o 503; a correção foi exclusivamente RBAC. A PR #78 e o follow-up de redaction foram posteriormente merged em `main`, mas **o Worker de produção não foi deployed**. Ver [incidente](WORKER-503-INCIDENT.md) e [runbook](DEPLOYMENT-RUNBOOK.md).
 
-O frontend combina a API pública com `maintenance.json`, publicado pelo GitHub Pages e controlado por `.github/workflows/toggle-maintenance.yml`. O modo manutenção é apenas informativo: não altera Azure, Worker ou Minecraft e não bloqueia ligações. Se a API falhar, o frontend apresenta estado indisponível, não um estado online antigo.
+`GET /api/public/status` é a única fonte de estado para o frontend: devolve estado operacional e `maintenance` no mesmo objeto `result`. O Worker lê `maintenance.json` da branch `main` do repositório público, valida `enabled` e limita a mensagem a 240 caracteres; cada isolate mantém o último resultado em cache durante 30 segundos. Se a origem estiver temporariamente indisponível, conserva o último estado conhecido. O frontend já não consulta `maintenance.json` nem executa um segundo polling. O workflow `.github/workflows/toggle-maintenance.yml` continua a publicar a configuração. A manutenção é informativa: não altera Azure, Worker ou Minecraft e não bloqueia ligações. Se a API falhar, o frontend apresenta estado indisponível, não um estado online antigo.
 
 ## Endpoints e contratos
 
