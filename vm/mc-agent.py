@@ -85,7 +85,7 @@ def probe_bedrock_udp(host="127.0.0.1", port=19132, timeout=1):
         return False
 
 
-def read_status():
+def read_status(include_ip=True):
     docker_state = "inactive"
     container_state = "not_found"
     players = 0
@@ -182,7 +182,7 @@ def read_status():
 
     return {
         "vm": "VM running",
-        "ip": get_public_ip(),
+        "ip": get_public_ip() if include_ip else "",
         "port_open": port_open,
         "rcon_ready": rcon_ready,
         "geyser_ready": geyser_ready,
@@ -482,11 +482,15 @@ def read_player_snapshot():
 
 def _publish_player_snapshot(snapshot):
     global _PLAYER_EVENT_SNAPSHOT
-    signature = (snapshot.get("available"), snapshot.get("players"))
+    public_fields = (
+        "vm", "docker", "container", "port_open", "rcon_ready",
+        "geyser_ready", "geyser_state", "geyser_transport",
+        "geyser_udp_ready", "geyser_udp_state", "players",
+    )
+    signature = tuple(snapshot.get(key) for key in public_fields)
     with _PLAYER_EVENT_LOCK:
-        previous = None if _PLAYER_EVENT_SNAPSHOT is None else (
-            _PLAYER_EVENT_SNAPSHOT.get("available"),
-            _PLAYER_EVENT_SNAPSHOT.get("players"),
+        previous = None if _PLAYER_EVENT_SNAPSHOT is None else tuple(
+            _PLAYER_EVENT_SNAPSHOT.get(key) for key in public_fields
         )
         if signature == previous:
             return
@@ -518,7 +522,21 @@ def _watch_player_events():
                 _PLAYER_EVENT_THREAD = None
                 return
         try:
-            snapshot = read_player_snapshot()
+            live = read_status(include_ip=False)
+            snapshot = {
+                "available": True,
+                "vm": live.get("vm", "Unknown"),
+                "docker": live.get("docker", "unknown"),
+                "container": live.get("container", "unknown"),
+                "port_open": live.get("port_open"),
+                "rcon_ready": live.get("rcon_ready"),
+                "geyser_ready": live.get("geyser_ready"),
+                "geyser_state": live.get("geyser_state", "unknown"),
+                "geyser_transport": live.get("geyser_transport", "unknown"),
+                "geyser_udp_ready": live.get("geyser_udp_ready"),
+                "geyser_udp_state": live.get("geyser_udp_state", "unknown"),
+                "players": live.get("players"),
+            }
         except Exception:
             snapshot = {"available": False}
         _publish_player_snapshot(snapshot)
@@ -587,11 +605,20 @@ class Handler(BaseHTTPRequestHandler):
                     try:
                         payload = subscriber.get(timeout=15)
                         if payload.get("available") is True:
-                            event_name = "players"
-                            data = {"players": payload["players"], "checked_at": payload["checked_at"]}
+                            event_name = "status"
+                            data = {
+                                key: payload.get(key)
+                                for key in (
+                                    "vm", "docker", "container", "port_open",
+                                    "rcon_ready", "geyser_ready", "geyser_state",
+                                    "geyser_transport", "geyser_udp_ready",
+                                    "geyser_udp_state", "players",
+                                )
+                            }
+                            data["checked_at"] = payload["checked_at"]
                         else:
                             event_name = "unavailable"
-                            data = {"available": False}
+                            data = {"vm": "Unknown", "players": None}
                         message = "event: " + event_name + "\ndata: " + json.dumps(data, separators=(",", ":")) + "\n\n"
                         self.wfile.write(message.encode("utf-8"))
                     except queue.Empty:
