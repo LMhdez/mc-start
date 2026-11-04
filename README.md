@@ -4,7 +4,9 @@
 
 ## Regras obrigatórias
 
-- **Custo permitido: 0,00 € / $0,00.** Apenas Free Tier efetivo. Não consumir créditos Azure for Students para recursos pagos, não ativar Pay-As-You-Go, trials, upgrades ou serviços faturáveis. GitHub Student/Azure Student não são autorização para gastar.
+- **Orçamento: usar os créditos Azure for Students disponíveis para a infraestrutura, mantendo despesa pessoal em 0,00 € / $0,00.** Recursos pagos podem ser aceites quando necessários e forem a alternativa economicamente mais eficiente e tecnicamente viável; nunca presumir que um SKU é Free Tier.
+- Antes de criar/alterar recursos faturáveis, confirmar preço/região, consumo estimado, saldo e validade dos créditos Azure Student e risco de faturação após esgotar/expirar. Não ativar Pay-As-You-Go, upgrades, trials ou método de pagamento sem autorização explícita.
+- GitHub Student/Azure Student são benefícios distintos; usar apenas funcionalidades efetivamente incluídas e não assumir que cobrem qualquer serviço.
 - Não executar workflows de start/stop, deploy, instalação, migração, RBAC ou rede sem revisão integral, alvo confirmado, jogadores/backup/rollback e aprovação aplicável.
 - Nunca imprimir/publicar passwords, tokens, secrets, chaves privadas, outputs brutos de autenticação, RCON, nomes/listas de jogadores, IP público ou dados do mundo.
 - Sanitizar qualquer output potencialmente confidencial antes de o mostrar. Preferir allowlists; nunca usar shell tracing.
@@ -12,13 +14,15 @@
 
 ## Repositórios e responsabilidades
 
-> **Nota de custo:** a VM documentada no repositório de infraestrutura usa `Standard_B2als_v2`, que não deve ser presumido Free Tier. Não foi feita validação de billing nesta revisão. O projeto mantém custo máximo 0,00 € / $0,00 e exige Free Tier efetivo; não iniciar, redimensionar ou criar compute pago. Créditos Azure Student não tornam um SKU pago gratuito.
-
 | Repositório | Fonte de verdade |
 |---|---|
 | [mc-start](https://github.com/LMhdez/mc-start) | Website, Worker Cloudflare, agente privado, testes e GitHub Actions |
 | [mc-server-infrastructure](https://github.com/LMhdez/mc-server-infrastructure) | Estado conhecido da VM, inventário, configurações sanitizadas, backups, runbooks e operações |
 | [oci-sniper](https://github.com/LMhdez/oci-sniper) | Projeto OCI separado; não é dependência do servidor Minecraft |
+
+## Decisão de custos e compute
+
+A decisão do operador é aproveitar os créditos Azure for Students para obter a melhor infraestrutura tecnicamente viável ao menor custo. A VM documentada usa `Standard_B2als_v2`; é compute pago, não Free Tier presumido. Esta SKU foi aceite como compromisso económico/funcional para o servidor, não como recurso gratuito. O objetivo é não haver qualquer despesa pessoal: acompanhar saldo, consumo, validade e estimativa de esgotamento dos créditos. Não afirmar que é a SKU absolutamente mais barata sem comparação atual de preço/desempenho. Qualquer alteração de SKU/região ou criação de recursos exige comparação de custo e autorização.
 
 ## Produção — último estado documentado (2026-11-03)
 
@@ -62,7 +66,7 @@
 1. Identificar repo, branch, ficheiro e sistema afetado.
 2. Ler README local, ficheiro completo e dependências.
 3. Classificar a alteração: read-only, mutável, interrupção, destrutiva ou faturável.
-4. Bloquear qualquer passo que possa gerar custo; limite absoluto €0.
+4. Antes de criar/alterar recursos faturáveis, estimar custo e confirmar saldo/validade dos créditos Azure Student; bloquear se houver risco de despesa pessoal.
 5. Antes de produção, confirmar estado, jogadores sem divulgar nomes, backup/lock, janela e rollback.
 6. Validar sintaxe, testes, CI e diff.
 7. Atualizar documentação na mesma alteração.
