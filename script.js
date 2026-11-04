@@ -364,6 +364,13 @@ function isServerReady(result) {
     result.geyser_ready === true;
 }
 
+function formatStatusTimestamp(value) {
+  if (typeof value !== "string") return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString(currentLanguage === "pt" ? "pt-PT" : currentLanguage === "es" ? "es-ES" : "en-GB");
+}
+
 function renderStatus(result) {
   lastStatusResult = result;
   const t = translations[currentLanguage];
@@ -444,7 +451,7 @@ function renderStatus(result) {
         : result.geyser_ready === false || result.geyser_udp_ready === false
           ? t.portClosed
           : t.unknownStatus],
-      [t.checkedAt, result.checked_at ? new Date(result.checked_at).toLocaleString(currentLanguage === "pt" ? "pt-PT" : currentLanguage === "es" ? "es-ES" : "en-GB") : "—"]
+      [t.checkedAt, formatStatusTimestamp(result.checked_at)]
     ];
     details.replaceChildren();
     values.forEach(([label, value]) => {
@@ -895,6 +902,13 @@ function startLiveEvents() {
   const source = new EventSource(WORKER_URL + "/api/public/events");
   liveEventSource = source;
 
+  source.addEventListener("heartbeat", event => {
+    try {
+      const payload = JSON.parse(event.data);
+      const timestamp = document.querySelector("#status-details .status-detail:nth-child(3) strong");
+      if (timestamp) timestamp.textContent = formatStatusTimestamp(payload.checked_at);
+    } catch {}
+  });
   source.addEventListener("status", event => {
     try { applyLiveStatusEvent(JSON.parse(event.data)); } catch {}
   });
