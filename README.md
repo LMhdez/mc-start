@@ -4,8 +4,8 @@
 
 ## Regras obrigatórias
 
-- **Orçamento: usar os créditos Azure for Students disponíveis para a infraestrutura, mantendo despesa pessoal em 0,00 € / $0,00.** Recursos pagos podem ser aceites quando necessários e forem a alternativa economicamente mais eficiente e tecnicamente viável; nunca presumir que um SKU é Free Tier.
-- Antes de criar/alterar recursos faturáveis, confirmar preço/região, consumo estimado, saldo e validade dos créditos Azure Student e risco de faturação após esgotar/expirar. Não ativar Pay-As-You-Go, upgrades, trials ou método de pagamento sem autorização explícita.
+- **Orçamento: apenas Free Tier e benefícios estudantis já incluídos; despesa pessoal máxima autorizada: 0,00 € / $0,00.** Não criar novos recursos pagos, mesmo que créditos estudantis os cubram, sem autorização explícita.
+- A VM Azure atual usa uma SKU faturável coberta por créditos Azure for Students; não é Free Tier. Confirmar saldo/validade e impedir qualquer faturação pessoal após esgotar/expirar os créditos. Não ativar Pay-As-You-Go, upgrades, trials ou método de pagamento.
 - GitHub Student/Azure Student são benefícios distintos; usar apenas funcionalidades efetivamente incluídas e não assumir que cobrem qualquer serviço.
 - Não executar workflows de start/stop, deploy, instalação, migração, RBAC ou rede sem revisão integral, alvo confirmado, jogadores/backup/rollback e aprovação aplicável.
 - Nunca imprimir/publicar passwords, tokens, secrets, chaves privadas, outputs brutos de autenticação, RCON, nomes/listas de jogadores, IP público ou dados do mundo.
@@ -22,7 +22,7 @@
 
 ## Decisão de custos e compute
 
-A decisão do operador é aproveitar os créditos Azure for Students para obter a melhor infraestrutura tecnicamente viável ao menor custo. A VM documentada usa `Standard_B2als_v2`; é compute pago, não Free Tier presumido. Esta SKU foi aceite como compromisso económico/funcional para o servidor, não como recurso gratuito. O objetivo é não haver qualquer despesa pessoal: acompanhar saldo, consumo, validade e estimativa de esgotamento dos créditos. Não afirmar que é a SKU absolutamente mais barata sem comparação atual de preço/desempenho. Qualquer alteração de SKU/região ou criação de recursos exige comparação de custo e autorização.
+A política atual é usar apenas Free Tier e benefícios estudantis já incluídos, com despesa pessoal de 0,00 € / $0,00. A VM Azure existente usa uma SKU faturável coberta por créditos Azure for Students; não é Free Tier e consome saldo estudantil. Não criar novos recursos pagos nem aumentar consumo sem autorização explícita. Confirmar saldo e validade dos créditos e impedir faturação pessoal quando terminarem.
 
 ## Produção — auditoria atualizada (2026-11-04)
 
@@ -31,7 +31,7 @@ A decisão do operador é aproveitar os créditos Azure for Students para obter 
 - O site é GitHub Pages; o Worker `mc-start-control` é a API de controlo, não o endereço de jogo.
 - Worker de produção: versão **56**, com 100% do tráfego, publicada em 2026-11-04 às 12:57 UTC. Os bindings e nove secrets existentes foram preservados; nenhum valor secreto foi consultado.
 - O agente privado foi atualizado na VM pelo workflow `41795652240`, concluído com sucesso às 07:56 UTC; a verificação do workflow confirmou serviço ativo e `/status` HTTP 200. O código instalado corresponde ao ficheiro versionado em `main`.
-- O frontend usa SSE em `/api/public/events`; os testes unitários e o smoke test de produção que confirmou HTTP 200, `text/event-stream` e um evento inicial `status` passaram no Validate project [41836572573](https://github.com/LMhdez/mc-start/actions/runs/41836572573).
+- O frontend usa SSE em `/api/public/events`; os testes unitários e o smoke test de produção que confirmou HTTP 200, `text/event-stream` e um evento inicial `status` passaram no Validate project [41839109694](https://github.com/LMhdez/mc-start/actions/runs/41839109694).
 - A PR #81 (contrato unificado de manutenção) continua em draft e não faz parte da versão publicada. A manutenção atual continua separada via `maintenance.json`.
 - O painel obtém o IP público dinamicamente pelo fluxo autenticado «Mostrar endereço». Nunca hardcodificar nem versionar o IP.
 - Java TCP 25565; Geyser/Bedrock TCP e UDP 19132. As portas foram observadas em escuta na auditoria pós-migração; não foi feito nesta revisão um teste de entrada com clientes Java/Bedrock externos.
@@ -82,6 +82,11 @@ A decisão do operador é aproveitar os créditos Azure for Students para obter 
 6. Validar sintaxe, testes, CI e diff.
 7. Atualizar documentação na mesma alteração.
 8. Relatar o que foi observado, alterado, testado e o que permanece pendente.
+
+
+## Riscos de produção
+
+- A limitação de pedidos do Worker é best-effort por isolate (memória local), não um rate limit global/atómico. A palavra-passe do painel deve ser aleatória, longa e exclusiva; o Worker exige pelo menos 20 caracteres, mas não consegue medir a entropia do secret.
 
 ## Desenvolvimento e testes
 
