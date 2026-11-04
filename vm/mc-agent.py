@@ -458,24 +458,27 @@ _PLAYER_EVENT_LOCK = threading.Lock()
 _PLAYER_EVENT_SUBSCRIBERS = set()
 _PLAYER_EVENT_THREAD = None
 _PLAYER_EVENT_SNAPSHOT = None
+_PLAYER_EVENT_LAST_CHECKED_AT = None
 
 
 def _publish_player_snapshot(snapshot):
-    global _PLAYER_EVENT_SNAPSHOT
+    global _PLAYER_EVENT_SNAPSHOT, _PLAYER_EVENT_LAST_CHECKED_AT
     public_fields = (
         "vm", "docker", "container", "port_open", "rcon_ready",
         "geyser_ready", "geyser_state", "geyser_transport",
         "geyser_udp_ready", "geyser_udp_state", "players",
     )
     signature = tuple(snapshot.get(key) for key in public_fields)
+    checked_at = datetime.now(timezone.utc).isoformat()
     with _PLAYER_EVENT_LOCK:
+        _PLAYER_EVENT_LAST_CHECKED_AT = checked_at
         previous = None if _PLAYER_EVENT_SNAPSHOT is None else tuple(
             _PLAYER_EVENT_SNAPSHOT.get(key) for key in public_fields
         )
         if signature == previous:
             return
         payload = dict(snapshot)
-        payload["checked_at"] = datetime.now(timezone.utc).isoformat()
+        payload["checked_at"] = checked_at
         _PLAYER_EVENT_SNAPSHOT = payload
         subscribers = list(_PLAYER_EVENT_SUBSCRIBERS)
 
@@ -602,7 +605,13 @@ class Handler(BaseHTTPRequestHandler):
                         message = "event: " + event_name + "\ndata: " + json.dumps(data, separators=(",", ":")) + "\n\n"
                         self.wfile.write(message.encode("utf-8"))
                     except queue.Empty:
-                        self.wfile.write(b": keepalive\n\n")
+                        with _PLAYER_EVENT_LOCK:
+                            checked_at = _PLAYER_EVENT_LAST_CHECKED_AT
+                        if checked_at:
+                            heartbeat = json.dumps({"checked_at": checked_at}, separators=(",", ":"))
+                            self.wfile.write(("event: heartbeat\ndata: " + heartbeat + "\n\n").encode("utf-8"))
+                        else:
+                            self.wfile.write(b": keepalive\n\n")
                     self.wfile.flush()
             except (BrokenPipeError, ConnectionResetError, OSError):
                 pass
