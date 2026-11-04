@@ -19,9 +19,9 @@
   let message = "";
   const lang = () => (document.documentElement.lang || "pt").slice(0, 2);
   const words = {
-    pt: { maintenance:"Em manutenção", online:"Online", offline:"Offline", starting:"A iniciar", stopping:"A desligar", unknown:"Estado indisponível", checking:"A verificar disponibilidade", maintenanceCopy:"O servidor está temporariamente em manutenção. Tenta novamente mais tarde.", unavailableCopy:"Não foi possível obter o estado atual do servidor. O estado apresentado anteriormente pode estar desatualizado." },
-    en: { maintenance:"Under maintenance", online:"Online", offline:"Offline", starting:"Starting", stopping:"Shutting down", unknown:"Status unavailable", checking:"Checking availability", maintenanceCopy:"The server is temporarily under maintenance. Please try again later.", unavailableCopy:"The current server status could not be retrieved. Any previously displayed status may be outdated." },
-    es: { maintenance:"En mantenimiento", online:"En línea", offline:"Desconectado", starting:"Iniciando", stopping:"Apagándose", unknown:"Estado no disponible", checking:"Comprobando disponibilidad", maintenanceCopy:"El servidor está temporalmente en mantenimiento. Inténtalo de nuevo más tarde.", unavailableCopy:"No se pudo obtener el estado actual del servidor. El estado anterior podría estar desactualizado." }
+    pt: { maintenance:"Em manutenção", online:"Servidor online! Já podes entrar.", offline:"Servidor desligado.", starting:"Estamos a ligar o servidor. Obrigado pela paciência!", stopping:"Estamos a desligar o servidor. Obrigado por aguardares!", unknown:"Não foi possível verificar o estado do servidor.", checking:"Estamos a preparar o mundo. Por favor, aguarda mais um pouco.", maintenanceCopy:"Estamos a melhorar o mundo. Obrigado pela compreensão. Voltamos em breve!", unavailableCopy:"Não foi possível verificar o estado do servidor. Tenta novamente dentro de momentos." },
+    en: { maintenance:"Under maintenance", online:"Server online! You can join now.", offline:"Server offline.", starting:"Starting the server. Thank you for your patience!", stopping:"We are shutting down the server. Thank you for waiting!", unknown:"We could not check the server status.", checking:"We are preparing the world. Please bear with us a little longer.", maintenanceCopy:"We are making improvements to the world. Thank you for your understanding. We will be back soon!", unavailableCopy:"We could not check the server status. Please try again in a moment." },
+    es: { maintenance:"En mantenimiento", online:"¡Servidor en línea! Ya puedes entrar.", offline:"Servidor desconectado.", starting:"Estamos encendiendo el servidor. ¡Gracias por tu paciencia!", stopping:"Estamos apagando el servidor. ¡Gracias por esperar!", unknown:"No se pudo comprobar el estado del servidor.", checking:"Estamos preparando el mundo. Por favor, espera un poco más.", maintenanceCopy:"Estamos mejorando el mundo. Gracias por tu comprensión. ¡Volveremos pronto!", unavailableCopy:"No se pudo comprobar el estado del servidor. Inténtalo de nuevo dentro de un momento." }
   };
   const t = () => words[lang()] || words.pt;
   function setState(label, kind, detail = "") {
@@ -44,28 +44,9 @@
         setState(t().maintenance, "maintenance", message || t().maintenanceCopy);
         return;
       }
-      const statusResponse = await fetch(WORKER_URL + "/api/public/status", { cache: "no-store" });
-      if (!statusResponse.ok) throw new Error("status endpoint unavailable");
-      const payload = await statusResponse.json();
-      if (!payload || payload.ok !== true || !payload.result) throw new Error("invalid status payload");
-      const result = payload.result;
-      if (result.vm === "VM deallocated" || result.vm === "VM stopped") {
-        setState(t().offline, "offline");
-      } else if (result.vm === "VM starting") {
-        setState(t().starting, "pending");
-      } else if (result.vm === "VM stopping") {
-        setState(t().stopping, "pending");
-      } else if (result.vm === "VM running" && result.docker === "active" &&
-          result.container === "running" && result.port_open === true &&
-          result.rcon_ready === true && result.geyser_ready === true) {
-        setState(t().online, "online");
-      } else if (result.vm === "VM running") {
-        setState(t().checking, "pending");
-      } else {
-        setState(t().unknown, "unknown", t().unavailableCopy);
-      }
+      // script.js é a única fonte dos estados operacionais. Este ficheiro limita-se a apresentar a sobreposição de manutenção.
     } catch {
-      if (!maintenance) setState(t().unknown, "unknown", t().unavailableCopy);
+      // A leitura pública do estado é gerida por script.js.
     }
   }
   refresh();
