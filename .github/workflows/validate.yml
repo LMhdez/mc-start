@@ -115,9 +115,11 @@ jobs:
             workflow = YAML.load_file(path, aliases: true)
             source = File.read(path)
             if source.match?(/^  workflow_dispatch:/)
-              jobs = (workflow["jobs"] || {}).keys
-              conditions = source.lines.grep(/^    if:/)
-              unless conditions.length == jobs.length &&
+              jobs_block = source.split(/^jobs:\s*$/).last.to_s
+              job_ids = jobs_block.scan(/^  ([A-Za-z0-9_-]+):\s*$/).flatten
+              conditions = jobs_block.scan(/^    if:\s*(.*)$/).flatten
+              unless job_ids.length.positive? &&
+                  conditions.length == job_ids.length &&
                   conditions.all? { |condition| condition.include?("github.actor == 'LMhdez'") }
                 abort "Manual workflow is not owner-restricted: #{path}"
               end
