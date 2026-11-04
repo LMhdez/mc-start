@@ -6,7 +6,7 @@ Foi enumerado o branch `main` e lidos individualmente todos os ficheiros version
 
 ## Correções aplicadas
 
-- Reafirmada a política absoluta de custo zero e removida a interpretação de créditos Azure Student como autorização para recursos pagos.
+- Atualizada a política financeira para permitir usar créditos Azure for Students em compute Azure pago deliberadamente escolhido pela relação custo/desempenho, mantendo despesa pessoal em 0,00 € / $0,00.
 - Alinhada a produção documentada com BelgiumCentral (`MC-VM-BE`, `MCServerBelgiumGroup`).
 - Arquivados os planos Madrid/France que estavam apresentados como ativos.
 - Atualizado o catálogo de workflows para corresponder aos ficheiros existentes no branch.
@@ -23,9 +23,8 @@ Foram lidos `cloudflare/wrangler.toml`, `cloudflare/wrangler.test.toml`, `vm/mc-
 ## Validação
 
 - Confirmada no GitHub a existência de `social-preview.png`; metadata OG/Twitter aponta para PNG 1200×630.
-- GitHub Actions Validate project [41743225155](https://github.com/LMhdez/mc-start/actions/runs/41743225155): **success** — sintaxe JS, testes Cloudflare, Wrangler dry-run, smoke tests públicos, Python e YAML/shell de todos os workflows.
-- GitHub Pages build/deployment [41743224895](https://github.com/LMhdez/mc-start/actions/runs/41743224895): **success**.
-- Um run anterior falhou porque quatro testes esperavam HTTP 503, enquanto o endpoint degrada para HTTP 200 com estado Unknown; os testes foram corrigidos para o contrato atual e a execução seguinte passou.
+- GitHub Actions Validate project [41781032284](https://github.com/LMhdez/mc-start/actions/runs/41781032284): job Validate project passou.
+- GitHub Pages build/deployment [41781032190](https://github.com/LMhdez/mc-start/actions/runs/41781032190): build e report-build-status passaram; deployment estava `in_progress` na última consulta. Não afirmar conclusão sem nova verificação.
 - PR #78 foi merged em 2026-11-03 às 23:12 UTC. O código e o follow-up de redaction estão em `main`; **não foi feito deploy do Worker**.
 - Não foram executados workflows mutáveis, deploy do Worker, comandos Azure, alterações de NSG, operações de VM ou comandos Minecraft.
 - Não foram consultados nem apresentados valores de secrets.
@@ -33,14 +32,11 @@ Foram lidos `cloudflare/wrangler.toml`, `cloudflare/wrangler.test.toml`, `vm/mc-
 
 ## Política
 
-Free Tier efetivo apenas. Custo máximo permitido 0,00 € / $0,00. Não consumir créditos para serviços pagos, não ativar Pay-As-You-Go e não criar recursos faturáveis.
-
+O projeto pode consumir créditos Azure for Students em recursos Azure pagos quando forem necessários e representarem a melhor relação custo/desempenho viável. O objetivo é despesa pessoal de 0,00 € / $0,00; créditos Student não são Free Tier. Antes de alterações faturáveis, confirmar preço, consumo estimado, saldo e validade. Não ativar Pay-As-You-Go nem aceitar cobrança pessoal sem autorização explícita.
 
 ## Follow-up documental — 2026-11-04
 
 - Confirmada a consistência dos READMEs raiz, GitHub Actions, Cloudflare, scripts, testes e VM com a produção documentada em BelgiumCentral.
-- Acrescentada nota explícita: a VM documentada usa `Standard_B2als_v2`, que não deve ser presumido Free Tier. Billing não foi consultado e não foi autorizada qualquer operação de compute faturável.
-- Reconfirmado que a PR #78 e o follow-up de redaction estão em `main`, mas não houve deploy do Worker.
+- Corrigida a política financeira em README, VM, Cloudflare, scripts e auditoria: a VM paga é uma decisão deliberada suportada pelos créditos Azure Student; não é apresentada como Free Tier nem como incompatível com o objetivo de custo pessoal zero.
+- Reconfirmado que a PR #78 e o follow-up de redaction estão em `main`, mas sem deploy do Worker.
 - Nenhum workflow mutável, deploy, comando Azure ou operação na VM foi executado nesta revisão.
-
-- Follow-up adicional de 2026-11-04: o README de testes Cloudflare passou a listar `azure-diagnostics.test.js` e a cobertura de redaction; o README Cloudflare clarifica que a PR #78/follow-up estão em `main`, mas sem deploy; o README de scripts reforça o limite €0/$0.
