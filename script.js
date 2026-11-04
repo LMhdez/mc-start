@@ -458,6 +458,19 @@ function renderStatus(result) {
       details.append(item);
     });
   }
+
+  // Share only the public status fields with the maintenance banner.
+  // Never expose private IPs, player names or authenticated response data here.
+  window.dispatchEvent(new CustomEvent("mc:server-status", {
+    detail: {
+      vm: result.vm,
+      docker: result.docker,
+      container: result.container,
+      port_open: result.port_open,
+      rcon_ready: result.rcon_ready,
+      geyser_ready: result.geyser_ready
+    }
+  }));
 }
 
 async function requestPublicStatus(showProgress = false) {
@@ -845,7 +858,18 @@ if (!translations[savedLanguage]) {
 setLanguage(savedLanguage);
 requestPublicStatus();
 loadTechnicalSpecs();
-setInterval(requestPublicStatus, 30000);
+
+// Refresh public status every 15 seconds while the page is visible. Browsers
+// stop scheduled polling in background tabs and refresh immediately on return.
+// This is deliberately polling (not SSE): the current API performs an Azure
+// and private-agent check per request, so a permanent stream would add cost and
+// complexity without an event source on the Minecraft host.
+setInterval(() => {
+  if (!document.hidden) requestPublicStatus();
+}, 15000);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) requestPublicStatus();
+});
 
 // Permite testar a funcao de idioma diretamente na consola do navegador.
 window.setLanguage = setLanguage;
