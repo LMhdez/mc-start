@@ -457,27 +457,12 @@ def stop_server():
 
 
 # Shared, passive player-event watcher. It exists only while at least one SSE
-# client is connected. It performs read-only RCON queries; it never starts,
+# client is connected. It performs read-only local status queries; it never starts,
 # stops, restarts, or changes the Minecraft container or VM.
 _PLAYER_EVENT_LOCK = threading.Lock()
 _PLAYER_EVENT_SUBSCRIBERS = set()
 _PLAYER_EVENT_THREAD = None
 _PLAYER_EVENT_SNAPSHOT = None
-
-
-def read_player_snapshot():
-    """Return only the online-player count; never expose player names."""
-    result = run_command(
-        ["docker", "exec", CONTAINER, "rcon-cli", "list"],
-        timeout=8,
-    )
-    if result.returncode != 0:
-        return {"available": False}
-    output = result.stdout + "\n" + result.stderr
-    match = re.search(r"There are (\d+) of", output, re.IGNORECASE)
-    if not match:
-        return {"available": False}
-    return {"available": True, "players": int(match.group(1))}
 
 
 def _publish_player_snapshot(snapshot):
