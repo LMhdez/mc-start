@@ -70,8 +70,10 @@ jobs:
           done
           rm -f "$RUNNER_TEMP/mc-worker-smoke.json"
 
-      - name: Check Python syntax
-        run: python3 -m py_compile vm/mc-agent.py
+      - name: Check Python syntax and agent event tests
+        run: |
+          python3 -m py_compile vm/mc-agent.py tests/test_mc_agent_events.py
+          python3 -m unittest discover -s tests -p 'test_*.py' -v
 
       - name: Check workflow YAML and shell syntax
         run: |
