@@ -16,6 +16,77 @@ function escapeAttribute(value) {
 function escapeText(value) {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
+
+function matchingBrace(source, openIndex) {
+  let depth = 0, quote = null, escaped = false;
+  for (let i = openIndex; i < source.length; i++) {
+    const char = source[i];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === quote) quote = null;
+      continue;
+    }
+    if (char === '"' || char === "'" || char === "\`") quote = char;
+    else if (char === "{") depth++;
+    else if (char === "}" && --depth === 0) return i;
+  }
+  throw new Error("Unclosed translation dictionary");
+}
+
+function readTranslations() {
+  const source = fs.readFileSync(path.join(ROOT, "script.js"), "utf8");
+  const dictionaries = {};
+  for (const locale of ["pt", "en", "es"]) {
+    const marker = "  " + locale + ": {";
+    const markerIndex = source.indexOf(marker);
+    if (markerIndex < 0) throw new Error("Missing translation locale: " + locale);
+    const openIndex = source.indexOf("{", markerIndex);
+    const closeIndex = matchingBrace(source, openIndex);
+    const block = source.slice(openIndex + 1, closeIndex);
+    const dictionary = {};
+    const property = /(?:^|,)\s*([A-Za-z_$][\w$]*)\s*:\s*("(?:\\.|[^"\\])*")/g;
+    for (const match of block.matchAll(property)) {
+      if (Object.hasOwn(dictionary, match[1])) {
+        throw new Error("Duplicate " + locale + " translation: " + match[1]);
+      }
+      dictionary[match[1]] = JSON.parse(match[2]);
+    }
+    dictionaries[locale] = dictionary;
+  }
+  const referenceKeys = Object.keys(dictionaries.pt).sort().join("|");
+  for (const locale of ["en", "es"]) {
+    if (Object.keys(dictionaries[locale]).sort().join("|") !== referenceKeys) {
+      throw new Error("Translation keys do not match for locale: " + locale);
+    }
+  }
+  return dictionaries;
+}
+
+function localizeStaticLine(line, dictionary) {
+  line = line.replace(
+    /(<[^>]*\bdata-i18n="([^"]+)"[^>]*>)([^<]*)(<\/[^>]+>)/,
+    (whole, opening, key, previous, closing) => {
+      if (!Object.hasOwn(dictionary, key)) throw new Error("Missing translation: " + key);
+      return opening + escapeText(dictionary[key]) + closing;
+    }
+  );
+  line = line.replace(
+    /(aria-label=")[^"]*("(?=[^>]*data-i18n-aria="([^"]+)"))/,
+    (whole, opening, closing, key) => {
+      if (!Object.hasOwn(dictionary, key)) throw new Error("Missing aria translation: " + key);
+      return opening + escapeAttribute(dictionary[key]) + closing;
+    }
+  );
+  line = line.replace(
+    /(placeholder=")[^"]*("(?=[^>]*data-i18n-placeholder="([^"]+)"))/,
+    (whole, opening, closing, key) => {
+      if (!Object.hasOwn(dictionary, key)) throw new Error("Missing placeholder translation: " + key);
+      return opening + escapeAttribute(dictionary[key]) + closing;
+    }
+  );
+  return line;
+}
 function updateMeta(lines, kind, key, value) {
   const attribute = kind === "name" ? "name" : "property";
   const marker = '<meta ' + attribute + '="' + key + '"';
@@ -30,7 +101,7 @@ function replaceHref(line, value) {
   const end = line.indexOf('"', start + 6);
   return line.slice(0, start) + 'href="' + value + '"' + line.slice(end + 1);
 }
-function render(template, code, config) {
+function render(template, code, config, dictionary) {
   const pagePath = SITE_PATH + (config.dir ? config.dir + "/" : "");
   const pageUrl = ORIGIN + pagePath;
   const imageUrl = ORIGIN + SITE_PATH + config.image;
@@ -38,7 +109,7 @@ function render(template, code, config) {
   lines = lines.map(line => {
     if (line.startsWith("<html lang=")) return '<html lang="' + config.lang + '">';
     if (line.trim().startsWith("<title>")) return "  <title>" + escapeText(config.doc) + "</title>";
-    return line;
+    return localizeStaticLine(line, dictionary);
   });
 
   const tags = [
@@ -87,12 +158,13 @@ function render(template, code, config) {
 }
 
 const template = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+const dictionaries = readTranslations();
 const checkOnly = process.argv.includes("--check");
 let failed = false;
 for (const [code, config] of Object.entries(locales)) {
   const relativePath = config.dir ? path.join(config.dir, "index.html") : "index.html";
   const outputPath = path.join(ROOT, relativePath);
-  const expected = render(template, code, config);
+  const expected = render(template, code, config, dictionaries[code]);
   if (checkOnly) {
     if (!fs.existsSync(outputPath) || fs.readFileSync(outputPath, "utf8") !== expected) {
       console.error("Localized page is missing or stale: " + relativePath);
