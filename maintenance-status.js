@@ -44,6 +44,8 @@
         setState(t().maintenance, "maintenance", message || t().maintenanceCopy);
         return;
       }
+      banner.style.display = "none";
+      banner.textContent = "";
       // script.js é a única fonte dos estados operacionais. Este ficheiro limita-se a apresentar a sobreposição de manutenção.
     } catch {
       // A leitura pública do estado é gerida por script.js.
