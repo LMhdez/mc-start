@@ -894,6 +894,8 @@ function startLiveEvents() {
     try { applyLiveStatusEvent(JSON.parse(event.data)); } catch {}
   });
   source.addEventListener("unavailable", () => {
+    lastPrivateIp = "";
+    lastPrivatePlayerNames = null;
     renderStatus({
       vm: "Unknown", players: null, docker: "unknown", container: "unknown",
       port_open: null, rcon_ready: null, geyser_ready: null
@@ -909,6 +911,8 @@ function startLiveEvents() {
     source.close();
     if (liveEventSource === source) liveEventSource = null;
     liveHadError = true;
+    lastPrivateIp = "";
+    lastPrivatePlayerNames = null;
     renderStatus({
       vm: "Unknown", players: null, docker: "unknown", container: "unknown",
       port_open: null, rcon_ready: null, geyser_ready: null
