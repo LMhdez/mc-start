@@ -1048,30 +1048,43 @@ export default {
     // POST /api/action endpoint after an explicit "start" action from the panel.
     // Public status reads and page loads never enter this path.
     if (body.action === "start") {
+      let accessToken;
+      let vmState;
       try {
-        const accessToken = await getAzureAccessToken(env);
-        const vmState = await getAzureVmPowerState(env, accessToken);
-
-        if (vmState === "VM stopping") {
-          // A transition is not an Azure failure: do not dispatch a second start.
-          return json({ ok: false, message: "A VM ainda está a desligar; aguarda pela conclusão." }, 409, origin);
-        }
-        if (vmState === "VM running" || vmState === "VM starting") {
-          return json({ ok: true, message: "O servidor ja esta ligado ou a iniciar." }, 200, origin);
-        }
-        if (vmState !== "VM deallocated" && vmState !== "VM stopped") {
-          throw new Error("Azure VM power state unavailable or unsupported");
-        }
-
-        await performAzureVmAction(env, "start", accessToken);
-        return json({ ok: true, message: "Pedido para ligar o servidor enviado diretamente ao Azure." }, 202, origin);
+        // Authentication and state discovery are read-only. If either fails,
+        // the confirmed GitHub workflow remains a safe fallback path.
+        accessToken = await getAzureAccessToken(env);
+        vmState = await getAzureVmPowerState(env, accessToken);
       } catch (error) {
-        // GitHub Actions is the fallback only when the direct Azure path fails.
-        // The workflow receives the same explicit confirmation as the panel action.
-        console.error("Arranque direto Azure falhou; a usar GitHub Actions:", safeOperationalDiagnostic(error));
+        console.error("Consulta direta Azure para arranque falhou; a usar GitHub Actions:", safeOperationalDiagnostic(error));
         file = WORKFLOWS.start.file;
         inputs = WORKFLOWS.start.inputs;
         message = WORKFLOWS.start.message;
+      }
+
+      if (accessToken && vmState === "VM stopping") {
+        // A transition is not an Azure failure: do not dispatch a second start.
+        return json({ ok: false, message: "A VM ainda está a desligar; aguarda pela conclusão." }, 409, origin);
+      }
+      if (accessToken && (vmState === "VM running" || vmState === "VM starting")) {
+        return json({ ok: true, message: "O servidor ja esta ligado ou a iniciar." }, 200, origin);
+      }
+      if (accessToken && (vmState === "VM deallocated" || vmState === "VM stopped")) {
+        try {
+          await performAzureVmAction(env, "start", accessToken);
+          return json({ ok: true, message: "Pedido para ligar o servidor enviado diretamente ao Azure." }, 202, origin);
+        } catch (error) {
+          // The POST may have reached Azure even if its response was lost.
+          // Never dispatch a second start on this ambiguous mutation outcome.
+          console.error("Resultado do pedido de arranque Azure inconclusivo; nao foi enviado um segundo pedido:", safeOperationalDiagnostic(error));
+          return json({ ok: false, message: "Não foi possível confirmar o pedido de arranque. Verifica o estado da VM antes de tentar novamente." }, 503, origin);
+        }
+      }
+      if (accessToken && !vmState) {
+        console.warn("Estado Azure desconhecido; a usar o workflow de arranque confirmado.");
+      }
+      if (accessToken && vmState && !["VM deallocated", "VM stopped", "VM running", "VM starting", "VM stopping"].includes(vmState)) {
+        console.warn("Estado Azure nao suportado; a usar o workflow de arranque confirmado.");
       }
     } else if (body.action === "stop") {
       try {

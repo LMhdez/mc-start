@@ -302,6 +302,36 @@ describe("explicit Azure-first VM start", () => {
     expect(network.mock.calls.some(([url]) => String(url).includes("/actions/workflows/start-vm.yml/dispatches"))).toBe(true);
   });
 
+
+
+  it("does not dispatch GitHub when the Azure start mutation has an ambiguous outcome", async () => {
+    const network = vi.fn(async (input, init = {}) => {
+      const url = String(input);
+      if (url.startsWith("https://login.microsoftonline.com/")) {
+        return Response.json({ access_token: "test-azure-token" });
+      }
+      if (url.includes("/instanceView?")) {
+        return Response.json({ statuses: [{ code: "PowerState/deallocated" }] });
+      }
+      if (url.endsWith("/start?api-version=2024-07-01") && init.method === "POST") {
+        return Response.json({ error: "operation_status_unavailable" }, { status: 503 });
+      }
+      throw new Error("Unexpected network request");
+    });
+    vi.stubGlobal("fetch", network);
+
+    const response = await worker.fetch(actionRequest("start", ACTION_PASSWORD, "192.0.2.95"), actionBindings());
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ ok: false });
+    expect(network.mock.calls.filter(([url, init]) =>
+      String(url).endsWith("/start?api-version=2024-07-01") && init?.method === "POST"
+    )).toHaveLength(1);
+    expect(network.mock.calls.some(([url]) =>
+      String(url).includes("api.github.com/repos/LMhdez/mc-start/actions/workflows/")
+    )).toBe(false);
+  });
+
   it("does not start the VM when a public status read is made", async () => {
     const network = vi.fn(async input => {
       const url = String(input);
