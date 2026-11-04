@@ -1,5 +1,16 @@
 # Current operational note — reviewed 2026-11-04
 
+## Worker/frontend synchronization — deployed 2026-11-04
+
+- The frontend and Worker source are synchronized from `main` commit `05c3f18da1f416e79381ce84035723ba6bea4c19`.
+- Worker `mc-start-control` version **56** was uploaded and deployed at 12:57 UTC with **100% traffic**.
+- The deployment retains the existing `STATUS_KV`, `TECHNICAL_BUCKET`, `MC_AGENT`, and SQLite `R2_BUDGET` bindings. All 9 existing secret bindings remain present; secret values were not read or changed.
+- `usage_model` remains `standard`. No plan, billing, payment, R2 bucket, Azure VM, or infrastructure setting was changed by this deployment.
+- GitHub validation run `41806676851` passed, including the R2/Durable Object tests and `wrangler deploy --dry-run`. The Pages deployment for the same commit (`41806676512`) also succeeded.
+- The automated `public-events.test.js` coverage passed as part of the Cloudflare test suite. The existing production smoke-test job checks `/api/public/status` and `/api/technical`; it does not yet establish a live end-to-end SSE stream check for `/api/public/events`. Do not describe that specific live-stream smoke test as completed.
+- PR #81 remains excluded from this deployment.
+
+
 Production is Azure BelgiumCentral (`MC-VM-BE`, `MCServerBelgiumGroup`); the authoritative VM state lives in the private infrastructure repository. Do not use Austria/Madrid/France migration material as an active target. The operator deliberately uses Azure for Students credits for paid Azure compute when it is the most economical technically viable option, with personal out-of-pocket spend capped at **€0 / $0**. The documented VM SKU `Standard_B2als_v2` is paid compute, not Free Tier, and is an accepted cost/performance choice. Before any operation that changes billable usage, verify regional price, estimated consumption, remaining credit and expiry; never enable Pay-As-You-Go or accept personal billing without explicit authorization.
 
 The public Worker status endpoint returned HTTP 200 after a narrowly scoped Azure RBAC Reader assignment to the Worker service principal on the Belgian VM. This was an Azure RBAC correction, not a code deployment. PR #78 merged at 23:12 UTC on 2026-11-03; its diagnostics and follow-up redaction hardening are in `main`, but neither change has been deployed to the production Worker. Validate project run [41743225155](https://github.com/LMhdez/mc-start/actions/runs/41743225155) and GitHub Pages deployment [41743224895](https://github.com/LMhdez/mc-start/actions/runs/41743224895) passed. The current social preview is PNG 1200×630 at `https://lmhdez.github.io/mc-start/social-preview.png`; the SVG remains its source. The PNG and page metadata were verified in GitHub, but external social-platform cache refresh has not been tested.
