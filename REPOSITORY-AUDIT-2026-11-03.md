@@ -42,3 +42,5 @@ Free Tier efetivo apenas. Custo máximo permitido 0,00 € / $0,00. Não consumi
 - Acrescentada nota explícita: a VM documentada usa `Standard_B2als_v2`, que não deve ser presumido Free Tier. Billing não foi consultado e não foi autorizada qualquer operação de compute faturável.
 - Reconfirmado que a PR #78 e o follow-up de redaction estão em `main`, mas não houve deploy do Worker.
 - Nenhum workflow mutável, deploy, comando Azure ou operação na VM foi executado nesta revisão.
+
+- Follow-up adicional de 2026-11-04: o README de testes Cloudflare passou a listar `azure-diagnostics.test.js` e a cobertura de redaction; o README Cloudflare clarifica que a PR #78/follow-up estão em `main`, mas sem deploy; o README de scripts reforça o limite €0/$0.
