@@ -34,15 +34,14 @@ Wrangler declara bindings, mas não autoriza divulgar valores. Nunca ler/imprimi
 
 - Testes locais: `npm run test:cloudflare`.
 - `wrangler.test.toml` é exclusivamente para testes.
-- Deploy do Worker é manual e separado do deploy do agente. Ler integralmente `DEPLOYMENT-RUNBOOK.md`, validar testes, diff, bindings, migrations, rollback e limites Free antes de publicar.
+- Deploy do Worker é manual e separado do deploy do agente. Ler integralmente `DEPLOYMENT-RUNBOOK.md`, validar testes, diff, bindings, migrations, rollback e limites do plano ativo antes de publicar.
 - Não executar `wrangler deploy` como consequência automática de editar este diretório.
-- Não ativar Workers Paid, R2 Infrequent Access, add-ons, trials ou funcionalidades faturáveis.
+- Não ativar funcionalidades pagas de Cloudflare sem verificar cobertura dos benefícios/plano e impacto de faturação; não assumir que os créditos Azure Student cobrem Cloudflare.
 
 ## Limites e segurança
 
 - Rate limits em memória por isolate não são um bloqueio global.
 - Limites R2 implementados no Durable Object não são hard spending cap global da conta.
-- **Orçamento permitido: 0,00 € / $0,00.** Free Tier apenas; não usar créditos para justificar recursos pagos.
-- Não ativar planos pagos nem aceitar qualquer prompt de billing.
+- O orçamento Azure Student aplica-se à infraestrutura Azure; serviços Cloudflare têm faturação e limites independentes. Manter Workers Free quando suficiente e nunca ativar Workers Paid/add-ons sem autorização e análise de custo.
 - Redigir logs; nunca publicar secrets, IPs, dados de jogadores ou payloads cifrados.
 - Se o agente VPC falhar, seguir fallback documentado; nunca expor a porta do agente publicamente como workaround.
