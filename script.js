@@ -871,6 +871,9 @@ function applyLiveStatusEvent(payload) {
       typeof payload.vm !== "string" ||
       (payload.players !== null && payload.players !== undefined &&
        (!Number.isInteger(payload.players) || payload.players < 0))) return;
+  if (lastStatusResult && payload.players !== lastStatusResult.players && lastPrivateIp) {
+    lastPrivatePlayerNames = null;
+  }
   renderStatus(payload);
 }
 
