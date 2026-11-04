@@ -45,3 +45,19 @@ Wrangler declara bindings, mas não autoriza divulgar valores. Nunca ler/imprimi
 - O orçamento Azure Student aplica-se à infraestrutura Azure; serviços Cloudflare têm faturação e limites independentes. Manter Workers Free quando suficiente e nunca ativar Workers Paid/add-ons sem autorização e análise de custo.
 - Redigir logs; nunca publicar secrets, IPs, dados de jogadores ou payloads cifrados.
 - Se o agente VPC falhar, seguir fallback documentado; nunca expor a porta do agente publicamente como workaround.
+
+
+## SSE — estado público em tempo real
+
+- \`GET /api/public/events\` é um endpoint SSE de leitura. Faz uma verificação Azure por ligação e, quando a VM está ligada, encaminha diretamente o stream do agente VPC. Não escreve KV/R2, não usa Durable Objects e não chama endpoints de controlo.
+- O agente faz leituras locais de estado/Docker/RCON/Geyser a cada 5 segundos, partilhadas por todos os browsers ligados; emite eventos apenas quando os campos públicos mudam e heartbeats apenas para atualizar \`checked_at\`. Não faz chamadas periódicas ao Worker/Azure nem consulta o IP público neste watcher.
+- Quando a VM está parada/desalocada, o Worker emite o estado Azure num evento e fecha o stream; o browser volta a verificar a cada 60 segundos. Estados transitórios usam 15 segundos; falhas de ligação usam backoff até 5 minutos.
+- Separadores ocultos fecham a ligação. Cada ligação SSE é um pedido Worker de entrada; os eventos não são pedidos adicionais. Cada reconexão é um novo pedido.
+
+### Limites Free e continuidade
+
+- Workers Free permite 100.000 pedidos de entrada por dia. Uma ligação SSE longa conta como um pedido, não um pedido por evento. Cada reconexão conta como novo pedido. Os pedidos estáticos do GitHub Pages não invocam este Worker.
+- HTTP Workers não têm limite fixo de duração enquanto o cliente permanece ligado. Desconexões e atualizações do runtime podem interromper a ligação; o frontend reconecta com backoff.
+- Workers VPC está gratuito durante a beta aberta; aplicam-se os limites e custos normais de Workers para pedidos e CPU. Não ativar Workers Paid nem qualquer plano pago.
+- O watcher local só existe enquanto há browsers ligados; vários browsers partilham a mesma consulta. O polling local consome uma pequena quantidade de CPU na VM, mas não gera pedidos periódicos ao Worker/Azure.
+- O fluxo SSE não executa ações Azure, GitHub Actions, Docker start/stop/restart, systemd, cron ou autostop. Os workflows de controlo e as respetivas proteções mantêm-se separados.
