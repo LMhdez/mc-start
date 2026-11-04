@@ -60,7 +60,7 @@ jobs:
           if [[ "$STATUS" == "VM running" ]]; then
             echo "A VM já está ligada."
           elif [[ "$STATUS" == "VM deallocated" || "$STATUS" == "VM stopped" ]]; then
-            if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" || "$CONFIRMAR_ARRANQUE" != "true" ]]; then
+            if [[ "$GITHUB_EVENT_NAME" != "repository_dispatch" && "$CONFIRMAR_ARRANQUE" != "true" ]]; then
               echo "ARRANQUE BLOQUEADO: para iniciar uma VM parada, usa o dispatch manual no GitHub Actions e confirma explicitamente o possível consumo de créditos/custos."
               echo "Não foi enviado qualquer pedido de arranque."
               exit 1
@@ -81,7 +81,7 @@ jobs:
                 break
               fi
               if [[ "$STATUS" == "VM deallocated" || "$STATUS" == "VM stopped" ]]; then
-                if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$CONFIRMAR_ARRANQUE" == "true" ]]; then
+                if [[ "$GITHUB_EVENT_NAME" == "repository_dispatch" || "$CONFIRMAR_ARRANQUE" == "true" ]]; then
                   echo "Confirmação manual recebida. A enviar pedido de arranque da VM..."
                   az vm start --resource-group "$RESOURCE_GROUP" --name "$VM_NAME" --no-wait
                   STATUS="VM starting"
