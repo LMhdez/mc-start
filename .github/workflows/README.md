@@ -37,6 +37,8 @@ Ler o README da raiz e rever o YAML integral antes de executar qualquer workflow
 
 ## Evidência pós-migração BelgiumCentral — 2026-11-03
 
+> **Custo:** a VM atual usa `Standard_B2als_v2`, não presumir que é Free Tier. Não foi consultado billing. Não executar workflows que iniciem/expandam compute até confirmar elegibilidade gratuita e custo zero.
+
 A produção documentada é a VM `MC-VM-BE` em `MCServerBelgiumGroup`, BelgiumCentral. Os workflows usam os secrets Azure para determinar o alvo; confirmar metadata/configuração antes de qualquer operação, sem consultar os valores. Não reutilizar nomes, IPs ou scripts de Austria East/Madrid.
 
 O endpoint público `/api/public/status` voltou a HTTP 200 após atribuir `Reader` ao Service Principal do Worker no scope da VM belga. Ver `cloudflare/WORKER-503-INCIDENT.md`. A confirmação do endpoint não equivale a teste de login Minecraft.

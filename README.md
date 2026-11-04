@@ -12,6 +12,8 @@
 
 ## Repositórios e responsabilidades
 
+> **Nota de custo:** a VM documentada no repositório de infraestrutura usa `Standard_B2als_v2`, que não deve ser presumido Free Tier. Não foi feita validação de billing nesta revisão. O projeto mantém custo máximo 0,00 € / $0,00 e exige Free Tier efetivo; não iniciar, redimensionar ou criar compute pago. Créditos Azure Student não tornam um SKU pago gratuito.
+
 | Repositório | Fonte de verdade |
 |---|---|
 | [mc-start](https://github.com/LMhdez/mc-start) | Website, Worker Cloudflare, agente privado, testes e GitHub Actions |

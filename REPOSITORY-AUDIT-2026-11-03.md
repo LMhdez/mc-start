@@ -34,3 +34,11 @@ Foram lidos `cloudflare/wrangler.toml`, `cloudflare/wrangler.test.toml`, `vm/mc-
 ## Política
 
 Free Tier efetivo apenas. Custo máximo permitido 0,00 € / $0,00. Não consumir créditos para serviços pagos, não ativar Pay-As-You-Go e não criar recursos faturáveis.
+
+
+## Follow-up documental — 2026-11-04
+
+- Confirmada a consistência dos READMEs raiz, GitHub Actions, Cloudflare, scripts, testes e VM com a produção documentada em BelgiumCentral.
+- Acrescentada nota explícita: a VM documentada usa `Standard_B2als_v2`, que não deve ser presumido Free Tier. Billing não foi consultado e não foi autorizada qualquer operação de compute faturável.
+- Reconfirmado que a PR #78 e o follow-up de redaction estão em `main`, mas não houve deploy do Worker.
+- Nenhum workflow mutável, deploy, comando Azure ou operação na VM foi executado nesta revisão.
