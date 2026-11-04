@@ -72,7 +72,7 @@ jobs:
           done
           rm -f "$RUNNER_TEMP/mc-worker-smoke.json"
 
-      - name: Smoke test production SSE handshake
+      - name: Smoke test production SSE initial status event
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           WORKER_BASE: https://mc-start-control.luismariohernandezsantos.workers.dev
@@ -94,7 +94,7 @@ jobs:
             echo "GET /api/public/events did not return an SSE content type"
             exit 1
           fi
-          if ! grep -Eq '^event: (status|unavailable); then
+          if ! grep -Eq '^event: (status|unavailable)$' "$body"; then
             echo "GET /api/public/events did not receive an initial status event"
             exit 1
           fi
