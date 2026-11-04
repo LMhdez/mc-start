@@ -395,7 +395,7 @@ function updateLocalizedDocument() {
   const brand = document.querySelector(".brand");
   if (brand) brand.href = localizedPath(currentLanguage);
   const skipLink = document.querySelector(".skip-link");
-  if (skipLink) skipLink.href = localizedPath(currentLanguage) + "#main-content";
+  if (skipLink) skipLink.href = currentLanguage === "pt" ? "#main-content" : "./" + currentLanguage + "/#main-content";
   const nextPath = localizedPath(currentLanguage);
   if (window.location.pathname !== nextPath) {
     window.history.replaceState(window.history.state, "", nextPath + window.location.search + window.location.hash);
