@@ -18,9 +18,16 @@ Este diretório contém o Worker `mc-start-control`, configuração Wrangler e r
 
 ## Estado público e manutenção
 
-`GET /api/public/status` é o endpoint público. Em 2026-11-03, voltou a HTTP 200 após atribuir `Reader` (Built-in) ao Service Principal `mc-start-status-reader` no scope da VM BelgiumCentral. Não houve alteração de código nem deploy para resolver o 503; a correção foi exclusivamente RBAC. A PR #78 e o follow-up de redaction foram posteriormente merged em `main`, mas **o Worker de produção não foi deployed**. Ver [incidente](WORKER-503-INCIDENT.md) e [runbook](DEPLOYMENT-RUNBOOK.md).
+`GET /api/public/status` é o endpoint público de estado inicial. O Worker de produção `mc-start-control` está na versão **56**, com 100% do tráfego desde 2026-11-04 às 12:57 UTC. A correção RBAC Reader do incidente 503 e o follow-up de redaction estão incluídos no código publicado. Ver [incidente](WORKER-503-INCIDENT.md) e [runbook](DEPLOYMENT-RUNBOOK.md).
 
-O frontend combina a API pública com `maintenance.json`, publicado pelo GitHub Pages e controlado por `.github/workflows/toggle-maintenance.yml`. O modo manutenção é apenas informativo: não altera Azure, Worker ou Minecraft e não bloqueia ligações. Se a API falhar, o frontend apresenta estado indisponível, não um estado online antigo.
+O frontend combina a API pública com `maintenance.json`, publicado pelo GitHub Pages e controlado por `.github/workflows/toggle-maintenance.yml`. O modo manutenção é apenas informativo: não altera Azure, Worker ou Minecraft e não bloqueia ligações. Se a API falhar, o frontend apresenta estado indisponível, não um estado online antigo. A proposta da PR #81 para incluir manutenção no contrato de estado continua em draft e não está publicada.
+
+## SSE — estado público em tempo real
+
+- O Worker v56 inclui `GET /api/public/events`; o agente privado correspondente foi atualizado na VM pelo workflow `41795652240`, que confirmou serviço ativo e `/status` saudável.
+- O frontend, Worker e agente usam o mesmo contrato SSE versionado em `main`. A ligação é read-only e não inicia, para ou reinicia VM/Minecraft.
+- Os testes unitários do Worker/agente passaram. O CI recebeu agora um smoke test de produção que verifica HTTP 200, `text/event-stream` e handshake/evento SSE sem imprimir payloads. O resultado desse teste ainda está pendente nesta atualização.
+- Cada ligação SSE é um pedido Worker; eventos não são pedidos adicionais. Reconexões contam como novos pedidos.
 
 ## Endpoints e contratos
 
