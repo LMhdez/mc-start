@@ -95,14 +95,14 @@ def read_status(include_ip=True):
     if docker.returncode == 0 and docker.stdout.strip() == "active":
         docker_state = "active"
 
-    inspect = run_command(["docker", "inspect", CONTAINER], timeout=5)
+    inspect = run_command(
+        ["docker", "inspect", "-f", "{{.State.Status}}|{{.State.StartedAt}}", CONTAINER],
+        timeout=5,
+    )
+    container_started = ""
     if inspect.returncode == 0:
-        state = run_command(
-            ["docker", "inspect", "-f", "{{.State.Status}}", CONTAINER],
-            timeout=5,
-        )
-        if state.returncode == 0:
-            container_state = state.stdout.strip() or "unknown"
+        container_state, _, container_started = inspect.stdout.strip().partition("|")
+        container_state = container_state or "unknown"
 
         if container_state == "running":
             players = None
@@ -147,21 +147,16 @@ def read_status(include_ip=True):
     geyser_udp_state = "unknown"
     geyser_udp_diagnostic = "not_checked"
     geyser_transport = "unknown"
-    if container_state == "running":
-        started = run_command(
-            ["docker", "inspect", "-f", "{{.State.StartedAt}}", CONTAINER],
-            timeout=5,
+    if container_state == "running" and container_started:
+        log_check = run_command(
+            [
+                "bash", "-lc",
+                "docker logs --since \"$1\" \"$2\" 2>&1 | "
+                "grep -Ei 'Loading Geyser version|Built-in signaling started' | tail -n 30",
+                "_", container_started, CONTAINER,
+            ],
+            timeout=10,
         )
-        if started.returncode == 0 and started.stdout.strip():
-            log_check = run_command(
-                [
-                    "bash", "-lc",
-                    "docker logs --since \"$1\" \"$2\" 2>&1 | "
-                    "grep -Ei 'Loading Geyser version|Built-in signaling started' | tail -n 30",
-                    "_", started.stdout.strip(), CONTAINER,
-                ],
-                timeout=10,
-            )
             geyser_logs = log_check.stdout + "\n" + log_check.stderr
             geyser_loaded = re.search(r"Loading Geyser version", geyser_logs, re.IGNORECASE)
             signaling_ready = re.search(r"Built-in signaling started", geyser_logs, re.IGNORECASE)
