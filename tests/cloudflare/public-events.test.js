@@ -63,7 +63,7 @@ describe("public player SSE endpoint", () => {
 
   it("forwards the agent event stream without buffering or exposing private data", async () => {
     mockAzure();
-    const payload = 'event: players\\ndata: {"players":2}\\n\\n';
+    const payload = 'event: players\ndata: {"players":2}\n\n';
     const agent = {
       fetch: vi.fn(async upstreamRequest => {
         expect(new URL(upstreamRequest.url).pathname).toBe("/events");
