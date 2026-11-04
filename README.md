@@ -43,7 +43,7 @@
 ## Website e pré-visualização social
 
 - O estado inicial e os detalhes de ligação são obtidos por `/api/public/status`; alterações ao estado público e à contagem de jogadores chegam por SSE em `/api/public/events`. A barra de manutenção consome apenas `maintenance.json` e reutiliza o estado recebido.
-- O estado geral é consultado uma vez ao abrir a página e por ação manual; a contagem de jogadores é atualizada por SSE em `/api/public/events`, sem polling periódico do browser.
+- O estado geral, disponibilidade dos componentes e contagem de jogadores são atualizados por eventos SSE quando os campos mudam, sem polling periódico do browser.
 - O Worker valida a origem e o estado da VM uma vez por ligação e encaminha o fluxo do agente privado sem o armazenar em KV/R2 nem usar Durable Objects. O agente recolhe o estado local e consulta RCON de leitura a cada 5 segundos apenas enquanto houver clientes SSE; publica apenas alterações nos campos públicos permitidos, nunca nomes nem IP.
 - Separadores ocultos fecham a ligação SSE; ao regressar, é feita uma consulta normal de estado e abre-se uma nova ligação. Falhas reconectam com backoff até 5 minutos.
 - A manutenção continua a usar `maintenance.json`. SSE não chama, agenda, cancela ou altera ações/workflows de ligar/desligar; estes mantêm os seus fluxos e regras atuais.
