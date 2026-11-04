@@ -42,6 +42,10 @@
 
 ## Website e pré-visualização social
 
+- O estado público do servidor, o contador de jogadores e os detalhes de ligação são obtidos numa única consulta a `/api/public/status`; a barra de manutenção consome apenas o ficheiro estático `maintenance.json` e reutiliza o estado recebido. Isto evita duplicar chamadas ao Worker, Azure ARM e agente privado.
+- A página atualiza o estado a cada 15 segundos enquanto está visível e faz uma consulta imediata quando regressa ao primeiro plano. Em separadores ocultos, suspende as consultas periódicas. A manutenção é verificada separadamente a cada 30 segundos.
+- A atualização é polling, não SSE/WebSockets: o Worker atual executa uma verificação Azure e uma consulta ao agente privado por pedido e não existe um emissor de eventos no host Minecraft. Manter uma ligação SSE sem uma fonte real de eventos apenas acrescentaria ligações e trabalho no Worker; não reduziria as verificações no host. Reavaliar SSE apenas se for criada uma fonte push com orçamento Free comprovado.
+
 - Metadados Open Graph e Twitter usam `https://lmhdez.github.io/mc-start/social-preview.png`, PNG 1200×630.
 - `social-preview.svg` é a fonte editável; `.github/workflows/social-preview.yml` gera e publica o PNG quando o SVG muda.
 - A existência do PNG e os metadados foram confirmados no GitHub. Isto não prova que Discord, WhatsApp ou X já atualizaram as respetivas caches.
