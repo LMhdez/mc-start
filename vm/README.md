@@ -23,4 +23,4 @@ Esta pasta contém o agente privado ativo e documentos antigos de preflight/migr
 
 ## Custos
 
-Custo permitido absoluto: 0,00 € / $0,00; Free Tier efetivo apenas. A VM atual documentada usa SKU `Standard_B2als_v2`, que não deve ser presumido Free Tier; billing não foi validado nesta revisão. Não criar/iniciar/redimensionar compute pago, criar IP/disco/rede, consumir créditos Azure Student para recursos pagos ou ativar Pay-As-You-Go.
+A decisão do projeto é usar os créditos Azure for Students disponíveis para suportar a VM e obter a melhor relação desempenho/custo, mantendo despesa pessoal em 0,00 € / $0,00. A SKU documentada `Standard_B2als_v2` é compute pago e foi aceite deliberadamente como opção económica/viável; não a descrever como Free Tier. Antes de alterar compute ou criar recursos, confirmar preço, consumo estimado, saldo e validade dos créditos. Não ativar Pay-As-You-Go nem aceitar faturação pessoal sem autorização explícita.
