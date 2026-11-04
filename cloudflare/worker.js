@@ -681,6 +681,49 @@ export default {
       return json({ ok: false, message: "Origem nao autorizada." }, 403);
     }
 
+    // Real SSE stream: one Azure state check per connection, then a direct
+    // streaming proxy to the private agent. No polling, KV writes or DO usage.
+    // This endpoint is read-only and is deliberately separate from start/stop.
+    if (url.pathname === "/api/public/events") {
+      if (request.method !== "GET") {
+        return json({ ok: false, message: "Metodo nao permitido." }, 405, origin, { "Allow": "GET" });
+      }
+      if (!(await checkRateLimit(env, request, "public-events", 10))) {
+        return json({ ok: false, message: "Demasiadas reconexoes. Aguarda um pouco." }, 429, origin, { "Retry-After": "60" });
+      }
+      try {
+        const vm = await getAzureVmPowerState(env);
+        if (vm !== "VM running") {
+          return json({ ok: false, code: "vm_unavailable" }, 503, origin, { "Retry-After": "60" });
+        }
+        if (!env.MC_AGENT) {
+          return json({ ok: false, code: "agent_unavailable" }, 503, origin, { "Retry-After": "60" });
+        }
+        const upstream = await env.MC_AGENT.fetch(new Request(
+          "http://localhost:8765/events",
+          { method: "GET", headers: { "Accept": "text/event-stream" } }
+        ));
+        if (!upstream.ok || !upstream.body) {
+          if (upstream.body) await upstream.body.cancel();
+          return json({ ok: false, code: "event_stream_unavailable" }, 503, origin, { "Retry-After": "60" });
+        }
+        return new Response(upstream.body, {
+          status: 200,
+          headers: {
+            "Content-Type": "text/event-stream; charset=utf-8",
+            "Cache-Control": "no-cache, no-transform",
+            "X-Content-Type-Options": "nosniff",
+            "X-Accel-Buffering": "no",
+            "Access-Control-Allow-Origin": origin,
+            "Vary": "Origin"
+          }
+        });
+      } catch (error) {
+        console.error("Fluxo SSE publico indisponivel:", safeOperationalDiagnostic(error));
+        return json({ ok: false, code: "event_stream_unavailable" }, 503, origin, { "Retry-After": "60" });
+      }
+    }
+
     // Endpoints publicos: nunca devolvem IP, nomes de jogadores ou dados de acesso.
     if (url.pathname === "/api/public/status" && request.method === "GET") {
       if (!env.STATUS_KV) return json({ ok: false, message: "Cache indisponivel." }, 503, origin);
