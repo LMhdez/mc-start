@@ -42,11 +42,11 @@
 
 ## Website e pré-visualização social
 
-- O estado inicial e os detalhes de ligação são obtidos por `/api/public/status`; alterações ao estado público e à contagem de jogadores chegam por SSE em `/api/public/events`. A barra de manutenção consome apenas `maintenance.json` e reutiliza o estado recebido.
-- O estado geral, disponibilidade dos componentes e contagem de jogadores são atualizados por eventos SSE quando os campos mudam, sem polling periódico do browser.
-- O Worker valida a origem e o estado da VM uma vez por ligação e encaminha o fluxo do agente privado sem o armazenar em KV/R2 nem usar Durable Objects. O agente recolhe o estado local e consulta RCON de leitura a cada 5 segundos apenas enquanto houver clientes SSE; publica apenas alterações nos campos públicos permitidos, nunca nomes nem IP.
-- Separadores ocultos fecham a ligação SSE; ao regressar, é feita uma consulta normal de estado e abre-se uma nova ligação. Falhas reconectam com backoff até 5 minutos.
-- A manutenção continua a usar `maintenance.json`. SSE não chama, agenda, cancela ou altera ações/workflows de ligar/desligar; estes mantêm os seus fluxos e regras atuais.
+- O estado inicial é obtido por `/api/public/status`; as alterações ao estado público e à contagem de jogadores chegam por SSE em `/api/public/events`, sem polling periódico do browser. A barra de manutenção continua a usar `maintenance.json`.
+- O Worker valida a origem e o estado Azure uma vez por ligação e encaminha o fluxo do agente privado sem buffering, KV, R2 ou Durable Objects. Cada ligação SSE é um pedido Worker; os eventos transmitidos não criam novos pedidos. As reconexões contam como novos pedidos.
+- No agente, um único watcher partilhado faz leituras locais de estado/Docker/RCON/Geyser a cada 5 segundos apenas enquanto existirem clientes SSE. Só transmite alterações dos campos públicos permitidos; nunca nomes nem IP. Este polling é local à VM, não faz pedidos periódicos ao Worker/Azure.
+- Separadores ocultos fecham a ligação; ao regressar, o site consulta o estado inicial e abre SSE. Se a VM estiver parada/desalocada, o Worker envia esse estado e o browser volta a verificar lentamente (60 segundos); falhas transitórias usam backoff.
+- O SSE é estritamente de leitura: não chama, agenda, cancela nem altera workflows, cron jobs, regras de autostop, ações Azure, Docker start/stop/restart ou systemd.
 
 - Metadados Open Graph e Twitter usam `https://lmhdez.github.io/mc-start/social-preview.png`, PNG 1200×630.
 - `social-preview.svg` é a fonte editável; `.github/workflows/social-preview.yml` gera e publica o PNG quando o SVG muda.
