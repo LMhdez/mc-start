@@ -541,7 +541,7 @@ def _watch_player_events():
             snapshot = {"available": False}
         _publish_player_snapshot(snapshot)
         # Check the subscriber set frequently so the watcher exits promptly
-        # after the last browser disconnects. RCON is queried every 5 seconds.
+        # after the last browser disconnects. Read-only status/RCON is queried every 5 seconds.
         for _ in range(50):
             time.sleep(0.1)
             with _PLAYER_EVENT_LOCK:
