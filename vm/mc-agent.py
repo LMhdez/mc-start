@@ -497,11 +497,12 @@ def _publish_player_snapshot(snapshot):
 
 
 def _watch_player_events():
-    global _PLAYER_EVENT_THREAD, _PLAYER_EVENT_SNAPSHOT
+    global _PLAYER_EVENT_THREAD, _PLAYER_EVENT_SNAPSHOT, _PLAYER_EVENT_LAST_CHECKED_AT
     while True:
         with _PLAYER_EVENT_LOCK:
             if not _PLAYER_EVENT_SUBSCRIBERS:
                 _PLAYER_EVENT_SNAPSHOT = None
+                _PLAYER_EVENT_LAST_CHECKED_AT = None
                 _PLAYER_EVENT_THREAD = None
                 return
         try:
