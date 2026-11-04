@@ -473,8 +473,8 @@ def read_player_snapshot():
     )
     if result.returncode != 0:
         return {"available": False}
-    output = result.stdout + "\\n" + result.stderr
-    match = re.search(r"There are (\\d+) of", output, re.IGNORECASE)
+    output = result.stdout + "\n" + result.stderr
+    match = re.search(r"There are (\d+) of", output, re.IGNORECASE)
     if not match:
         return {"available": False}
     return {"available": True, "players": int(match.group(1))}
@@ -514,6 +514,7 @@ def _watch_player_events():
     while True:
         with _PLAYER_EVENT_LOCK:
             if not _PLAYER_EVENT_SUBSCRIBERS:
+                _PLAYER_EVENT_SNAPSHOT = None
                 _PLAYER_EVENT_THREAD = None
                 return
         try:
