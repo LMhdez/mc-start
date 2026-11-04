@@ -25,6 +25,7 @@ concurrency:
 jobs:
   toggle-maintenance:
     runs-on: ubuntu-latest
+    if: github.actor == 'LMhdez'
     timeout-minutes: 3
     steps:
       - name: Obter repositório
