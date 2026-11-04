@@ -688,13 +688,39 @@ export default {
       if (request.method !== "GET") {
         return json({ ok: false, message: "Metodo nao permitido." }, 405, origin, { "Allow": "GET" });
       }
-      if (!(await checkRateLimit(env, request, "public-events", 10))) {
+      if (!(await checkRateLimit(env, request, "public-events", 30))) {
         return json({ ok: false, message: "Demasiadas reconexoes. Aguarda um pouco." }, 429, origin, { "Retry-After": "60" });
       }
       try {
         const vm = await getAzureVmPowerState(env);
         if (vm !== "VM running") {
-          return json({ ok: false, code: "vm_unavailable" }, 503, origin, { "Retry-After": "60" });
+          // Return the authoritative Azure power state as one SSE event. The
+          // browser reconnects slowly while the VM is stopped/deallocated and
+          // therefore can notice a later manual start without polling rapidly.
+          const stoppedSnapshot = {
+            vm: vm || "Unknown",
+            players: 0,
+            docker: "inactive",
+            container: "unknown",
+            port_open: false,
+            rcon_ready: false,
+            geyser_ready: false,
+            geyser_state: "not_ready",
+            geyser_transport: "unknown",
+            geyser_udp_ready: false,
+            geyser_udp_state: "unknown"
+          };
+          const body = "event: status\\ndata: " + JSON.stringify(stoppedSnapshot) + "\\n\\n";
+          return new Response(body, {
+            status: 200,
+            headers: {
+              "Content-Type": "text/event-stream; charset=utf-8",
+              "Cache-Control": "no-cache, no-transform",
+              "X-Content-Type-Options": "nosniff",
+              "Access-Control-Allow-Origin": origin,
+              "Vary": "Origin"
+            }
+          });
         }
         if (!env.MC_AGENT) {
           return json({ ok: false, code: "agent_unavailable" }, 503, origin, { "Retry-After": "60" });
