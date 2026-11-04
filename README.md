@@ -24,16 +24,19 @@
 
 A decisão do operador é aproveitar os créditos Azure for Students para obter a melhor infraestrutura tecnicamente viável ao menor custo. A VM documentada usa `Standard_B2als_v2`; é compute pago, não Free Tier presumido. Esta SKU foi aceite como compromisso económico/funcional para o servidor, não como recurso gratuito. O objetivo é não haver qualquer despesa pessoal: acompanhar saldo, consumo, validade e estimativa de esgotamento dos créditos. Não afirmar que é a SKU absolutamente mais barata sem comparação atual de preço/desempenho. Qualquer alteração de SKU/região ou criação de recursos exige comparação de custo e autorização.
 
-## Produção — último estado documentado (2026-11-03)
+## Produção — auditoria atualizada (2026-11-04)
 
-- Azure BelgiumCentral; VM `MC-VM-BE`, resource group `MCServerBelgiumGroup`.
-- Minecraft 26.3 / Fabric em Docker Compose, contentor `mc-server`.
+- Azure BelgiumCentral; VM `MC-VM-BE`, resource group `MCServerBelgiumGroup`. A evidência runtime mais recente da VM é um snapshot operacional de 4 de novembro; confirmar estado vivo antes de qualquer operação.
+- Minecraft 26.3 / Fabric em Docker Compose, contentor `mc-server`. A migração entre VMs foi concluída sem perda de dados conhecida.
 - O site é GitHub Pages; o Worker `mc-start-control` é a API de controlo, não o endereço de jogo.
+- Worker de produção: versão **56**, com 100% do tráfego, publicada em 2026-11-04 às 12:57 UTC. Os bindings e nove secrets existentes foram preservados; nenhum valor secreto foi consultado.
+- O agente privado foi atualizado na VM pelo workflow `41795652240`, concluído com sucesso às 07:56 UTC; a verificação do workflow confirmou serviço ativo e `/status` HTTP 200. O código instalado corresponde ao ficheiro versionado em `main`.
+- O frontend usa SSE em `/api/public/events`; o teste unitário existe e foi acrescentado um smoke test de produção ao CI. Só declarar o fluxo ponta a ponta validado depois de esse novo smoke test passar.
+- A PR #81 (contrato unificado de manutenção) continua em draft e não faz parte da versão publicada. A manutenção atual continua separada via `maintenance.json`.
 - O painel obtém o IP público dinamicamente pelo fluxo autenticado «Mostrar endereço». Nunca hardcodificar nem versionar o IP.
-- Java TCP 25565; Geyser/Bedrock TCP e UDP 19132. Confirmar regras efetivas antes de qualquer operação de rede.
+- Java TCP 25565; Geyser/Bedrock TCP e UDP 19132. As portas foram observadas em escuta na auditoria pós-migração; não foi feito nesta revisão um teste de entrada com clientes Java/Bedrock externos.
 - O agente privado escuta apenas no host e é encaminhado pelo Cloudflare Tunnel/VPC; não expor a porta 8765 publicamente.
-- O endpoint público `/api/public/status` voltou a HTTP 200 após correção RBAC Reader no scope da VM; ver `cloudflare/WORKER-503-INCIDENT.md`.
-- Estado e evidência detalhados: [infra/docs/current-state.md](https://github.com/LMhdez/mc-server-infrastructure/blob/main/docs/current-state.md).
+- Estado e evidência detalhados: [infra/docs/current-state.md](https://github.com/LMhdez/mc-server-infrastructure/blob/main/docs/current-state.md) e [auditoria de prontidão](PRODUCTION-READINESS-2026-11-04.md).
 
 ## Arquitetura
 
