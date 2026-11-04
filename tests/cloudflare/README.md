@@ -4,6 +4,7 @@ Os testes desta pasta exercitam a lógica Worker/DO com Vitest e `@cloudflare/vi
 
 ## Ficheiros
 
+- `public-events.test.js`: origem, método, proxy streaming e separação do endpoint SSE face às ações de controlo.
 - `azure-diagnostics.test.js`: allowlist e redaction de diagnósticos Azure, OAuth/ARM e erros inesperados.
 - `r2-budget.test.js`: limites globais e concorrência do orçamento R2/SQLite.
 - `status-encryption.test.js`: fluxo de envelope cifrado, autenticação e desencriptação.
