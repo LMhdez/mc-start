@@ -926,8 +926,17 @@ function startLiveEvents() {
         port_open: null, rcon_ready: null, geyser_ready: null
       });
     } else if (!liveConnectedOnce) {
-      const count = document.querySelector("#player-count");
-      if (count) count.textContent = "—";
+      if (!lastStatusResult) {
+        liveLastVmState = "Unknown";
+        renderStatus({
+          vm: "Unknown", players: null, docker: "unknown", container: "unknown",
+          port_open: null, rcon_ready: null, geyser_ready: null
+        });
+      } else {
+        // Keep the valid initial snapshot; only mark the live player count unavailable.
+        const count = document.querySelector("#player-count");
+        if (count) count.textContent = "—";
+      }
     }
     if (!document.hidden && liveReconnectTimer === null) {
       const delay = liveLastVmState === "VM deallocated" || liveLastVmState === "VM stopped"
