@@ -60,6 +60,25 @@ function readTranslations() {
       throw new Error("Translation keys do not match for locale: " + locale);
     }
   }
+  const playerFacingKeys = [
+    "addressUnavailable", "initialFeedback", "searchingPrivate", "waiting",
+    "vmState", "playersProtected", "notAllowed", "rateLimited", "incomplete",
+    "startSent", "stopSent", "checkSent", "starting", "stopping",
+    "statusTimeout", "operationTimeout", "connectionError", "requestError"
+  ];
+  const unnecessaryTechnicalTerms = /\\bVM\\b|infrastructure|infraestructura|Cloudflare Tunnel|Azure Run Command/i;
+  for (const locale of ["pt", "en", "es"]) {
+    for (const [key, value] of Object.entries(dictionaries[locale])) {
+      if (typeof value !== "string" || !value.trim()) {
+        throw new Error("Empty translation: " + locale + "." + key);
+      }
+    }
+    for (const key of playerFacingKeys) {
+      if (unnecessaryTechnicalTerms.test(dictionaries[locale][key])) {
+        throw new Error("Technical wording in player-facing copy: " + locale + "." + key);
+      }
+    }
+  }
   return dictionaries;
 }
 
