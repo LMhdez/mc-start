@@ -31,7 +31,7 @@ A decisão do operador é aproveitar os créditos Azure for Students para obter 
 - O site é GitHub Pages; o Worker `mc-start-control` é a API de controlo, não o endereço de jogo.
 - Worker de produção: versão **56**, com 100% do tráfego, publicada em 2026-11-04 às 12:57 UTC. Os bindings e nove secrets existentes foram preservados; nenhum valor secreto foi consultado.
 - O agente privado foi atualizado na VM pelo workflow `41795652240`, concluído com sucesso às 07:56 UTC; a verificação do workflow confirmou serviço ativo e `/status` HTTP 200. O código instalado corresponde ao ficheiro versionado em `main`.
-- O frontend usa SSE em `/api/public/events`; o teste unitário existe e foi acrescentado um smoke test de produção ao CI. Só declarar o fluxo ponta a ponta validado depois de esse novo smoke test passar.
+- O frontend usa SSE em `/api/public/events`; os testes unitários e o smoke test de produção que confirmou HTTP 200, `text/event-stream` e um evento inicial `status` passaram no Validate project [41836572573](https://github.com/LMhdez/mc-start/actions/runs/41836572573).
 - A PR #81 (contrato unificado de manutenção) continua em draft e não faz parte da versão publicada. A manutenção atual continua separada via `maintenance.json`.
 - O painel obtém o IP público dinamicamente pelo fluxo autenticado «Mostrar endereço». Nunca hardcodificar nem versionar o IP.
 - Java TCP 25565; Geyser/Bedrock TCP e UDP 19132. As portas foram observadas em escuta na auditoria pós-migração; não foi feito nesta revisão um teste de entrada com clientes Java/Bedrock externos.
