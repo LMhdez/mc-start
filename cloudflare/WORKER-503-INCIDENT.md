@@ -30,7 +30,7 @@ A [PR #78](https://github.com/LMhdez/mc-start/pull/78) foi **merged em 2026-11-0
 
 - PR #78: merged; não assumir que o código novo está deployed.
 - Não executar deploy como consequência do merge.
-- Manter Free Tier; não ativar add-ons, upgrades ou serviços pagos.
+- Manter o Cloudflare Workers Free plan enquanto for suficiente; a faturação Cloudflare é independente dos créditos Azure for Students. Não ativar add-ons, upgrades ou serviços Cloudflare pagos sem autorização explícita. Esta restrição Cloudflare não proíbe compute Azure pago coberto por créditos Student segundo a política financeira do projeto.
 
 ## Validação ainda pendente
 
