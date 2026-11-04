@@ -22,7 +22,7 @@
 
 ## Decisão de custos e compute
 
-A decisão do operador é aproveitar os créditos Azure for Students para obter a melhor infraestrutura tecnicamente viável ao menor custo. A VM documentada usa `Standard_B2als_v2`; é compute pago, não Free Tier presumido. Esta SKU foi aceite como compromisso económico/funcional para o servidor, não como recurso gratuito. O objetivo é não haver qualquer despesa pessoal: acompanhar saldo, consumo, validade e estimativa de esgotamento dos créditos. Não afirmar que é a SKU absolutamente mais barata sem comparação atual de preço/desempenho. Qualquer alteração de SKU/região ou criação de recursos exige comparação de custo e autorização.
+A política atual é usar apenas Free Tier e benefícios estudantis já incluídos, com despesa pessoal de 0,00 € / $0,00. A VM Azure existente usa uma SKU faturável coberta por créditos Azure for Students; não é Free Tier e consome saldo estudantil. Não criar novos recursos pagos nem aumentar consumo sem autorização explícita. Confirmar saldo e validade dos créditos e impedir faturação pessoal quando terminarem.
 
 ## Produção — auditoria atualizada (2026-11-04)
 
@@ -83,6 +83,8 @@ A decisão do operador é aproveitar os créditos Azure for Students para obter 
 7. Atualizar documentação na mesma alteração.
 8. Relatar o que foi observado, alterado, testado e o que permanece pendente.
 
+
+## Riscos de produção
 
 - A limitação de pedidos do Worker é best-effort por isolate (memória local), não um rate limit global/atómico. A palavra-passe do painel deve ser aleatória, longa e exclusiva; o Worker exige pelo menos 20 caracteres, mas não consegue medir a entropia do secret.
 
