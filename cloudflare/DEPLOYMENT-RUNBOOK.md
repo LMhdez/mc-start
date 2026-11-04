@@ -1,4 +1,4 @@
-# Current operational note — reviewed 2026-11-03
+# Current operational note — reviewed 2026-11-04
 
 Production is Azure BelgiumCentral (`MC-VM-BE`, `MCServerBelgiumGroup`); the authoritative VM state lives in the private infrastructure repository. Do not use Austria/Madrid/France migration material as an active target. The project permits **€0 / $0 spend, Free Tier only**; Azure Student credits are not permission to consume paid resources. The currently documented VM SKU is `Standard_B2als_v2`, which must not be assumed to qualify as Free Tier; billing eligibility was not checked in this documentation pass. Do not start, resize, or create paid compute.
 
