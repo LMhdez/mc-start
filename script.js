@@ -865,6 +865,7 @@ let liveEventSource = null;
 let liveReconnectTimer = null;
 let liveReconnectDelay = 5000;
 let liveHadError = false;
+let liveConnectedOnce = false;
 
 function applyLiveStatusEvent(payload) {
   if (!payload || typeof payload !== "object" ||
@@ -906,6 +907,7 @@ function startLiveEvents() {
   });
   source.onopen = () => {
     const shouldRefresh = liveHadError;
+    liveConnectedOnce = true;
     liveHadError = false;
     liveReconnectDelay = 5000;
     if (shouldRefresh) requestPublicStatus();
@@ -914,12 +916,17 @@ function startLiveEvents() {
     source.close();
     if (liveEventSource === source) liveEventSource = null;
     liveHadError = true;
-    lastPrivateIp = "";
-    lastPrivatePlayerNames = null;
-    renderStatus({
-      vm: "Unknown", players: null, docker: "unknown", container: "unknown",
-      port_open: null, rcon_ready: null, geyser_ready: null
-    });
+    if (liveConnectedOnce) {
+      lastPrivateIp = "";
+      lastPrivatePlayerNames = null;
+      renderStatus({
+        vm: "Unknown", players: null, docker: "unknown", container: "unknown",
+        port_open: null, rcon_ready: null, geyser_ready: null
+      });
+    } else {
+      const count = document.querySelector("#player-count");
+      if (count) count.textContent = "—";
+    }
     if (!document.hidden && liveReconnectTimer === null) {
       const delay = liveReconnectDelay;
       liveReconnectDelay = Math.min(liveReconnectDelay * 2, 300000);
