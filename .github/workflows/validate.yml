@@ -121,7 +121,7 @@ jobs:
               unless job_ids.length.positive? &&
                   conditions.length == job_ids.length &&
                   conditions.all? { |condition| condition.include?("github.actor == 'LMhdez'") }
-                abort "Manual workflow is not owner-restricted: #{path}"
+                abort "Manual workflow is not owner-restricted: #{path} (jobs=#{job_ids.length}, guards=#{conditions.length})"
               end
             end
             (workflow["jobs"] || {}).each_value do |job|
