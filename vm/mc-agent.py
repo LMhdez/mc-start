@@ -85,6 +85,62 @@ def probe_bedrock_udp(host="127.0.0.1", port=19132, timeout=1):
         return False
 
 
+_GEYSER_STATUS_CACHE_LOCK = threading.Lock()
+_GEYSER_STATUS_CACHE = {"started_at": None, "result": None}
+
+
+def read_geyser_status(container_state, container_started):
+    defaults = {
+        "geyser_ready": False,
+        "geyser_state": "not_ready",
+        "geyser_udp_ready": None,
+        "geyser_udp_state": "unknown",
+        "geyser_udp_diagnostic": "not_checked",
+        "geyser_transport": "unknown",
+    }
+    if container_state != "running" or not container_started:
+        return defaults
+
+    with _GEYSER_STATUS_CACHE_LOCK:
+        cached = _GEYSER_STATUS_CACHE["result"]
+        if (
+            _GEYSER_STATUS_CACHE["started_at"] == container_started
+            and cached
+            and cached["geyser_ready"]
+        ):
+            return dict(cached)
+
+    log_check = run_command(
+        [
+            "bash", "-lc",
+            "docker logs --since \"$1\" \"$2\" 2>&1 | "
+            "grep -Ei 'Loading Geyser version|Built-in signaling started' | tail -n 30",
+            "_", container_started, CONTAINER,
+        ],
+        timeout=10,
+    )
+    geyser_logs = log_check.stdout + "\n" + log_check.stderr
+    geyser_loaded = re.search(r"Loading Geyser version", geyser_logs, re.IGNORECASE)
+    signaling_ready = re.search(r"Built-in signaling started", geyser_logs, re.IGNORECASE)
+    result = dict(defaults)
+    if geyser_loaded:
+        result["geyser_state"] = "initializing"
+    if geyser_loaded and signaling_ready:
+        result.update({
+            "geyser_ready": True,
+            "geyser_state": "ready",
+            "geyser_transport": "nethernet",
+            "geyser_udp_ready": None,
+            "geyser_udp_state": "not_applicable",
+            "geyser_udp_diagnostic": "nethernet_signaling_ready_external_access_unverified",
+        })
+
+    with _GEYSER_STATUS_CACHE_LOCK:
+        _GEYSER_STATUS_CACHE["started_at"] = container_started
+        _GEYSER_STATUS_CACHE["result"] = dict(result)
+    return result
+
+
 def read_status(include_ip=True):
     docker_state = "inactive"
     container_state = "not_found"
@@ -139,41 +195,15 @@ def read_status(include_ip=True):
     # RCON só pode estar pronto quando o contentor está ativo e a consulta respondeu.
     rcon_ready = container_state == "running" and players is not None
 
-    # O estado do Geyser e do NetherNet é confirmado pelos registos do arranque
-    # atual do contentor; uma porta TCP/UDP aberta, por si só, não é suficiente.
-    geyser_ready = False
-    geyser_state = "not_ready"
-    geyser_udp_ready = None
-    geyser_udp_state = "unknown"
-    geyser_udp_diagnostic = "not_checked"
-    geyser_transport = "unknown"
-    if container_state == "running" and container_started:
-        log_check = run_command(
-            [
-                "bash", "-lc",
-                "docker logs --since \"$1\" \"$2\" 2>&1 | "
-                "grep -Ei 'Loading Geyser version|Built-in signaling started' | tail -n 30",
-                "_", container_started, CONTAINER,
-            ],
-            timeout=10,
-        )
-        geyser_logs = log_check.stdout + "\n" + log_check.stderr
-        geyser_loaded = re.search(r"Loading Geyser version", geyser_logs, re.IGNORECASE)
-        signaling_ready = re.search(r"Built-in signaling started", geyser_logs, re.IGNORECASE)
-        if geyser_loaded:
-            geyser_state = "initializing"
-        if geyser_loaded and signaling_ready:
-            geyser_ready = True
-            geyser_state = "ready"
-            # O signaling integrado confirma que o serviço NetherNet arrancou.
-            # NetherNet não responde ao Unconnected Ping RakNet usado no
-            # teste UDP legado. Não tratar a ausência desse pong como falha.
-            # A acessibilidade externa e uma sessão Bedrock real continuam
-            # por confirmar por este agente.
-            geyser_transport = "nethernet"
-            geyser_udp_ready = None
-            geyser_udp_state = "not_applicable"
-            geyser_udp_diagnostic = "nethernet_signaling_ready_external_access_unverified"
+    # O estado do Geyser é analisado uma vez por arranque e fica em cache
+    # após ficar pronto, evitando reler continuamente os logs do contentor.
+    geyser = read_geyser_status(container_state, container_started)
+    geyser_ready = geyser["geyser_ready"]
+    geyser_state = geyser["geyser_state"]
+    geyser_udp_ready = geyser["geyser_udp_ready"]
+    geyser_udp_state = geyser["geyser_udp_state"]
+    geyser_udp_diagnostic = geyser["geyser_udp_diagnostic"]
+    geyser_transport = geyser["geyser_transport"]
 
     return {
         "vm": "VM running",
