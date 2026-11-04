@@ -60,9 +60,9 @@ describe("public player SSE endpoint", () => {
     expect(response.headers.get("Content-Type")).toContain("text/event-stream");
     expect(agent.fetch).not.toHaveBeenCalled();
     const body = await response.text();
-    expect(body).toContain("event: status\\ndata: ");
+    expect(body).toContain("event: status\ndata: ");
     expect(body).toContain('"vm":"VM deallocated"');
-    expect(body.endsWith("\\n\\n")).toBe(true);
+    expect(body.endsWith("\n\n")).toBe(true);
   });
 
   it("forwards the agent event stream without buffering or exposing private data", async () => {
