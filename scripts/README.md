@@ -19,4 +19,4 @@ Scripts deste diretório são auxiliares do repositório `mc-start`; não assume
 - Nunca imprimir tokens, passwords, chaves privadas, env vars ou ficheiros completos de configuração.
 - Não adicionar dependências/mods ao servidor sem necessidade e compatibilidade confirmadas.
 - Não executar comandos que instalem ou atualizem software na VM.
-- Custo permitido: 0,00 €; não ativar serviços ou runners pagos.
+- Custo máximo permitido: 0,00 € / $0,00; Free Tier efetivo apenas. Não ativar serviços ou runners pagos nem consumir créditos Azure Student para compute faturável.
