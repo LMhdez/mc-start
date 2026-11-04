@@ -856,19 +856,82 @@ if (!translations[savedLanguage]) {
   savedLanguage = translations[browserLanguage] ? browserLanguage : "pt";
 }
 setLanguage(savedLanguage);
-requestPublicStatus();
+requestPublicStatus().finally(startLiveEvents);
 loadTechnicalSpecs();
 
-// Refresh public status every 15 seconds while the page is visible. Browsers
-// stop scheduled polling in background tabs and refresh immediately on return.
-// This is deliberately polling (not SSE): the current API performs an Azure
-// and private-agent check per request, so a permanent stream would add cost and
-// complexity without an event source on the Minecraft host.
-setInterval(() => {
-  if (!document.hidden) requestPublicStatus();
-}, 15000);
+// One persistent SSE connection delivers player-count changes. It is
+// read-only: it does not invoke or modify any start/stop workflow or automation.
+let liveEventSource = null;
+let liveReconnectTimer = null;
+let liveReconnectDelay = 5000;
+let liveHadError = false;
+
+function applyLivePlayerEvent(payload) {
+  if (!payload || !Number.isInteger(payload.players) || payload.players < 0) return;
+  if (lastStatusResult) lastStatusResult.players = payload.players;
+  const count = document.querySelector("#player-count");
+  const names = document.querySelector("#player-names");
+  if (count) count.textContent = String(payload.players);
+  if (names && !lastPrivateIp) {
+    names.textContent = payload.players === 0
+      ? translations[currentLanguage].noPlayers
+      : translations[currentLanguage].playersProtected;
+  }
+}
+
+function stopLiveEvents() {
+  if (liveReconnectTimer !== null) {
+    clearTimeout(liveReconnectTimer);
+    liveReconnectTimer = null;
+  }
+  if (liveEventSource) {
+    liveEventSource.close();
+    liveEventSource = null;
+  }
+}
+
+function startLiveEvents() {
+  if (document.hidden || liveEventSource || liveReconnectTimer !== null) return;
+  const source = new EventSource(WORKER_URL + "/api/public/events");
+  liveEventSource = source;
+
+  source.addEventListener("players", event => {
+    try { applyLivePlayerEvent(JSON.parse(event.data)); } catch {}
+  });
+  source.addEventListener("unavailable", () => {
+    const count = document.querySelector("#player-count");
+    if (count) count.textContent = "—";
+  });
+  source.onopen = () => {
+    const shouldRefresh = liveHadError;
+    liveHadError = false;
+    liveReconnectDelay = 5000;
+    if (shouldRefresh) requestPublicStatus();
+  };
+  source.onerror = () => {
+    source.close();
+    if (liveEventSource === source) liveEventSource = null;
+    liveHadError = true;
+    const count = document.querySelector("#player-count");
+    if (count) count.textContent = "—";
+    if (!document.hidden && liveReconnectTimer === null) {
+      const delay = liveReconnectDelay;
+      liveReconnectDelay = Math.min(liveReconnectDelay * 2, 300000);
+      liveReconnectTimer = window.setTimeout(() => {
+        liveReconnectTimer = null;
+        startLiveEvents();
+      }, delay);
+    }
+  };
+}
+
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) requestPublicStatus();
+  if (document.hidden) {
+    stopLiveEvents();
+  } else {
+    requestPublicStatus();
+    startLiveEvents();
+  }
 });
 
 // Permite testar a funcao de idioma diretamente na consola do navegador.
