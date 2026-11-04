@@ -26,7 +26,7 @@ O frontend combina a API pública com `maintenance.json`, publicado pelo GitHub 
 
 - O Worker v56 inclui `GET /api/public/events`; o agente privado correspondente foi atualizado na VM pelo workflow `41795652240`, que confirmou serviço ativo e `/status` saudável.
 - O frontend, Worker e agente usam o mesmo contrato SSE versionado em `main`. A ligação é read-only e não inicia, para ou reinicia VM/Minecraft.
-- Os testes unitários do Worker/agente passaram. O CI recebeu agora um smoke test de produção que verifica HTTP 200, `text/event-stream` e handshake/evento SSE sem imprimir payloads. O resultado desse teste ainda está pendente nesta atualização.
+- Os testes unitários do Worker/agente passaram. O CI inclui um smoke test de produção que verifica HTTP 200, `text/event-stream` e handshake/evento SSE sem imprimir payloads. O teste passou no Validate project [41839109694](https://github.com/LMhdez/mc-start/actions/runs/41839109694).
 - Cada ligação SSE é um pedido Worker; eventos não são pedidos adicionais. Reconexões contam como novos pedidos.
 
 ## Endpoints e contratos
@@ -68,3 +68,10 @@ Wrangler declara bindings, mas não autoriza divulgar valores. Nunca ler/imprimi
 - Workers VPC está gratuito durante a beta aberta; aplicam-se os limites e custos normais de Workers para pedidos e CPU. Não ativar Workers Paid nem qualquer plano pago.
 - O watcher local só existe enquanto há browsers ligados; vários browsers partilham a mesma consulta. O polling local consome uma pequena quantidade de CPU na VM, mas não gera pedidos periódicos ao Worker/Azure.
 - O fluxo SSE não executa ações Azure, GitHub Actions, Docker start/stop/restart, systemd, cron ou autostop. Os workflows de controlo e as respetivas proteções mantêm-se separados.
+
+
+## Auditoria de segurança e custos — 2026-11-04
+
+- O rate limit de autenticação e dos endpoints públicos usa memória por isolate. É best-effort e não constitui um limite global/atómico; manter `ACCESS_PASSWORD` aleatória, longa e exclusiva (mínimo técnico de 20 caracteres não garante entropia).
+- Workers Logs estão ativos com amostragem observada de 100%; Workers Traces estão desativados. Não ativar traces nem alterar plano/billing sem confirmar limites gratuitos e custos aplicáveis. `usage_model=standard` não identifica o plano da conta.
+- O endpoint `/api/technical` publica inventário de software/mods e versões; não deve incluir IPs, nomes de jogadores ou segredos.
