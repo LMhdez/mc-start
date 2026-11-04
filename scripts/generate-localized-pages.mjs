@@ -66,7 +66,7 @@ function readTranslations() {
     "startSent", "stopSent", "checkSent", "starting", "stopping",
     "statusTimeout", "operationTimeout", "connectionError", "requestError"
   ];
-  const unnecessaryTechnicalTerms = /\\bVM\\b|infrastructure|infraestructura|Cloudflare Tunnel|Azure Run Command/i;
+  const unnecessaryTechnicalTerms = /\bVM\b|infrastructure|infraestructura|Cloudflare Tunnel|Azure Run Command/i;
   for (const locale of ["pt", "en", "es"]) {
     for (const [key, value] of Object.entries(dictionaries[locale])) {
       if (typeof value !== "string" || !value.trim()) {
