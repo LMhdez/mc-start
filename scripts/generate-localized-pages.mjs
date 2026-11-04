@@ -22,7 +22,7 @@ function updateMeta(lines, kind, key, value) {
   const tag = '  <meta ' + attribute + '="' + key + '" content="' + escapeAttribute(value) + '">';
   const index = lines.findIndex(line => line.trim().startsWith(marker));
   if (index >= 0) lines[index] = tag;
-  else lines.splice(lines.length - 1, 0, tag);
+  else lines.splice(lines.indexOf("</head>"), 0, tag);
 }
 function replaceHref(line, value) {
   const start = line.indexOf('href="');
