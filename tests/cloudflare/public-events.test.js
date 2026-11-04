@@ -62,6 +62,9 @@ describe("public player SSE endpoint", () => {
     const body = await response.text();
     expect(body).toContain("event: status\ndata: ");
     expect(body).toContain('"vm":"VM deallocated"');
+    const dataLine = body.split("\n").find(line => line.startsWith("data: "));
+    const payload = JSON.parse(dataLine.slice(6));
+    expect(payload.checked_at).toEqual(expect.any(String));
     expect(body.endsWith("\n\n")).toBe(true);
   });
 
