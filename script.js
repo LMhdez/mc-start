@@ -364,6 +364,13 @@ function isServerReady(result) {
     result.geyser_ready === true;
 }
 
+function formatStatusTimestamp(value) {
+  if (typeof value !== "string") return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString(currentLanguage === "pt" ? "pt-PT" : currentLanguage === "es" ? "es-ES" : "en-GB");
+}
+
 function renderStatus(result) {
   lastStatusResult = result;
   const t = translations[currentLanguage];
@@ -444,7 +451,7 @@ function renderStatus(result) {
         : result.geyser_ready === false || result.geyser_udp_ready === false
           ? t.portClosed
           : t.unknownStatus],
-      [t.checkedAt, result.checked_at ? new Date(result.checked_at).toLocaleString(currentLanguage === "pt" ? "pt-PT" : currentLanguage === "es" ? "es-ES" : "en-GB") : "—"]
+      [t.checkedAt, formatStatusTimestamp(result.checked_at)]
     ];
     details.replaceChildren();
     values.forEach(([label, value]) => {
@@ -458,6 +465,19 @@ function renderStatus(result) {
       details.append(item);
     });
   }
+
+  // Share only the allowlisted public status with the maintenance banner.
+  // Never expose IPs, player names or authenticated response data here.
+  window.dispatchEvent(new CustomEvent("mc:server-status", {
+    detail: {
+      vm: result.vm,
+      docker: result.docker,
+      container: result.container,
+      port_open: result.port_open,
+      rcon_ready: result.rcon_ready,
+      geyser_ready: result.geyser_ready
+    }
+  }));
 }
 
 async function requestPublicStatus(showProgress = false) {
@@ -843,9 +863,120 @@ if (!translations[savedLanguage]) {
   savedLanguage = translations[browserLanguage] ? browserLanguage : "pt";
 }
 setLanguage(savedLanguage);
-requestPublicStatus();
+requestPublicStatus().finally(startLiveEvents);
 loadTechnicalSpecs();
-setInterval(requestPublicStatus, 30000);
+
+
+// One persistent SSE connection delivers public status changes. It is
+// read-only: it does not invoke or modify any start/stop workflow or automation.
+let liveEventSource = null;
+let liveReconnectTimer = null;
+let liveReconnectDelay = 5000;
+let liveConnectedOnce = false;
+let liveLastVmState = null;
+
+function applyLiveStatusEvent(payload) {
+  if (!payload || typeof payload !== "object" ||
+      typeof payload.vm !== "string" ||
+      (payload.players !== null && payload.players !== undefined &&
+       (!Number.isInteger(payload.players) || payload.players < 0))) return;
+  if (lastStatusResult && payload.players !== lastStatusResult.players && lastPrivateIp) {
+    lastPrivatePlayerNames = null;
+  }
+  liveLastVmState = payload.vm;
+  renderStatus(payload);
+}
+
+function stopLiveEvents() {
+  if (liveReconnectTimer !== null) {
+    clearTimeout(liveReconnectTimer);
+    liveReconnectTimer = null;
+  }
+  if (liveEventSource) {
+    liveEventSource.close();
+    liveEventSource = null;
+  }
+}
+
+function startLiveEvents() {
+  if (document.hidden || liveEventSource || liveReconnectTimer !== null) return;
+  const source = new EventSource(WORKER_URL + "/api/public/events");
+  liveEventSource = source;
+
+  source.addEventListener("heartbeat", event => {
+    try {
+      const payload = JSON.parse(event.data);
+      const timestamp = document.querySelector("#status-details .status-detail:nth-child(3) strong");
+      if (timestamp) timestamp.textContent = formatStatusTimestamp(payload.checked_at);
+    } catch {}
+  });
+  source.addEventListener("status", event => {
+    try { applyLiveStatusEvent(JSON.parse(event.data)); } catch {}
+  });
+  source.addEventListener("unavailable", () => {
+    liveLastVmState = "Unknown";
+    lastPrivateIp = "";
+    lastPrivatePlayerNames = null;
+    renderStatus({
+      vm: "Unknown", players: null, docker: "unknown", container: "unknown",
+      port_open: null, rcon_ready: null, geyser_ready: null
+    });
+  });
+  source.onopen = () => {
+    liveConnectedOnce = true;
+    liveReconnectDelay = 5000;
+  };
+  source.onerror = () => {
+    source.close();
+    if (liveEventSource === source) liveEventSource = null;
+    const authoritativeStoppedState = [
+      "VM deallocated", "VM stopped", "VM starting", "VM stopping"
+    ].includes(liveLastVmState);
+    if (liveConnectedOnce && !authoritativeStoppedState) {
+      liveLastVmState = "Unknown";
+      lastPrivateIp = "";
+      lastPrivatePlayerNames = null;
+      renderStatus({
+        vm: "Unknown", players: null, docker: "unknown", container: "unknown",
+        port_open: null, rcon_ready: null, geyser_ready: null
+      });
+    } else if (!liveConnectedOnce) {
+      if (!lastStatusResult) {
+        liveLastVmState = "Unknown";
+        renderStatus({
+          vm: "Unknown", players: null, docker: "unknown", container: "unknown",
+          port_open: null, rcon_ready: null, geyser_ready: null
+        });
+      } else {
+        // Keep the valid initial snapshot; only mark the live player count unavailable.
+        const count = document.querySelector("#player-count");
+        if (count) count.textContent = "—";
+      }
+    }
+    if (!document.hidden && liveReconnectTimer === null) {
+      const delay = liveLastVmState === "VM deallocated" || liveLastVmState === "VM stopped"
+        ? 60000
+        : liveLastVmState === "VM starting" || liveLastVmState === "VM stopping"
+          ? 15000
+          : liveReconnectDelay;
+      liveReconnectDelay = Math.min(Math.max(liveReconnectDelay * 2, 5000), 300000);
+      liveReconnectTimer = window.setTimeout(() => {
+        liveReconnectTimer = null;
+        startLiveEvents();
+      }, delay);
+    }
+  };
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    stopLiveEvents();
+  } else {
+    requestPublicStatus();
+    startLiveEvents();
+  }
+});
+
 
 // Permite testar a funcao de idioma diretamente na consola do navegador.
 window.setLanguage = setLanguage;
