@@ -157,23 +157,23 @@ def read_status(include_ip=True):
             ],
             timeout=10,
         )
-            geyser_logs = log_check.stdout + "\n" + log_check.stderr
-            geyser_loaded = re.search(r"Loading Geyser version", geyser_logs, re.IGNORECASE)
-            signaling_ready = re.search(r"Built-in signaling started", geyser_logs, re.IGNORECASE)
-            if geyser_loaded:
-                geyser_state = "initializing"
-            if geyser_loaded and signaling_ready:
-                geyser_ready = True
-                geyser_state = "ready"
-                # O signaling integrado confirma que o serviço NetherNet arrancou.
-                # NetherNet não responde ao Unconnected Ping RakNet usado no
-                # teste UDP legado. Não tratar a ausência desse pong como falha.
-                # A acessibilidade externa e uma sessão Bedrock real continuam
-                # por confirmar por este agente.
-                geyser_transport = "nethernet"
-                geyser_udp_ready = None
-                geyser_udp_state = "not_applicable"
-                geyser_udp_diagnostic = "nethernet_signaling_ready_external_access_unverified"
+        geyser_logs = log_check.stdout + "\n" + log_check.stderr
+        geyser_loaded = re.search(r"Loading Geyser version", geyser_logs, re.IGNORECASE)
+        signaling_ready = re.search(r"Built-in signaling started", geyser_logs, re.IGNORECASE)
+        if geyser_loaded:
+            geyser_state = "initializing"
+        if geyser_loaded and signaling_ready:
+            geyser_ready = True
+            geyser_state = "ready"
+            # O signaling integrado confirma que o serviço NetherNet arrancou.
+            # NetherNet não responde ao Unconnected Ping RakNet usado no
+            # teste UDP legado. Não tratar a ausência desse pong como falha.
+            # A acessibilidade externa e uma sessão Bedrock real continuam
+            # por confirmar por este agente.
+            geyser_transport = "nethernet"
+            geyser_udp_ready = None
+            geyser_udp_state = "not_applicable"
+            geyser_udp_diagnostic = "nethernet_signaling_ready_external_access_unverified"
 
     return {
         "vm": "VM running",
