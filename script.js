@@ -864,8 +864,8 @@ loadTechnicalSpecs();
 let liveEventSource = null;
 let liveReconnectTimer = null;
 let liveReconnectDelay = 5000;
-let liveHadError = false;
 let liveConnectedOnce = false;
+let liveLastVmState = null;
 
 function applyLiveStatusEvent(payload) {
   if (!payload || typeof payload !== "object" ||
@@ -875,6 +875,7 @@ function applyLiveStatusEvent(payload) {
   if (lastStatusResult && payload.players !== lastStatusResult.players && lastPrivateIp) {
     lastPrivatePlayerNames = null;
   }
+  liveLastVmState = payload.vm;
   renderStatus(payload);
 }
 
@@ -898,6 +899,7 @@ function startLiveEvents() {
     try { applyLiveStatusEvent(JSON.parse(event.data)); } catch {}
   });
   source.addEventListener("unavailable", () => {
+    liveLastVmState = "Unknown";
     lastPrivateIp = "";
     lastPrivatePlayerNames = null;
     renderStatus({
@@ -906,30 +908,34 @@ function startLiveEvents() {
     });
   });
   source.onopen = () => {
-    const shouldRefresh = liveHadError;
     liveConnectedOnce = true;
-    liveHadError = false;
     liveReconnectDelay = 5000;
-    if (shouldRefresh) requestPublicStatus();
   };
   source.onerror = () => {
     source.close();
     if (liveEventSource === source) liveEventSource = null;
-    liveHadError = true;
-    if (liveConnectedOnce) {
+    const authoritativeStoppedState = [
+      "VM deallocated", "VM stopped", "VM starting", "VM stopping"
+    ].includes(liveLastVmState);
+    if (liveConnectedOnce && !authoritativeStoppedState) {
+      liveLastVmState = "Unknown";
       lastPrivateIp = "";
       lastPrivatePlayerNames = null;
       renderStatus({
         vm: "Unknown", players: null, docker: "unknown", container: "unknown",
         port_open: null, rcon_ready: null, geyser_ready: null
       });
-    } else {
+    } else if (!liveConnectedOnce) {
       const count = document.querySelector("#player-count");
       if (count) count.textContent = "—";
     }
     if (!document.hidden && liveReconnectTimer === null) {
-      const delay = liveReconnectDelay;
-      liveReconnectDelay = Math.min(liveReconnectDelay * 2, 300000);
+      const delay = liveLastVmState === "VM deallocated" || liveLastVmState === "VM stopped"
+        ? 60000
+        : liveLastVmState === "VM starting" || liveLastVmState === "VM stopping"
+          ? 15000
+          : liveReconnectDelay;
+      liveReconnectDelay = Math.min(Math.max(liveReconnectDelay * 2, 5000), 300000);
       liveReconnectTimer = window.setTimeout(() => {
         liveReconnectTimer = null;
         startLiveEvents();
