@@ -22,6 +22,8 @@ jobs:
 
       - name: Check JavaScript syntax
         run: |
+          node --check scripts/generate-localized-pages.mjs
+          node scripts/generate-localized-pages.mjs --check
           node --check script.js
           node --check status-crypto.js
           node --check maintenance-status.js

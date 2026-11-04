@@ -46,9 +46,13 @@ A decisão do operador é aproveitar os créditos Azure for Students para obter 
 
 ## Website e pré-visualização social
 
-- Metadados Open Graph e Twitter usam `https://lmhdez.github.io/mc-start/social-preview.png`, PNG 1200×630.
-- `social-preview.svg` é a fonte editável; `.github/workflows/social-preview.yml` gera e publica o PNG quando o SVG muda.
-- A existência do PNG e os metadados foram confirmados no GitHub. Isto não prova que Discord, WhatsApp ou X já atualizaram as respetivas caches.
+- O website continua estático e sem framework: um único HTML/CSS/JavaScript partilhado, com páginas de entrada independentes em português (`/`), inglês (`/en/`) e espanhol (`/es/`).
+- Cada entrada contém no HTML inicial `lang`, descrição, canonical, `hreflang`, Open Graph e Twitter próprios. Assim, crawlers como o WhatsApp recebem o idioma correto sem executar JavaScript nem consultar `localStorage`.
+- O seletor atualiza a interface e o URL do browser sem recarregar a página. Ao abrir ou recarregar uma rota localizada, o idioma do URL prevalece sobre a preferência guardada; na rota raiz, a preferência guardada ou o idioma do browser determina a língua inicial.
+- `scripts/generate-localized-pages.mjs` gera `en/index.html` e `es/index.html` a partir de `index.html`; `node scripts/generate-localized-pages.mjs --check` confirma que as páginas versionadas correspondem ao template.
+- As páginas localizadas usam uma base relativa à raiz para reutilizar os mesmos recursos, API e `maintenance.json`; não duplicam o frontend nem alteram o Worker.
+- As pré-visualizações preservam o desenho original em três SVGs editáveis: `social-preview.svg`, `social-preview-en.svg` e `social-preview-es.svg`. O workflow gera os PNGs 1200×630 correspondentes.
+- O HTML de cada idioma aponta para a respetiva imagem PNG. Alterações de metadados/imagens não obrigam as plataformas a invalidar imediatamente previews em cache; a atualização do WhatsApp pode demorar ou exigir novo URL para forçar nova leitura.
 - O estado inicial é obtido por `/api/public/status`; as alterações ao estado público e à contagem de jogadores chegam por SSE em `/api/public/events`, sem polling periódico do browser. A barra de manutenção continua a usar `maintenance.json`.
 - O Worker valida a origem e o estado Azure uma vez por ligação e encaminha o fluxo do agente privado sem buffering, KV, R2 ou Durable Objects. Cada ligação SSE é um pedido Worker; os eventos transmitidos não criam novos pedidos. As reconexões contam como novos pedidos.
 - No agente, um único watcher partilhado faz leituras locais de estado/Docker/RCON/Geyser a cada 5 segundos apenas enquanto existirem clientes SSE. Só transmite alterações dos campos públicos permitidos; heartbeats atualizam apenas o carimbo temporal. Nunca transmite nomes nem IP. Este polling é local à VM, não faz pedidos periódicos ao Worker/Azure.

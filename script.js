@@ -305,7 +305,6 @@ function updateActionButtons() {
 function setLanguage(language) {
   currentLanguage = translations[language] ? language : "pt";
   const dictionary = translations[currentLanguage];
-
   document.documentElement.lang = currentLanguage === "pt" ? "pt-PT" : currentLanguage;
   document.querySelectorAll("[data-i18n-aria]").forEach(element => {
     const key = element.dataset.i18nAria;
@@ -319,7 +318,6 @@ function setLanguage(language) {
     const key = element.dataset.i18nPlaceholder;
     if (dictionary[key]) element.placeholder = dictionary[key];
   });
-
   if (lastStatusResult) renderStatus(lastStatusResult);
   if (lastTechnicalData) renderTechnicalSpecs(lastTechnicalData);
   if (feedback) {
@@ -330,11 +328,79 @@ function setLanguage(language) {
   if (languageSelect) languageSelect.value = currentLanguage;
   document.title = currentLanguage === "pt" ? "Minecraft Server | O teu servidor" :
     currentLanguage === "es" ? "Minecraft Server | Tu servidor" : "Minecraft Server | Your server";
-  const metaDescription = document.querySelector('meta[name="description"]');
-  if (metaDescription) metaDescription.content = dictionary.pageCopy;
+  updateLocalizedDocument();
   try { localStorage.setItem("mc-server-language", currentLanguage); } catch {}
 }
 
+function getSitePathContext() {
+  const segments = window.location.pathname.split("/").filter(Boolean);
+  if (segments[segments.length - 1] === "index.html") segments.pop();
+  const last = segments[segments.length - 1];
+  const language = last === "en" || last === "es" ? last : null;
+  if (language) segments.pop();
+  return { language, basePath: "/" + (segments.length ? segments.join("/") + "/" : "") };
+}
+const sitePathContext = getSitePathContext();
+const SITE_BASE_PATH = sitePathContext.basePath;
+
+function localizedPath(language) {
+  return SITE_BASE_PATH + (language === "pt" ? "" : language + "/");
+}
+
+const localizedMetadata = {
+  pt: {
+    locale: "pt_PT",
+    title: "MC Server — O teu mundo. As tuas regras.",
+    description: "Vê se o servidor está online, descobre quem está a jogar e junta-te à aventura.",
+    image: "social-preview.png",
+    imageAlt: "MC Server — O teu mundo. As tuas regras. Junta-te à aventura."
+  },
+  en: {
+    locale: "en_GB",
+    title: "MC Server — Your world. Your rules.",
+    description: "Check whether the server is online, see who is playing and join the adventure.",
+    image: "social-preview-en.png",
+    imageAlt: "MC Server — Your world. Your rules. Join the adventure."
+  },
+  es: {
+    locale: "es_ES",
+    title: "MC Server — Tu mundo. Tus reglas.",
+    description: "Comprueba si el servidor está en línea, descubre quién está jugando y únete a la aventura.",
+    image: "social-preview-es.png",
+    imageAlt: "MC Server — Tu mundo. Tus reglas. Únete a la aventura."
+  }
+};
+
+function updateLocalizedDocument() {
+  const metadata = localizedMetadata[currentLanguage] || localizedMetadata.pt;
+  const pageUrl = window.location.origin + localizedPath(currentLanguage);
+  const imageUrl = window.location.origin + SITE_BASE_PATH + metadata.image;
+  const setMeta = (selector, value) => {
+    const element = document.querySelector(selector);
+    if (element) element.setAttribute("content", value);
+  };
+  setMeta('meta[name="description"]', translations[currentLanguage].pageCopy);
+  setMeta('meta[property="og:locale"]', metadata.locale);
+  setMeta('meta[property="og:title"]', metadata.title);
+  setMeta('meta[property="og:description"]', metadata.description);
+  setMeta('meta[property="og:url"]', pageUrl);
+  setMeta('meta[property="og:image"]', imageUrl);
+  setMeta('meta[property="og:image:alt"]', metadata.imageAlt);
+  setMeta('meta[name="twitter:title"]', metadata.title);
+  setMeta('meta[name="twitter:description"]', metadata.description);
+  setMeta('meta[name="twitter:image"]', imageUrl);
+  setMeta('meta[name="twitter:image:alt"]', metadata.imageAlt);
+  const canonical = document.querySelector('link[rel="canonical"]');
+  if (canonical) canonical.href = pageUrl;
+  const brand = document.querySelector(".brand");
+  if (brand) brand.href = localizedPath(currentLanguage);
+  const skipLink = document.querySelector(".skip-link");
+  if (skipLink) skipLink.href = currentLanguage === "pt" ? "#main-content" : "./" + currentLanguage + "/#main-content";
+  const nextPath = localizedPath(currentLanguage);
+  if (window.location.pathname !== nextPath) {
+    window.history.replaceState(window.history.state, "", nextPath + window.location.search + window.location.hash);
+  }
+}
 function showFeedback(key, loading = false) {
   lastFeedbackKey = key;
   lastFeedbackLoading = loading;
@@ -854,10 +920,12 @@ document.querySelector("#start-button")?.addEventListener("click", () => request
 document.querySelector("#status-button")?.addEventListener("click", () => requestPublicStatus(true));
 document.querySelector("#private-status-button")?.addEventListener("click", () => requestAction("status"));
 
-let savedLanguage = "pt";
-try {
-  savedLanguage = localStorage.getItem("mc-server-language") || "pt";
-} catch {}
+let savedLanguage = sitePathContext.language;
+if (!savedLanguage) {
+  try {
+    savedLanguage = localStorage.getItem("mc-server-language") || "pt";
+  } catch {}
+}
 if (!translations[savedLanguage]) {
   const browserLanguage = (navigator.language || "pt").slice(0, 2).toLowerCase();
   savedLanguage = translations[browserLanguage] ? browserLanguage : "pt";

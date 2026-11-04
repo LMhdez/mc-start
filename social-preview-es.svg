@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">MC Server — Tu mundo, tus reglas</title>
+  <desc id="desc">Entra en nuestro mundo Minecraft. Consulta el estado del servidor y únete a la aventura.</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#17271b"/><stop offset="1" stop-color="#090f0b"/></linearGradient>
+    <radialGradient id="glow"><stop stop-color="#80c95a" stop-opacity=".28"/><stop offset="1" stop-color="#80c95a" stop-opacity="0"/></radialGradient>
+    <linearGradient id="grass" x2="0" y2="1"><stop stop-color="#a5e875"/><stop offset="1" stop-color="#5b9d3e"/></linearGradient>
+    <linearGradient id="dirt" x2="0" y2="1"><stop stop-color="#93603b"/><stop offset="1" stop-color="#543622"/></linearGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M48 0H0V48" fill="none" stroke="#d5f5a8" stroke-opacity=".045"/></pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+  <circle cx="930" cy="300" r="420" fill="url(#glow)"/>
+  <g opacity=".22" fill="#85bd5c">
+    <path d="m760 390 105-60 105 60-105 61z"/><path d="m865 451 105-61v120l-105 61z"/><path d="m760 390 105 61v120l-105-60z"/>
+    <path d="m960 270 65-38 65 38-65 38z"/><path d="m1025 308 65-38v76l-65 38z"/><path d="m960 270 65 38v76l-65-38z"/>
+  </g>
+  <g transform="translate(760 120)">
+    <path d="m160 0 190 110-190 110L-30 110z" fill="url(#grass)"/>
+    <path d="M-30 110 160 220v205L-30 315z" fill="url(#dirt)"/>
+    <path d="M350 110 160 220v205l190-110z" fill="#654329"/>
+    <path d="m-30 110 190 110 190-110" fill="none" stroke="#d4ff9e" stroke-opacity=".55" stroke-width="5"/>
+    <g fill="#b47b4b" opacity=".75"><path d="m22 176 20 12v22l-20-12z"/><path d="m90 216 22 13v25l-22-13z"/><path d="m-5 258 18 10v20l-18-10z"/><path d="m210 260 24-14v24l-24 14z"/><path d="m292 213 20-12v22l-20 12z"/><path d="m245 330 24-14v25l-24 14z"/></g>
+    <g fill="#7cba4c"><path d="m-5 92 18-10 18 10-18 10z"/><path d="m250 60 18-10 18 10-18 10z"/><path d="m300 105 15-9 15 9-15 9z"/></g>
+  </g>
+  <g transform="translate(86 92)">
+    <rect width="58" height="58" rx="13" fill="#9be477"/>
+    <path d="m29 8 21 12v24L29 56 8 44V20z" fill="#294b2b"/>
+    <path d="m8 20 21 12v24L8 44z" fill="#8b5a35"/><path d="m50 20-21 12v24l21-12z" fill="#5c3b27"/>
+    <text x="82" y="43" fill="#f3f7f1" font-family="Arial,Helvetica,sans-serif" font-size="30" font-weight="800" letter-spacing="3">MC SERVER</text>
+    <rect x="0" y="112" width="184" height="34" rx="17" fill="#263c27" stroke="#78bd55" stroke-opacity=".55"/>
+    <circle cx="18" cy="129" r="5" fill="#9be477"/>
+    <text x="32" y="134" fill="#bfe8a5" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="700" letter-spacing="2">TU MUNDO ONLINE</text>
+    <text x="0" y="238" fill="#f3f7f1" font-family="Arial,Helvetica,sans-serif" font-size="66" font-weight="800" letter-spacing="-2">Tu mundo.</text>
+    <text x="0" y="312" fill="#9be477" font-family="Arial,Helvetica,sans-serif" font-size="66" font-weight="800" letter-spacing="-2">Tus reglas.</text>
+    <text x="2" y="375" fill="#c0cbbd" font-family="Arial,Helvetica,sans-serif" font-size="25">Únete a la aventura.</text>
+    <g transform="translate(0 430)">
+      <rect width="238" height="54" rx="12" fill="#9be477"/>
+      <text x="24" y="35" fill="#10200f" font-family="Arial,Helvetica,sans-serif" font-size="19" font-weight="800">ENTRA AL SERVIDOR</text>
+      <path d="m207 20 8 7-8 7" fill="none" stroke="#10200f" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+  <text x="1110" y="590" text-anchor="end" fill="#c0cbbd" fill-opacity=".55" font-family="Arial,Helvetica,sans-serif" font-size="14" letter-spacing="2">MINECRAFT JAVA + BEDROCK</text>
+</svg>
