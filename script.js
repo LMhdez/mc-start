@@ -866,17 +866,12 @@ let liveReconnectTimer = null;
 let liveReconnectDelay = 5000;
 let liveHadError = false;
 
-function applyLivePlayerEvent(payload) {
-  if (!payload || !Number.isInteger(payload.players) || payload.players < 0) return;
-  if (lastStatusResult) lastStatusResult.players = payload.players;
-  const count = document.querySelector("#player-count");
-  const names = document.querySelector("#player-names");
-  if (count) count.textContent = String(payload.players);
-  if (names && !lastPrivateIp) {
-    names.textContent = payload.players === 0
-      ? translations[currentLanguage].noPlayers
-      : translations[currentLanguage].playersProtected;
-  }
+function applyLiveStatusEvent(payload) {
+  if (!payload || typeof payload !== "object" ||
+      typeof payload.vm !== "string" ||
+      (payload.players !== null && payload.players !== undefined &&
+       (!Number.isInteger(payload.players) || payload.players < 0))) return;
+  renderStatus(payload);
 }
 
 function stopLiveEvents() {
@@ -895,12 +890,14 @@ function startLiveEvents() {
   const source = new EventSource(WORKER_URL + "/api/public/events");
   liveEventSource = source;
 
-  source.addEventListener("players", event => {
-    try { applyLivePlayerEvent(JSON.parse(event.data)); } catch {}
+  source.addEventListener("status", event => {
+    try { applyLiveStatusEvent(JSON.parse(event.data)); } catch {}
   });
   source.addEventListener("unavailable", () => {
-    const count = document.querySelector("#player-count");
-    if (count) count.textContent = "—";
+    renderStatus({
+      vm: "Unknown", players: null, docker: "unknown", container: "unknown",
+      port_open: null, rcon_ready: null, geyser_ready: null
+    });
   });
   source.onopen = () => {
     const shouldRefresh = liveHadError;
@@ -912,8 +909,10 @@ function startLiveEvents() {
     source.close();
     if (liveEventSource === source) liveEventSource = null;
     liveHadError = true;
-    const count = document.querySelector("#player-count");
-    if (count) count.textContent = "—";
+    renderStatus({
+      vm: "Unknown", players: null, docker: "unknown", container: "unknown",
+      port_open: null, rcon_ready: null, geyser_ready: null
+    });
     if (!document.hidden && liveReconnectTimer === null) {
       const delay = liveReconnectDelay;
       liveReconnectDelay = Math.min(liveReconnectDelay * 2, 300000);
