@@ -72,6 +72,65 @@ jobs:
           done
           rm -f "$RUNNER_TEMP/mc-worker-smoke.json"
 
+      - name: Smoke test production SSE handshake
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          WORKER_BASE: https://mc-start-control.luismariohernandezsantos.workers.dev
+          FRONTEND_ORIGIN: https://lmhdez.github.io
+        run: |
+          set -euo pipefail
+          headers="$RUNNER_TEMP/mc-worker-sse.headers"
+          body="$RUNNER_TEMP/mc-worker-sse.body"
+          trap 'rm -f "$headers" "$body"' EXIT
+          set +e
+          http_code="$(curl --silent --show-error --no-buffer --max-time 30 \\
+            --dump-header "$headers" --output "$body" --write-out '%{http_code}' \\
+            --header "Origin: $FRONTEND_ORIGIN" \\
+            --header "Accept: text/event-stream" \\
+            "$WORKER_BASE/api/public/events")"
+          curl_status=$?
+          set -e
+          if [ "$http_code" != "200" ]; then
+            echo "GET /api/public/events returned HTTP $http_code"
+            exit 1
+          fi
+          if ! grep -Eqi '^content-type:[[:space:]]*text/event-stream' "$headers"; then
+            echo "GET /api/public/events did not return an SSE content type"
+            exit 1
+          fi
+          if ! grep -Eq '^(event: (status|heartbeat|unavailable)|: connected)
+        run: |
+          python3 -m py_compile vm/mc-agent.py tests/test_mc_agent_events.py
+          python3 -m unittest discover -s tests -p 'test_*.py' -v
+
+      - name: Check workflow YAML and shell syntax
+        run: |
+          ruby -ryaml -e '
+          Dir.glob(".github/workflows/*.yml").each do |path|
+            workflow = YAML.load_file(path, aliases: true)
+            (workflow["jobs"] || {}).each_value do |job|
+              (job["steps"] || []).each_with_index do |step, index|
+                next unless step["run"]
+                File.write("/tmp/mc-server-step.sh", step["run"])
+                unless system("bash", "-n", "/tmp/mc-server-step.sh")
+                  abort "Shell syntax error in #{path}, step #{index + 1}"
+                end
+              end
+            end
+            puts "Validated #{path}"
+          end
+          '
+          bash -n vm/france-preflight.sh
+ "$body"; then
+            echo "GET /api/public/events did not establish an SSE stream"
+            exit 1
+          fi
+          if [ "$curl_status" -ne 0 ] && [ "$curl_status" -ne 28 ]; then
+            echo "SSE smoke test ended unexpectedly (curl exit $curl_status)"
+            exit 1
+          fi
+          echo "GET /api/public/events -> HTTP 200, SSE handshake confirmed"
+
       - name: Check Python syntax and agent event tests
         run: |
           python3 -m py_compile vm/mc-agent.py tests/test_mc_agent_events.py
