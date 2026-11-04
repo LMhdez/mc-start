@@ -25,3 +25,8 @@ Esta pasta contém o agente privado ativo e documentos antigos de preflight/migr
 ## Custos
 
 A decisão do projeto é usar os créditos Azure for Students disponíveis para suportar a VM e obter a melhor relação desempenho/custo, mantendo despesa pessoal em 0,00 € / $0,00. A SKU documentada `Standard_B2als_v2` é compute pago e foi aceite deliberadamente como opção económica/viável; não a descrever como Free Tier. Antes de alterar compute ou criar recursos, confirmar preço, consumo estimado, saldo e validade dos créditos. Não ativar Pay-As-You-Go nem aceitar faturação pessoal sem autorização explícita.
+
+
+## Estado de publicação — 2026-11-04
+
+O código SSE deste agente está em `main`, mas a cópia instalada na VM ainda não foi atualizada segundo a última confirmação operacional do projeto. A presença do código neste repositório não prova deployment. Qualquer atualização do agente é uma operação mutável e requer revisão do diff, validação de compatibilidade com o Worker e plano de rollback.
