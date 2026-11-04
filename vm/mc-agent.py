@@ -5,6 +5,8 @@ import re
 import ipaddress
 import time
 import socket
+import threading
+import queue
 import subprocess
 import urllib.request
 import tempfile
@@ -454,6 +456,102 @@ def stop_server():
     return {"ok": True, "message": "Minecraft container stopped."}
 
 
+# Shared, passive player-event watcher. It exists only while at least one SSE
+# client is connected. It performs read-only RCON queries; it never starts,
+# stops, restarts, or changes the Minecraft container or VM.
+_PLAYER_EVENT_LOCK = threading.Lock()
+_PLAYER_EVENT_SUBSCRIBERS = set()
+_PLAYER_EVENT_THREAD = None
+_PLAYER_EVENT_SNAPSHOT = None
+
+
+def read_player_snapshot():
+    """Return only the online-player count; never expose player names."""
+    result = run_command(
+        ["docker", "exec", CONTAINER, "rcon-cli", "list"],
+        timeout=8,
+    )
+    if result.returncode != 0:
+        return {"available": False}
+    output = result.stdout + "\\n" + result.stderr
+    match = re.search(r"There are (\\d+) of", output, re.IGNORECASE)
+    if not match:
+        return {"available": False}
+    return {"available": True, "players": int(match.group(1))}
+
+
+def _publish_player_snapshot(snapshot):
+    global _PLAYER_EVENT_SNAPSHOT
+    signature = (snapshot.get("available"), snapshot.get("players"))
+    with _PLAYER_EVENT_LOCK:
+        previous = None if _PLAYER_EVENT_SNAPSHOT is None else (
+            _PLAYER_EVENT_SNAPSHOT.get("available"),
+            _PLAYER_EVENT_SNAPSHOT.get("players"),
+        )
+        if signature == previous:
+            return
+        payload = dict(snapshot)
+        payload["checked_at"] = datetime.now(timezone.utc).isoformat()
+        _PLAYER_EVENT_SNAPSHOT = payload
+        subscribers = list(_PLAYER_EVENT_SUBSCRIBERS)
+
+    for subscriber in subscribers:
+        try:
+            subscriber.put_nowait(payload)
+        except queue.Full:
+            try:
+                subscriber.get_nowait()
+            except queue.Empty:
+                pass
+            try:
+                subscriber.put_nowait(payload)
+            except queue.Full:
+                pass
+
+
+def _watch_player_events():
+    global _PLAYER_EVENT_THREAD
+    while True:
+        with _PLAYER_EVENT_LOCK:
+            if not _PLAYER_EVENT_SUBSCRIBERS:
+                _PLAYER_EVENT_THREAD = None
+                return
+        try:
+            snapshot = read_player_snapshot()
+        except Exception:
+            snapshot = {"available": False}
+        _publish_player_snapshot(snapshot)
+        # Check the subscriber set frequently so the watcher exits promptly
+        # after the last browser disconnects. RCON is queried every 5 seconds.
+        for _ in range(50):
+            time.sleep(0.1)
+            with _PLAYER_EVENT_LOCK:
+                if not _PLAYER_EVENT_SUBSCRIBERS:
+                    break
+
+
+def subscribe_player_events():
+    global _PLAYER_EVENT_THREAD
+    subscriber = queue.Queue(maxsize=1)
+    with _PLAYER_EVENT_LOCK:
+        _PLAYER_EVENT_SUBSCRIBERS.add(subscriber)
+        if _PLAYER_EVENT_SNAPSHOT is not None:
+            subscriber.put_nowait(dict(_PLAYER_EVENT_SNAPSHOT))
+        if _PLAYER_EVENT_THREAD is None or not _PLAYER_EVENT_THREAD.is_alive():
+            _PLAYER_EVENT_THREAD = threading.Thread(
+                target=_watch_player_events,
+                name="mc-player-events",
+                daemon=True,
+            )
+            _PLAYER_EVENT_THREAD.start()
+    return subscriber
+
+
+def unsubscribe_player_events(subscriber):
+    with _PLAYER_EVENT_LOCK:
+        _PLAYER_EVENT_SUBSCRIBERS.discard(subscriber)
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "MCPrivateAgent/1.0"
 
@@ -472,6 +570,36 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"ok": True, "result": read_technical()})
             except Exception:
                 self.send_json({"ok": False, "message": "Technical check failed"}, 500)
+            return
+        if self.path == "/events":
+            subscriber = subscribe_player_events()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache, no-transform")
+            self.send_header("Connection", "keep-alive")
+            self.send_header("X-Accel-Buffering", "no")
+            self.end_headers()
+            try:
+                self.wfile.write(b"retry: 5000\\n: connected\\n\\n")
+                self.wfile.flush()
+                while True:
+                    try:
+                        payload = subscriber.get(timeout=15)
+                        if payload.get("available") is True:
+                            event_name = "players"
+                            data = {"players": payload["players"], "checked_at": payload["checked_at"]}
+                        else:
+                            event_name = "unavailable"
+                            data = {"available": False}
+                        message = "event: " + event_name + "\\ndata: " + json.dumps(data, separators=(",", ":")) + "\\n\\n"
+                        self.wfile.write(message.encode("utf-8"))
+                    except queue.Empty:
+                        self.wfile.write(b": keepalive\\n\\n")
+                    self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                pass
+            finally:
+                unsubscribe_player_events(subscriber)
             return
         if self.path != "/status":
             self.send_json({"ok": False, "message": "Not found"}, 404)
