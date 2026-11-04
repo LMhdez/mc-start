@@ -581,7 +581,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("X-Accel-Buffering", "no")
             self.end_headers()
             try:
-                self.wfile.write(b"retry: 5000\\n: connected\\n\\n")
+                self.wfile.write(b"retry: 5000\n: connected\n\n")
                 self.wfile.flush()
                 while True:
                     try:
@@ -592,10 +592,10 @@ class Handler(BaseHTTPRequestHandler):
                         else:
                             event_name = "unavailable"
                             data = {"available": False}
-                        message = "event: " + event_name + "\\ndata: " + json.dumps(data, separators=(",", ":")) + "\\n\\n"
+                        message = "event: " + event_name + "\ndata: " + json.dumps(data, separators=(",", ":")) + "\n\n"
                         self.wfile.write(message.encode("utf-8"))
                     except queue.Empty:
-                        self.wfile.write(b": keepalive\\n\\n")
+                        self.wfile.write(b": keepalive\n\n")
                     self.wfile.flush()
             except (BrokenPipeError, ConnectionResetError, OSError):
                 pass
