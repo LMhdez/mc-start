@@ -55,8 +55,10 @@
   function applyMaintenanceState() {
     if (maintenance) {
       setState(t().maintenance, "maintenance", message || t().maintenanceCopy);
-    } else {
+    } else if (lastResult) {
       renderServerStatus(lastResult);
+    } else {
+      setState(t().unknown, "unknown", t().unavailableCopy);
     }
   }
 
@@ -66,6 +68,14 @@
     lastResult = result;
     renderServerStatus(lastResult);
   });
+
+  // Keep the maintenance label authoritative while script.js renders live status.
+  const statusObserver = new MutationObserver(() => {
+    if (maintenance && stateNode.textContent !== t().maintenance) {
+      setState(t().maintenance, "maintenance", message || t().maintenanceCopy);
+    }
+  });
+  statusObserver.observe(stateNode, { childList: true, characterData: true, subtree: true });
 
   async function refreshMaintenance() {
     try {
