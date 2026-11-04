@@ -25,7 +25,7 @@ Nenhum valor de secret foi consultado ou publicado. Não foram alterados plano, 
 
 ## SSE — verificação específica
 
-O frontend publicado, Worker v56 e agente privado estão alinhados no contrato SSE. O smoke test de produção verifica `GET /api/public/events`, HTTP 200, content-type `text/event-stream` e evento inicial `status`, sem imprimir o payload. O teste passou em duas execuções, incluindo a validação mais recente.
+O frontend publicado, Worker v56 e agente privado estão alinhados no contrato SSE. O smoke test de produção verifica `GET /api/public/events`, HTTP 200, content-type `text/event-stream` e evento inicial `status`, sem imprimir o payload. O teste passou em duas execuções. A revalidação posterior da branch `main` também passou integralmente no run [41839109694](https://github.com/LMhdez/mc-start/actions/runs/41839109694), incluindo sintaxe, Vitest/DO/R2, Wrangler dry-run, smoke tests públicos, SSE, sintaxe Python e testes do agente.
 
 ## Funcionalidades e trabalhos não incluídos
 
@@ -44,3 +44,20 @@ O frontend publicado, Worker v56 e agente privado estão alinhados no contrato S
 ## Decisão para comunicação ao grupo
 
 É razoável comunicar que o servidor e o website estão disponíveis para utilização controlada e que o SSE passou o smoke test automatizado. Não anunciar a manutenção unificada da PR #81 como publicada, nem certificação de conectividade externa Java/Bedrock. A issue #9 e o ensaio isolado de restauro são tarefas operacionais/documentais adicionais, não bloqueadores da disponibilização controlada atual.
+
+
+## Revalidação técnica após o commit documental — 2026-11-04
+
+- `main` está no commit `9756eb5ec964292ee5496a22524c244c94abc32f`. A alteração foi documental; os hashes GitHub de `cloudflare/worker.js`, `cloudflare/wrangler.toml`, `index.html`, `script.js` e `vm/mc-agent.py` coincidem com os do commit de código publicado `ac4182747a7c91e5a7f94396f455426a97e033b2`.
+- Validate project [41839109694](https://github.com/LMhdez/mc-start/actions/runs/41839109694) passou em todos os passos, incluindo teste Durable Object/R2, Wrangler dry-run, smoke tests de produção e testes do agente.
+- GitHub Pages deployment [41839108242](https://github.com/LMhdez/mc-start/actions/runs/41839108242) concluiu com sucesso para o commit atual. O site é publicado via GitHub Pages; não depende de um projeto Cloudflare Pages.
+- A API Cloudflare confirma o Worker `mc-start-control` com 100% do tráfego na versão de produção 56, deployment às 12:57 UTC, bindings esperados presentes e nove secret bindings. Nenhum valor secreto foi lido.
+- O agente privado foi publicado pelo workflow [41795652240](https://github.com/LMhdez/mc-start/actions/runs/41795652240); o SHA do ficheiro `vm/mc-agent.py` nesse commit coincide com o ficheiro atual em `main`.
+- Configuração de observabilidade observada: Workers Logs ativos com amostragem de 100%; Workers Traces desativados. Não foram ativados traces nem alterado billing. A conta não autorizou leitura da subscrição/billing através da ligação API; `usage_model=standard` não prova que o plano é Free.
+- O rate limit do Worker usa memória por isolate e não é global/atómico. A palavra-passe do painel tem de ser aleatória, longa e exclusiva; o requisito mínimo de 20 caracteres não garante entropia.
+- A auditoria estática dirigida não encontrou tokens/chaves literais nem comandos de dump de ambiente nos ficheiros de código/workflows revistos. Isto não equivale a um scan completo de todo o histórico Git nem a uma auditoria externa.
+- Não foi feita uma ligação real Java/Bedrock por cliente externo nesta revalidação; não foi feito um restauro isolado de backup; e não foi recolhido estado SSH ao vivo da VM durante esta revisão.
+
+## Decisão revista
+
+**Apto para disponibilização controlada ao grupo**, mantendo as limitações acima. Não classificar como certificação completa de produção/segurança: falta teste externo de entrada Java/Bedrock e ensaio isolado de restauro; o rate limit é por isolate; o plano de billing Cloudflare não foi confirmado. Não anunciar a manutenção unificada da PR #81 como publicada. Sem alterações de código de produção, VM, Worker, bindings, secrets ou billing nesta auditoria.
