@@ -15,6 +15,7 @@ permissions:
 jobs:
   check-minecraft:
     runs-on: ubuntu-latest
+    if: github.actor == 'LMhdez'
     timeout-minutes: 10
 
     steps:
