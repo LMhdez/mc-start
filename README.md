@@ -4,8 +4,8 @@
 
 ## Regras obrigatórias
 
-- **Orçamento: usar os créditos Azure for Students disponíveis para a infraestrutura, mantendo despesa pessoal em 0,00 € / $0,00.** Recursos pagos podem ser aceites quando necessários e forem a alternativa economicamente mais eficiente e tecnicamente viável; nunca presumir que um SKU é Free Tier.
-- Antes de criar/alterar recursos faturáveis, confirmar preço/região, consumo estimado, saldo e validade dos créditos Azure Student e risco de faturação após esgotar/expirar. Não ativar Pay-As-You-Go, upgrades, trials ou método de pagamento sem autorização explícita.
+- **Orçamento: apenas Free Tier e benefícios estudantis já incluídos; despesa pessoal máxima autorizada: 0,00 € / $0,00.** Não criar novos recursos pagos, mesmo que créditos estudantis os cubram, sem autorização explícita.
+- A VM Azure atual usa uma SKU faturável coberta por créditos Azure for Students; não é Free Tier. Confirmar saldo/validade e impedir qualquer faturação pessoal após esgotar/expirar os créditos. Não ativar Pay-As-You-Go, upgrades, trials ou método de pagamento.
 - GitHub Student/Azure Student são benefícios distintos; usar apenas funcionalidades efetivamente incluídas e não assumir que cobrem qualquer serviço.
 - Não executar workflows de start/stop, deploy, instalação, migração, RBAC ou rede sem revisão integral, alvo confirmado, jogadores/backup/rollback e aprovação aplicável.
 - Nunca imprimir/publicar passwords, tokens, secrets, chaves privadas, outputs brutos de autenticação, RCON, nomes/listas de jogadores, IP público ou dados do mundo.
