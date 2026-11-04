@@ -95,7 +95,10 @@ async function main() {
     for (const testCase of statusCases) {
       mockedPublicStatus = testCase.result;
       await page.reload({ waitUntil: "domcontentloaded" });
-      await page.locator("#status-details .status-detail").nth(1).waitFor();
+      await page.waitForFunction(expected => {
+        const row = document.querySelector("#status-details .status-detail:nth-child(2)");
+        return row && row.innerText.includes(expected);
+      }, testCase.expected, { timeout: 5000 });
       const detailsText = await page.locator("#status-details").innerText();
       const bedrockRow = await page.locator("#status-details .status-detail").nth(1).innerText();
       const javaRow = await page.locator("#status-details .status-detail").nth(0).innerText();
