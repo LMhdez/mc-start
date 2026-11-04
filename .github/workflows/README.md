@@ -25,7 +25,7 @@ Ler o README da raiz e rever o YAML integral antes de executar qualquer workflow
 
 ## Regras obrigatórias
 
-- **Custo máximo: 0,00 € / $0,00.** Apenas Free Tier efetivo. Não gastar créditos Azure for Students em recursos pagos; não ativar Pay-As-You-Go, trials, upgrades ou runners/serviços pagos. Não executar `start-vm.yml` enquanto o custo total de arranque não estiver comprovadamente dentro do Free Tier.
+- **Despesa pessoal máxima: 0,00 € / $0,00.** Os créditos Azure for Students podem financiar compute Azure pago deliberadamente escolhido pela melhor relação custo/desempenho. Antes de `start-vm.yml` ou de qualquer alteração de consumo, confirmar preço regional, estimativa, saldo e validade dos créditos, incluindo o risco de esgotamento/expiração; bloquear se existir risco de cobrança pessoal. Não ativar Pay-As-You-Go nem aceitar billing pessoal sem autorização explícita. GitHub runners e serviços de terceiros têm billing separado e devem permanecer nas quotas gratuitas aprovadas, salvo autorização separada.
 - Nunca imprimir secrets, env vars, credenciais Azure, chaves SSH, RCON, nomes de jogadores, IP público ou logs brutos.
 - Não usar workflow mutável para diagnóstico.
 - Antes de parar/reiniciar Minecraft: confirmar jogadores offline, backup recente validado, lock livre, janela e rollback.
@@ -37,7 +37,7 @@ Ler o README da raiz e rever o YAML integral antes de executar qualquer workflow
 
 ## Evidência pós-migração BelgiumCentral — 2026-11-03
 
-> **Custo:** a VM atual usa `Standard_B2als_v2`, não presumir que é Free Tier. Não foi consultado billing. Não executar workflows que iniciem/expandam compute até confirmar elegibilidade gratuita e custo zero.
+ > **Custo:** a VM atual usa `Standard_B2als_v2`, compute pago deliberadamente aceite com créditos Azure for Students. O saldo/billing não foi consultado nesta revisão; antes de workflows que iniciem/expandam compute, confirmar preço, consumo estimado, saldo e validade dos créditos e garantir que não haverá despesa pessoal. A SKU não é Free Tier.
 
 A produção documentada é a VM `MC-VM-BE` em `MCServerBelgiumGroup`, BelgiumCentral. Os workflows usam os secrets Azure para determinar o alvo; confirmar metadata/configuração antes de qualquer operação, sem consultar os valores. Não reutilizar nomes, IPs ou scripts de Austria East/Madrid.
 
