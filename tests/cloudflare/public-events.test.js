@@ -60,31 +60,45 @@ describe("public player SSE endpoint", () => {
     expect(response.headers.get("Content-Type")).toContain("text/event-stream");
     expect(agent.fetch).not.toHaveBeenCalled();
     const body = await response.text();
-    expect(body).toContain("event: status\ndata: ");
+    expect(body).toContain("event: status\\ndata: ");
     expect(body).toContain('"vm":"VM deallocated"');
-    const dataLine = body.split("\n").find(line => line.startsWith("data: "));
+    const dataLine = body.split("\\n").find(line => line.startsWith("data: "));
     const payload = JSON.parse(dataLine.slice(6));
     expect(payload.checked_at).toEqual(expect.any(String));
-    expect(body.endsWith("\n\n")).toBe(true);
+    expect(body.endsWith("\\n\\n")).toBe(true);
   });
 
-  it("forwards the agent event stream without buffering or exposing private data", async () => {
+  it("delivers the first upstream chunk while the stream is still open", async () => {
     mockAzure();
-    const payload = 'event: status\ndata: {"vm":"VM running","players":2}\n\n';
+    let upstreamController;
+    const firstChunk = 'event: status\\ndata: {"vm":"VM running","players":2}\\n\\n';
+    const secondChunk = 'event: status\\ndata: {"vm":"VM running","players":3}\\n\\n';
     const agent = {
-      fetch: vi.fn(async upstreamRequest => {
-        expect(new URL(upstreamRequest.url).pathname).toBe("/events");
-        expect(upstreamRequest.headers.get("Accept")).toBe("text/event-stream");
-        return new Response(payload, {
-          headers: { "Content-Type": "text/event-stream" }
-        });
-      })
+      fetch: vi.fn(async () => new Response(new ReadableStream({
+        start(controller) {
+          upstreamController = controller;
+          controller.enqueue(new TextEncoder().encode(firstChunk));
+        }
+      }), { headers: { "Content-Type": "text/event-stream" } }))
     };
+
     const response = await worker.fetch(request(), bindings(agent));
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toContain("text/event-stream");
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe(origin);
-    expect(await response.text()).toBe(payload);
+
+    const reader = response.body.getReader();
+    const first = await reader.read();
+    expect(first.done).toBe(false);
+    expect(new TextDecoder().decode(first.value)).toBe(firstChunk);
+
+    upstreamController.enqueue(new TextEncoder().encode(secondChunk));
+    const second = await reader.read();
+    expect(second.done).toBe(false);
+    expect(new TextDecoder().decode(second.value)).toBe(secondChunk);
+
+    upstreamController.close();
+    expect((await reader.read()).done).toBe(true);
     expect(agent.fetch).toHaveBeenCalledTimes(1);
   });
 
