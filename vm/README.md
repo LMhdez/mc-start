@@ -4,7 +4,7 @@ Esta pasta contém o agente privado ativo e documentos antigos de preflight/migr
 
 ## Ficheiros
 
-- `mc-agent.py`: agente Python privado usado pelo Worker através do Cloudflare Tunnel/VPC. Inclui `/events` (SSE) para contagem de jogadores, com consultas RCON locais de leitura a cada 5 segundos apenas enquanto há clientes ligados. Não publica nomes nem executa operações de controlo.
+- `mc-agent.py`: agente Python privado usado pelo Worker através do Cloudflare Tunnel/VPC. Inclui `/events` (SSE) para contagem de jogadores, com consultas locais de estado/RCON de leitura a cada 5 segundos apenas enquanto há clientes ligados. Não publica nomes nem executa operações de controlo.
 - `MADRID-MIGRATION-PLAN.md`: **ARQUIVADO**. Plano supersedido pela migração concluída para BelgiumCentral.
 - `FRANCE-MIGRATION-PLAN.md`: **ARQUIVADO**. Preflight regional antigo, sem destino operacional.
 - `france-preflight.sh`: script read-only legado, desativado por defeito; não executar.
