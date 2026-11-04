@@ -61,3 +61,8 @@ Wrangler declara bindings, mas não autoriza divulgar valores. Nunca ler/imprimi
 - Workers VPC está gratuito durante a beta aberta; aplicam-se os limites e custos normais de Workers para pedidos e CPU. Não ativar Workers Paid nem qualquer plano pago.
 - O watcher local só existe enquanto há browsers ligados; vários browsers partilham a mesma consulta. O polling local consome uma pequena quantidade de CPU na VM, mas não gera pedidos periódicos ao Worker/Azure.
 - O fluxo SSE não executa ações Azure, GitHub Actions, Docker start/stop/restart, systemd, cron ou autostop. Os workflows de controlo e as respetivas proteções mantêm-se separados.
+
+
+## Estado de publicação — 2026-11-04
+
+O endpoint SSE e o respetivo proxy estão implementados em `main`, mas o Worker de produção ainda não foi publicado com esta versão. A documentação do endpoint descreve o comportamento pretendido do código, não uma confirmação de runtime. Antes de declarar SSE ativo, publicar o Worker com autorização explícita e validar `GET /api/public/events` sem expor payloads privados. A atualização do agente da VM é uma etapa separada.
