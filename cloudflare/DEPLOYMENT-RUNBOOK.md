@@ -216,3 +216,8 @@ Só considerar concluído quando os testes pós-deploy passarem, os bindings/sec
 2. Confirmar atualização de status e fluxo autenticado «Mostrar endereço»; não partilhar o endereço retornado em logs/commits.
 3. Testar Java TCP 25565 e Bedrock UDP 19132 com clientes reais.
 4. Testar start/stop do painel numa janela aprovada, depois de verificar jogadores online e backup recente.
+
+
+### Arranque Azure-first — proteção contra pedidos duplicados
+
+O pedido autenticado «Ligar servidor» consulta primeiro o estado Azure. Falhas de autenticação/consulta (antes de qualquer mutação) podem usar o workflow GitHub Actions com a confirmação explícita. Se a VM estiver em `stopping`, não há fallback; se estiver `running` ou `starting`, não é enviado outro arranque. Quando Azure confirma `deallocated`/`stopped`, o Worker envia o pedido direto. **Se o POST de arranque tiver resultado ambíguo (por exemplo, timeout/erro HTTP após o pedido), o Worker não aciona GitHub Actions**, porque Azure pode já ter aceite a operação. Responde com erro de confirmação e exige verificar o estado Azure antes de uma nova tentativa. Isto evita dois pedidos concorrentes de arranque.
