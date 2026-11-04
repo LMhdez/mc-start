@@ -43,7 +43,7 @@
   <link rel="alternate" hreflang="x-default" href="https://lmhdez.github.io/mc-start/">
 </head>
 <body>
-  <a class="skip-link" href="./en/#main-content" data-i18n="skipToContent">Saltar para o conteúdo</a>
+  <a class="skip-link" href="./en/#main-content" data-i18n="skipToContent">Skip to content</a>
   <main id="main-content" class="page" tabindex="-1">
     <header class="topbar">
       <a class="brand" href="./en/" aria-label="Minecraft Server">
@@ -51,7 +51,7 @@
         <span>MC<span class="brand-accent"> SERVER</span></span>
       </a>
       <div class="topbar-right">
-        <label class="language-label" for="language-select" data-i18n="languageLabel">IDIOMA</label>
+        <label class="language-label" for="language-select" data-i18n="languageLabel">Language</label>
         <select id="language-select" aria-label="Language" data-i18n-aria="languageLabel">
           <option value="pt">Português</option>
           <option value="es">Español</option>
@@ -61,15 +61,15 @@
     </header>
 
     <section class="page-intro">
-      <p class="eyebrow" data-i18n="eyebrow">O TEU MUNDO. À TUA MANEIRA.</p>
-      <h1 data-i18n="pageTitle">O teu servidor. As tuas regras.</h1>
-      <p class="intro-copy" data-i18n="pageCopy">Consulta se o servidor está online, vê quem está a jogar e encontra os dados para te ligares.</p>
+      <p class="eyebrow" data-i18n="eyebrow">YOUR WORLD. YOUR WAY.</p>
+      <h1 data-i18n="pageTitle">Your server. Your rules.</h1>
+      <p class="intro-copy" data-i18n="pageCopy">Check whether the server is online, see who is playing and find the details to join.</p>
     </section>
 
     <section class="server-card" aria-labelledby="server-title">
       <div class="server-card-top">
         <div>
-          <p class="card-kicker" data-i18n="vmStatusLabel">ESTADO DO SERVIDOR</p>
+          <p class="card-kicker" data-i18n="vmStatusLabel">SERVER STATUS</p>
           <h2 id="server-title">Minecraft Server</h2>
         </div>
         <span class="status-pill"><span class="status-dot status-dot-muted" aria-hidden="true"></span> <span id="server-state">—</span></span>
@@ -77,15 +77,15 @@
 
       <div class="server-info">
         <div class="info-block">
-          <span class="info-label" data-i18n="serverAddress">IP PÚBLICO</span>
-          <strong id="server-address" data-i18n="addressProtected">Protegido — introduz a palavra-passe</strong>
+          <span class="info-label" data-i18n="serverAddress">CONNECTION ADDRESS</span>
+          <strong id="server-address" data-i18n="addressProtected">Protected — enter the password</strong>
         </div>
         <div class="info-block">
-          <span class="info-label" data-i18n="playersOnline">JOGADORES ONLINE</span>
+          <span class="info-label" data-i18n="playersOnline">PLAYERS ONLINE</span>
           <strong id="player-count">—</strong>
         </div>
         <div class="info-block">
-          <span class="info-label" data-i18n="playerNames">JOGADORES LIGADOS</span>
+          <span class="info-label" data-i18n="playerNames">Players</span>
           <strong id="player-names">—</strong>
         </div>
       </div>
@@ -95,30 +95,30 @@
 
     <section class="admin-card" aria-labelledby="admin-title">
       <div class="admin-heading">
-        <p class="card-kicker" data-i18n="adminEyebrow">ADMINISTRAÇÃO</p>
-        <h2 id="admin-title" data-i18n="adminTitle">Controlos do servidor</h2>
-        <p class="section-copy" data-i18n="adminCopy">Ações de gestão protegidas por palavra-passe. Estes controlos não são necessários para jogar.</p>
+        <p class="card-kicker" data-i18n="adminEyebrow">ADMINISTRATION</p>
+        <h2 id="admin-title" data-i18n="adminTitle">Server controls</h2>
+        <p class="section-copy" data-i18n="adminCopy">Password-protected management actions. You do not need these controls to play.</p>
       </div>
       <div class="access-panel">
-        <label class="info-label" for="access-password" data-i18n="passwordLabel">PALAVRA-PASSE DE ACESSO AO PAINEL</label>
-        <input id="access-password" type="password" autocomplete="current-password" aria-describedby="feedback" placeholder="Palavra-passe de administração" data-i18n-placeholder="passwordPlaceholder" required>
+        <label class="info-label" for="access-password" data-i18n="passwordLabel">DASHBOARD ACCESS PASSWORD</label>
+        <input id="access-password" type="password" autocomplete="current-password" aria-describedby="feedback" placeholder="Shared password" data-i18n-placeholder="passwordPlaceholder" required>
       </div>
       <div class="actions">
-        <button id="start-button" class="button button-primary" type="button" disabled><span aria-hidden="true">▶</span> <span data-i18n="start">Ligar servidor</span></button>
-        <button id="status-button" class="button button-secondary" type="button" data-i18n="check">Atualizar estado</button>
-        <button id="private-status-button" class="button button-secondary" type="button" data-i18n="revealAddress" disabled>Mostrar endereço</button>
+        <button id="start-button" class="button button-primary" type="button" disabled><span aria-hidden="true">▶</span> <span data-i18n="start">Start server</span></button>
+        <button id="status-button" class="button button-secondary" type="button" data-i18n="check">Refresh status</button>
+        <button id="private-status-button" class="button button-secondary" type="button" data-i18n="revealAddress" disabled>Show address</button>
       </div>
-      <p id="feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true" data-i18n="initialFeedback">Introduz a palavra-passe para gerir o servidor.</p>
+      <p id="feedback" class="feedback" role="status" aria-live="polite" aria-atomic="true" data-i18n="initialFeedback">Enter the password to manage the server.</p>
     </section>
 
     <section class="technical-section stack-section" aria-labelledby="stack-title">
       <div class="section-heading">
-        <p class="card-kicker" data-i18n="stackLabel">ARQUITETURA E SOFTWARE</p>
-        <h2 id="stack-title" data-i18n="stackTitle">Arquitetura e versões</h2>
-        <p class="section-copy" data-i18n="stackIntro">Visão integrada dos componentes que executam e suportam o servidor, com as versões detetadas.</p>
+        <p class="card-kicker" data-i18n="stackLabel">SERVER OVERVIEW</p>
+        <h2 id="stack-title" data-i18n="stackTitle">Server components</h2>
+        <p class="section-copy" data-i18n="stackIntro">The main components that keep the server running.</p>
       </div>
       <div id="technical-specs" class="detected-grid stack-grid" aria-live="off">
-        <div class="spec-row"><span data-i18n="techLoading">A carregar especificações</span><strong>—</strong></div>
+        <div class="spec-row"><span data-i18n="techLoading">Loading specifications</span><strong>—</strong></div>
       </div>
     </section>
 

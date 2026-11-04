@@ -13,6 +13,7 @@ concurrency:
 jobs:
   install-mc-autostart:
     runs-on: ubuntu-latest
+    if: github.actor == 'LMhdez'
     timeout-minutes: 10
     steps:
       - name: Login na Azure

@@ -20,6 +20,7 @@ concurrency:
 jobs:
   stop-azure-vm:
     runs-on: ubuntu-latest
+    if: github.actor == 'LMhdez'
     timeout-minutes: 40
 
     steps:

@@ -22,6 +22,7 @@ concurrency:
 jobs:
   toggle-autostop:
     runs-on: ubuntu-latest
+    if: github.actor == 'LMhdez'
     timeout-minutes: 8
     steps:
       - name: Login na Azure

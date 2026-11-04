@@ -113,6 +113,12 @@ jobs:
           ruby -ryaml -e '
           Dir.glob(".github/workflows/*.yml").each do |path|
             workflow = YAML.load_file(path, aliases: true)
+            source = File.read(path)
+            if source.match?(/^  workflow_dispatch:/)
+              unless source.include?("github.actor == " + 39.chr + "LMhdez" + 39.chr)
+                abort "Manual workflow is not owner-restricted: #{path}"
+              end
+            end
             (workflow["jobs"] || {}).each_value do |job|
               (job["steps"] || []).each_with_index do |step, index|
                 next unless step["run"]

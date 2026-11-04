@@ -13,6 +13,7 @@ concurrency:
 jobs:
   install-private-agent:
     runs-on: ubuntu-latest
+    if: github.actor == 'LMhdez'
     timeout-minutes: 15
 
     steps:

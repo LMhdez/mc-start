@@ -32,6 +32,10 @@ flowchart TD
     I --> J[Record evidence without sensitive data]
 ```
 
+### Single-operator execution
+
+Every manually dispatched workflow checks `github.actor == 'LMhdez'` at job level. The server start/stop workflows also require the owner identity for repository dispatches, and the private-agent deployment requires it for both manual and push runs. Issue-triggered operational workflows retain their owner-only issue-author checks. The Cloudflare Worker must use a GitHub token owned by `LMhdez`; otherwise, its workflow requests fail closed.
+
 ### Workflow classes
 
 - **CI / validation** — checks code, tests, browser behaviour or build output. A successful CI run does not deploy production unless the YAML explicitly says so.
