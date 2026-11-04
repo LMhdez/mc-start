@@ -859,7 +859,7 @@ setLanguage(savedLanguage);
 requestPublicStatus().finally(startLiveEvents);
 loadTechnicalSpecs();
 
-// One persistent SSE connection delivers player-count changes. It is
+// One persistent SSE connection delivers public status changes. It is
 // read-only: it does not invoke or modify any start/stop workflow or automation.
 let liveEventSource = null;
 let liveReconnectTimer = null;
