@@ -4,7 +4,7 @@ Esta pasta contém o agente privado ativo e documentos antigos de preflight/migr
 
 ## Ficheiros
 
-- `mc-agent.py`: agente Python privado usado pelo Worker através do Cloudflare Tunnel/VPC. Inclui `/events` (SSE) para contagem de jogadores, com consultas locais de estado/RCON de leitura a cada 5 segundos apenas enquanto há clientes ligados. Não publica nomes nem executa operações de controlo.
+- `mc-agent.py`: agente Python privado usado pelo Worker através do Cloudflare Tunnel/VPC. Inclui `/events` (SSE) para alterações ao estado público e contagem de jogadores, com consultas locais de estado/RCON de leitura a cada 5 segundos apenas enquanto há clientes ligados. Não publica nomes/IP nem executa operações de controlo.
 - `MADRID-MIGRATION-PLAN.md`: **ARQUIVADO**. Plano supersedido pela migração concluída para BelgiumCentral.
 - `FRANCE-MIGRATION-PLAN.md`: **ARQUIVADO**. Preflight regional antigo, sem destino operacional.
 - `france-preflight.sh`: script read-only legado, desativado por defeito; não executar.
@@ -18,7 +18,7 @@ Esta pasta contém o agente privado ativo e documentos antigos de preflight/migr
 - Escutar apenas em loopback na VM e encaminhar via binding VPC; nunca publicar a porta 8765 na Internet/NSG.
 - Validar autenticação, método, path e payload antes de cada operação.
 - Nunca registar passwords, tokens, RCON, listas de jogadores ou dados de mundo.
-- O monitor SSE é estritamente passivo: apenas consulta RCON para obter a contagem; não executa `docker start/stop/restart`, `systemctl`, ações Azure nem workflows de ligar/desligar.
+- O monitor SSE é estritamente passivo: apenas consulta estado/Docker/RCON em modo de leitura; não executa `docker start/stop/restart`, `systemctl`, ações Azure nem workflows de ligar/desligar.
 - Alterações ao agente são deployments mutáveis; confirmar compatibilidade Worker/agent, testes e rollback.
 - Não executar comandos que possam devolver segredos sem redaction/allowlist.
 
