@@ -1,4 +1,4 @@
-# MC Server Platform
+# MC SERVER PLATFORM
 
 > **One place to see the world, understand the stack, and operate the server.**
 >
@@ -18,7 +18,7 @@
 
 ## The product
 
-**MC Server Platform** is the player-facing website and operational control plane for a self-hosted Minecraft server.
+**MC SERVER PLATFORM** is the player-facing website and operational control plane for a self-hosted Minecraft server.
 
 For players, it answers the essentials: *Is the server available? How many people are online? How do I connect?*  
 For administrators, it provides protected controls and a technical overview without exposing the VM or its management services directly to the Internet.
@@ -339,13 +339,13 @@ See [production readiness evidence](PRODUCTION-READINESS-2026-11-04.md) and the 
 
 ## Naming and project identity
 
-The repository slug remains `mc-start` for compatibility with the existing GitHub Pages URL, workflows and integrations. The product has outgrown the original “start page” concept, so this README uses **MC Server Platform** as a descriptive product identity without prematurely renaming infrastructure identifiers.
+The repository slug remains `mc-start` for compatibility with the existing GitHub Pages URL, workflows and integrations. The product has outgrown the original “start page” concept, so this README uses **MC SERVER PLATFORM** as a descriptive product identity without prematurely renaming infrastructure identifiers.
 
 A future repository/domain rename should be a separate migration: check Pages URLs, canonical and social metadata, workflow references, Worker configuration, external links and any integrations before changing it.
 
 ---
 
 <p align="center">
-  <strong>MC Server Platform</strong><br>
+  <strong>MC SERVER PLATFORM</strong><br>
   <sub>A small, focused interface over a deliberately separated game and operations stack.</sub>
 </p>
