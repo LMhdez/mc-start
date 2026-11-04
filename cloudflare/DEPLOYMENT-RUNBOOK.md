@@ -20,7 +20,7 @@ The NSG automation was revised to preserve Java TCP 25565, Bedrock UDP 19132 and
 - A configuração ativa mantém o binding R2_BUDGET associado à classe SQLite R2Budget. Não foram consultados valores de secrets nem dados privados.
 - A verificação foi exclusivamente de leitura: não houve novo upload, deployment, alteração de bindings, plano, billing ou infraestrutura.
 - **PR #32:** também consta como deployed na sequência de versões, com 100% do tráfego na deployment observada em 2026-11-01 às 17:23 UTC. Não confundir essa publicação com a posterior PR #40.
-- O plano continua sujeito à regra do projeto: Free Tier apenas; nunca aprovar upgrade, trial ou funcionalidade paga.
+- Manter Cloudflare Workers no plano Free quando suficiente. A decisão de usar créditos Azure Student aplica-se a Azure e não cobre custos Cloudflare; upgrades/trials/funcionalidades pagas Cloudflare exigem avaliação de custo e autorização separadas.
 - **Rede Minecraft:** TCP 19132 tem utilização legítima por um mod, confirmada pelo utilizador. Não o remover nem voltar a propor uma regra Java TCP 25565 + Bedrock UDP 19132 como se fossem os únicos protocolos necessários. A issue #19 permanece not_planned: nenhuma alteração de firewall foi aplicada.
 ## 1. Histórico de auditoria — 2026-11-01
 
@@ -130,9 +130,9 @@ Não usar um dump de settings com valores secretos como backup. Não copiar secr
 
 ## 5. Publicação — requer autorização explícita separada
 
-**Autorização explícita para publicar em produção recebida nesta conversa em 2026-11-01.** A autorização não dispensa os bloqueios técnicos e de Free Tier descritos neste runbook. O merge do PR e o deploy são decisões separadas.
+**Autorização explícita para publicar em produção recebida nesta conversa em 2026-11-01.** A autorização não dispensa os bloqueios técnicos e de custo/plano Cloudflare descritos neste runbook. O merge do PR e o deploy são decisões separadas.
 
-O PR #27 já está merged e a auditoria read-only posterior confirmou uma deployment mais recente com `R2_BUDGET` ativo. Isto não equivale a autorização para uma nova publicação. Antes de qualquer deploy futuro, identificar exatamente o PR/commit aprovado, confirmar que `main` o contém e repetir todos os passos de preflight. Só depois de os bloqueios Free Tier estarem resolvidos e de existir autorização explícita para essa publicação, executar:
+O PR #27 já está merged e a auditoria read-only posterior confirmou uma deployment mais recente com `R2_BUDGET` ativo. Isto não equivale a autorização para uma nova publicação. Antes de qualquer deploy futuro, identificar exatamente o PR/commit aprovado, confirmar que `main` o contém e repetir todos os passos de preflight. Só depois de os bloqueios técnicos e de plano/custo Cloudflare estarem resolvidos e de existir autorização explícita para essa publicação, executar:
 
 ```sh
 npx wrangler deploy --config cloudflare/wrangler.toml
