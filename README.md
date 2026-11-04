@@ -49,7 +49,11 @@ A decisão do operador é aproveitar os créditos Azure for Students para obter 
 - Metadados Open Graph e Twitter usam `https://lmhdez.github.io/mc-start/social-preview.png`, PNG 1200×630.
 - `social-preview.svg` é a fonte editável; `.github/workflows/social-preview.yml` gera e publica o PNG quando o SVG muda.
 - A existência do PNG e os metadados foram confirmados no GitHub. Isto não prova que Discord, WhatsApp ou X já atualizaram as respetivas caches.
-- O estado público do site combina `/api/public/status` com `maintenance.json`. O modo de manutenção é informativo; não para o Minecraft nem altera a VM.
+- O estado inicial é obtido por `/api/public/status`; as alterações ao estado público e à contagem de jogadores chegam por SSE em `/api/public/events`, sem polling periódico do browser. A barra de manutenção continua a usar `maintenance.json`.
+- O Worker valida a origem e o estado Azure uma vez por ligação e encaminha o fluxo do agente privado sem buffering, KV, R2 ou Durable Objects. Cada ligação SSE é um pedido Worker; os eventos transmitidos não criam novos pedidos. As reconexões contam como novos pedidos.
+- No agente, um único watcher partilhado faz leituras locais de estado/Docker/RCON/Geyser a cada 5 segundos apenas enquanto existirem clientes SSE. Só transmite alterações dos campos públicos permitidos; heartbeats atualizam apenas o carimbo temporal. Nunca transmite nomes nem IP. Este polling é local à VM, não faz pedidos periódicos ao Worker/Azure.
+- Separadores ocultos fecham a ligação; ao regressar, o site consulta o estado inicial e abre SSE. Se a VM estiver parada/desalocada, o Worker transmite esse estado e o browser volta a verificar lentamente (60 segundos); falhas transitórias usam backoff.
+- O SSE é estritamente de leitura: não chama, agenda, cancela nem altera workflows, cron jobs, regras de autostop, ações Azure, Docker start/stop/restart ou systemd.
 
 ## Onde começar
 

@@ -1,6 +1,5 @@
 (() => {
   "use strict";
-  const WORKER_URL = "https://mc-start-control.luismariohernandezsantos.workers.dev";
   const POLL_MS = 30000;
   const stateNode = document.querySelector("#server-state");
   const pill = document.querySelector(".status-pill");
@@ -17,6 +16,7 @@
   const dot = pill.querySelector(".status-dot");
   let maintenance = false;
   let message = "";
+  let lastResult = null;
   const lang = () => (document.documentElement.lang || "pt").slice(0, 2);
   const words = {
     pt: { maintenance:"Em manutenção", online:"Servidor online! Já podes entrar.", offline:"Servidor desligado.", starting:"Estamos a ligar o servidor. Obrigado pela paciência!", stopping:"Estamos a desligar o servidor. Obrigado por aguardares!", unknown:"Não foi possível verificar o estado do servidor.", checking:"Estamos a preparar o mundo. Por favor, aguarda mais um pouco.", maintenanceCopy:"Estamos a melhorar o mundo. Obrigado pela compreensão. Voltamos em breve!", unavailableCopy:"Não foi possível verificar o estado do servidor. Tenta novamente dentro de momentos." },
@@ -33,31 +33,65 @@
     banner.style.display = detail ? "block" : "none";
     banner.textContent = detail;
   }
-  async function refresh() {
-    try {
-      const maintenanceResponse = await fetch("./maintenance.json?ts=" + Date.now(), { cache: "no-store" });
-      if (!maintenanceResponse.ok) throw new Error("maintenance config unavailable");
-      const config = await maintenanceResponse.json();
-      maintenance = config.enabled === true;
-      message = typeof config.message === "string" ? config.message.trim().slice(0, 240) : "";
-      if (maintenance) {
-        setState(t().maintenance, "maintenance", message || t().maintenanceCopy);
-        return;
-      }
-      banner.style.display = "none";
-      banner.textContent = "";
-      // script.js é a única fonte dos estados operacionais. Este ficheiro limita-se a apresentar a sobreposição de manutenção.
-    } catch {
-      // A leitura pública do estado é gerida por script.js.
+  function renderServerStatus(result) {
+    if (maintenance || !result) return;
+    if (result.vm === "VM deallocated" || result.vm === "VM stopped") {
+      setState(t().offline, "offline");
+    } else if (result.vm === "VM starting") {
+      setState(t().starting, "pending");
+    } else if (result.vm === "VM stopping") {
+      setState(t().stopping, "pending");
+    } else if (result.vm === "VM running" && result.docker === "active" &&
+        result.container === "running" && result.port_open === true &&
+        result.rcon_ready === true && result.geyser_ready === true) {
+      setState(t().online, "online");
+    } else if (result.vm === "VM running") {
+      setState(t().checking, "pending");
+    } else {
+      setState(t().unknown, "unknown", t().unavailableCopy);
     }
   }
-  refresh();
+
+  function applyMaintenanceState() {
+    if (maintenance) {
+      setState(t().maintenance, "maintenance", message || t().maintenanceCopy);
+    } else if (lastResult) {
+      renderServerStatus(lastResult);
+    } else {
+      setState(t().unknown, "unknown", t().unavailableCopy);
+    }
+  }
+
+  window.addEventListener("mc:server-status", event => {
+    const result = event.detail;
+    if (!result || typeof result !== "object") return;
+    lastResult = result;
+    renderServerStatus(lastResult);
+  });
+
+  // Keep the maintenance label authoritative while script.js renders live status.
   const statusObserver = new MutationObserver(() => {
     if (maintenance && stateNode.textContent !== t().maintenance) {
       setState(t().maintenance, "maintenance", message || t().maintenanceCopy);
     }
   });
   statusObserver.observe(stateNode, { childList: true, characterData: true, subtree: true });
-  window.setInterval(refresh, POLL_MS);
-  window.addEventListener("languagechange", refresh);
+
+  async function refreshMaintenance() {
+    try {
+      const response = await fetch("./maintenance.json?ts=" + Date.now(), { cache: "no-store" });
+      if (!response.ok) throw new Error("maintenance config unavailable");
+      const config = await response.json();
+      maintenance = config.enabled === true;
+      message = typeof config.message === "string" ? config.message.trim().slice(0, 240) : "";
+      applyMaintenanceState();
+    } catch {
+      // Preserve the last known status if the static maintenance config is unavailable.
+      if (maintenance) applyMaintenanceState();
+    }
+  }
+
+  refreshMaintenance();
+  window.setInterval(refreshMaintenance, POLL_MS);
+  window.addEventListener("languagechange", applyMaintenanceState);
 })();

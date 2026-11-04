@@ -683,6 +683,76 @@ export default {
       return json({ ok: false, message: "Origem nao autorizada." }, 403);
     }
 
+    // Real SSE stream: one Azure state check per connection, then a direct
+    // streaming proxy to the private agent. The Worker itself does no polling, KV writes or DO usage.
+    // This endpoint is read-only and is deliberately separate from start/stop.
+    if (url.pathname === "/api/public/events") {
+      if (request.method !== "GET") {
+        return json({ ok: false, message: "Metodo nao permitido." }, 405, origin, { "Allow": "GET" });
+      }
+      if (!(await checkRateLimit(env, request, "public-events", 30))) {
+        return json({ ok: false, message: "Demasiadas reconexoes. Aguarda um pouco." }, 429, origin, { "Retry-After": "60" });
+      }
+      try {
+        const vm = await getAzureVmPowerState(env);
+        if (vm !== "VM running") {
+          // Return the authoritative Azure power state as one SSE event. The
+          // browser reconnects slowly while the VM is stopped/deallocated and
+          // therefore can notice a later manual start without polling rapidly.
+          const stoppedSnapshot = {
+            vm: vm || "Unknown",
+            players: 0,
+            docker: "inactive",
+            container: "unknown",
+            port_open: false,
+            rcon_ready: false,
+            geyser_ready: false,
+            geyser_state: "not_ready",
+            geyser_transport: "unknown",
+            geyser_udp_ready: false,
+            geyser_udp_state: "unknown",
+            checked_at: new Date().toISOString()
+          };
+          const body = "event: status\ndata: " + JSON.stringify(stoppedSnapshot) + "\n\n";
+          return new Response(body, {
+            status: 200,
+            headers: {
+              "Content-Type": "text/event-stream; charset=utf-8",
+              "Cache-Control": "no-cache, no-transform",
+              "X-Content-Type-Options": "nosniff",
+              "Access-Control-Allow-Origin": origin,
+              "Vary": "Origin"
+            }
+          });
+        }
+        if (!env.MC_AGENT) {
+          return json({ ok: false, code: "agent_unavailable" }, 503, origin, { "Retry-After": "60" });
+        }
+        const upstream = await env.MC_AGENT.fetch(new Request(
+          "http://localhost:8765/events",
+          { method: "GET", headers: { "Accept": "text/event-stream" } }
+        ));
+        if (!upstream.ok || !upstream.body) {
+          if (upstream.body) await upstream.body.cancel();
+          return json({ ok: false, code: "event_stream_unavailable" }, 503, origin, { "Retry-After": "60" });
+        }
+        return new Response(upstream.body, {
+          status: 200,
+          headers: {
+            "Content-Type": "text/event-stream; charset=utf-8",
+            "Cache-Control": "no-cache, no-transform",
+            "X-Content-Type-Options": "nosniff",
+            "X-Accel-Buffering": "no",
+            "Access-Control-Allow-Origin": origin,
+            "Vary": "Origin"
+          }
+        });
+      } catch (error) {
+        console.error("Fluxo SSE publico indisponivel:", safeOperationalDiagnostic(error));
+        return json({ ok: false, code: "event_stream_unavailable" }, 503, origin, { "Retry-After": "60" });
+      }
+    }
+
     // Endpoints publicos: nunca devolvem IP, nomes de jogadores ou dados de acesso.
     if (url.pathname === "/api/public/status" && request.method === "GET") {
       if (!env.STATUS_KV) return json({ ok: false, message: "Cache indisponivel." }, 503, origin);
