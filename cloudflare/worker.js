@@ -682,7 +682,7 @@ export default {
     }
 
     // Real SSE stream: one Azure state check per connection, then a direct
-    // streaming proxy to the private agent. No polling, KV writes or DO usage.
+    // streaming proxy to the private agent. The Worker itself does no polling, KV writes or DO usage.
     // This endpoint is read-only and is deliberately separate from start/stop.
     if (url.pathname === "/api/public/events") {
       if (request.method !== "GET") {
