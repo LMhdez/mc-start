@@ -40,3 +40,9 @@ O projeto pode consumir créditos Azure for Students em recursos Azure pagos qua
 - Corrigida a política financeira em README, VM, Cloudflare, scripts e auditoria: a VM paga é uma decisão deliberada suportada pelos créditos Azure Student; não é apresentada como Free Tier nem como incompatível com o objetivo de custo pessoal zero.
 - Reconfirmado que a PR #78 e o follow-up de redaction estão em `main`, mas sem deploy do Worker.
 - Nenhum workflow mutável, deploy, comando Azure ou operação na VM foi executado nesta revisão.
+## Follow-up — uniformização da política financeira (2026-11-04)
+
+- Corrigidas as últimas instruções contraditórias em `.github/README.md`, `.github/workflows/README.md`, nos planos arquivados Madrid/France e no registo do incidente Cloudflare Worker 503.
+- A automação Azure pode iniciar compute pago suportado por créditos Azure for Students após preflight de preço, consumo estimado, saldo e validade, mantendo despesa pessoal em 0,00 € / $0,00; exige autorização explícita para a operação concreta.
+- A política Cloudflare Workers Free permanece separada: os créditos Azure Student não cobrem faturação Cloudflare nem runners/serviços externos.
+- Nenhum workflow foi executado; nenhuma VM, rede, serviço ou Worker foi alterado.
