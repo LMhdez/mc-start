@@ -510,7 +510,7 @@ def _publish_player_snapshot(snapshot):
 
 
 def _watch_player_events():
-    global _PLAYER_EVENT_THREAD
+    global _PLAYER_EVENT_THREAD, _PLAYER_EVENT_SNAPSHOT
     while True:
         with _PLAYER_EVENT_LOCK:
             if not _PLAYER_EVENT_SUBSCRIBERS:
