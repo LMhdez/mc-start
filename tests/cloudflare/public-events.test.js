@@ -60,19 +60,19 @@ describe("public player SSE endpoint", () => {
     expect(response.headers.get("Content-Type")).toContain("text/event-stream");
     expect(agent.fetch).not.toHaveBeenCalled();
     const body = await response.text();
-    expect(body).toContain("event: status\\ndata: ");
+    expect(body).toContain("event: status\ndata: ");
     expect(body).toContain('"vm":"VM deallocated"');
-    const dataLine = body.split("\\n").find(line => line.startsWith("data: "));
+    const dataLine = body.split("\n").find(line => line.startsWith("data: "));
     const payload = JSON.parse(dataLine.slice(6));
     expect(payload.checked_at).toEqual(expect.any(String));
-    expect(body.endsWith("\\n\\n")).toBe(true);
+    expect(body.endsWith("\n\n")).toBe(true);
   });
 
   it("delivers the first upstream chunk while the stream is still open", async () => {
     mockAzure();
     let upstreamController;
-    const firstChunk = 'event: status\\ndata: {"vm":"VM running","players":2}\\n\\n';
-    const secondChunk = 'event: status\\ndata: {"vm":"VM running","players":3}\\n\\n';
+    const firstChunk = 'event: status\ndata: {"vm":"VM running","players":2}\n\n';
+    const secondChunk = 'event: status\ndata: {"vm":"VM running","players":3}\n\n';
     const agent = {
       fetch: vi.fn(async () => new Response(new ReadableStream({
         start(controller) {
