@@ -76,7 +76,7 @@ describe("public player SSE endpoint", () => {
     mockAzure();
     let upstreamController;
     const firstChunk = 'event: status\ndata: {"vm":"VM running","players":2}\n\n';
-    const secondChunk = 'event: status\ndata: {"vm":"VM running","players":3}\n\n';
+    const secondChunk = 'event: heartbeat\ndata: {"checked_at":"2026-11-05T07:00:00Z"}\n\n';
     const agent = {
       fetch: vi.fn(async () => new Response(new ReadableStream({
         start(controller) {
