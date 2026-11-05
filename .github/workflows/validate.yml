@@ -66,6 +66,12 @@ jobs:
             console.error(`GET ${process.argv[3]} returned an unsuccessful response`);
             process.exit(1);
           }
+          if (process.argv[3] === "/api/public/status" &&
+              (typeof body.result?.maintenance?.enabled !== "boolean" ||
+               typeof body.result?.maintenance?.message !== "string")) {
+            console.error("GET /api/public/status is missing the maintenance contract");
+            process.exit(1);
+          }
           console.log(`GET ${process.argv[3]} -> HTTP 200, ok=true`);
           NODE
           done
