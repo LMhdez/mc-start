@@ -2,12 +2,12 @@
 
 ## Worker/frontend synchronization — deployed 2026-11-05
 
-- Worker `mc-start-control` version **59** was uploaded and deployed at 07:15 UTC with **100% traffic**. The release includes the PR #81 maintenance status contract and Azure-first start safeguards.
+- Worker `mc-start-control` version **60** was uploaded and deployed at 07:23 UTC with **100% traffic**. The release includes the PR #81 maintenance status contract and Azure-first start safeguards.
 - The deployed version retains all 13 bindings: nine secret bindings (values not read or changed), `MC_AGENT`, SQLite `R2_BUDGET`, `STATUS_KV` and `TECHNICAL_BUCKET`. The `R2Budget` SQLite export remains declared; no Durable Object migration was applied.
 - `compatibility_date` remains `2026-10-30`; `usage_model` remains `standard`. Existing observability remains enabled with logs active and traces disabled. No plan, billing, payment, R2 bucket, Azure VM or infrastructure setting was changed.
 - Validate project [41986137439](https://github.com/LMhdez/mc-start/actions/runs/41986137439) passed: syntax, Durable Object/R2 tests, Wrangler dry-run, production status and maintenance-contract smoke test, production SSE handshake, Python agent tests and workflow/shell validation.
 - The same production smoke test confirmed `GET /api/public/status` returns `result.maintenance.enabled` as a boolean and `result.maintenance.message` as a string.
-- The production SSE endpoint still returns HTTP 200, `text/event-stream`, and an initial status event; no event payload is logged.
+- The production SSE endpoint returns HTTP 200 and `text/event-stream`; Worker v60 enriches status and heartbeat payloads with the maintenance contract. The CI smoke test parses only the field types and never logs event payloads.
 - The frontend changes remain in PR #81 and have not yet been published to GitHub Pages. The deployed Worker remains compatible with the existing frontend while the PR awaits merge.
 - No VM/Minecraft operation was performed; no secrets were read or changed.
 
