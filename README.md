@@ -324,15 +324,15 @@ Free-tier limits and student-benefit terms can change. Verify the active account
 
 ## Current production snapshot
 
-The following is a dated documentation snapshot, **not live telemetry**. Last recorded on **4 November 2026**:
+The following is a dated documentation snapshot, **not live telemetry**. Last reviewed on **5 November 2026**:
 
 - The documented Azure deployment is in Belgium Central.
 - Minecraft 26.3 runs on Fabric in Docker Compose.
 - The website is served by GitHub Pages; the Cloudflare Worker is the control API, not the game address.
-- The Worker production release recorded in the audit is version 56.
-- The frontend, Worker and private agent have the public SSE status flow.
+- The Cloudflare Worker `mc-start-control` is on version 60 with 100% of traffic.
+- The frontend, Worker and private agent use the public SSE status flow; Worker v60 includes the maintenance state in status and heartbeat events.
 - The private agent was deployed separately from the Worker.
-- PR #81 proposes to include `maintenance` in `GET /api/public/status` and remove the separate browser polling script. The Worker deployment is a separate release gate; the current production snapshot must not be read as confirmation that this contract is already live.
+- PR #81 integrates the frontend with the unified maintenance contract and removes the separate browser polling script. Worker v60 is already deployed; merge of PR #81 publishes the matching frontend through GitHub Pages.
 - Java and Bedrock ports are documented in the infrastructure runbook. External client connectivity should be tested separately; a listening port alone is not proof of end-to-end access.
 
 See [production readiness evidence](PRODUCTION-READINESS-2026-11-04.md) and the infrastructure repository's [current state](https://github.com/LMhdez/mc-server-infrastructure/blob/main/docs/current-state.md). Always re-check live state before an operational action.
