@@ -125,8 +125,15 @@ jobs:
             workflow = YAML.load_file(path, aliases: true)
             source = File.read(path)
             if source.match?(/^  workflow_dispatch:/)
-              unless source.include?("github.actor == " + 39.chr + "LMhdez" + 39.chr)
-                abort "Manual workflow is not owner-restricted: #{path}"
+              jobs = workflow["jobs"] || {}
+              if jobs.empty?
+                abort "Manual workflow has no jobs to protect: #{path}"
+              end
+              jobs.each do |job_name, job|
+                condition = job["if"].to_s
+                unless condition.include?("github.actor == " + 39.chr + "LMhdez" + 39.chr)
+                  abort "Manual workflow job is not owner-restricted: #{path} (#{job_name})"
+                end
               end
             end
             (workflow["jobs"] || {}).each_value do |job|
