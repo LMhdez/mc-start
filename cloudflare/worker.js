@@ -1133,7 +1133,7 @@ export default {
           // did not authorize this mutation, so the authenticated GitHub workflow
           // is a safe alternative. Never use this fallback for network/5xx/409
           // outcomes, which may be ambiguous and could create duplicate starts.
-          if (/^Azure VM action request failed \\(HTTP 403, AuthorizationFailed\\)$/.test(diagnostic)) {
+          if (/^Azure VM action request failed \(HTTP 403, AuthorizationFailed\)$/.test(diagnostic)) {
             console.warn("Azure recusou explicitamente o arranque por autorização; a usar GitHub Actions:", diagnostic);
             file = WORKFLOWS.start.file;
             inputs = WORKFLOWS.start.inputs;
