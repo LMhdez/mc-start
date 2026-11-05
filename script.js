@@ -9,6 +9,7 @@ const statusButton = document.querySelector("#status-button");
 const privateStatusButton = document.querySelector("#private-status-button");
 
 let lastTechnicalData = null;
+let lastMaintenanceState = { enabled: false, message: "" };
 
 const translations = {
   pt: {
@@ -91,6 +92,7 @@ const translations = {
     searchingPrivate: "A consultar o estado do servidor...",
     checkingPrivate: "Pedido enviado. A aguardar pelo resultado da verificação...",
     serverInitializing: "Estamos a preparar o mundo. Por favor, aguarda mais um pouco.",
+    maintenance: "Em manutenção", maintenanceCopy: "Estamos a melhorar o mundo. Obrigado pela compreensão. Voltamos em breve.",
     bedrockStateLabel: "Bedrock",
     startComplete: "Servidor online! Já podes entrar.",
     stopComplete: "Servidor desligado.",
@@ -181,6 +183,7 @@ const translations = {
     searchingPrivate: "Consultando el estado del servidor...",
     checkingPrivate: "Solicitud enviada. Esperando el resultado de la comprobación...",
     serverInitializing: "Estamos preparando el mundo. Por favor, espera un poco más.",
+    maintenance: "En mantenimiento", maintenanceCopy: "Estamos mejorando el mundo. Gracias por tu comprensión. Volveremos pronto.",
     bedrockStateLabel: "Bedrock",
     startComplete: "¡Servidor en línea! Ya puedes entrar.",
     stopComplete: "Servidor apagado.",
@@ -271,6 +274,7 @@ const translations = {
     searchingPrivate: "Checking the server status...",
     checkingPrivate: "Request sent. Waiting for the status result...",
     serverInitializing: "We are preparing the world. Please bear with us a little longer.",
+    maintenance: "Under maintenance", maintenanceCopy: "We are making improvements to the world. Thank you for your understanding. We will be back soon.",
     bedrockStateLabel: "Bedrock",
     startComplete: "Server online! You can join now.",
     stopComplete: "Server offline.",
@@ -453,7 +457,29 @@ function renderStatus(result) {
     const serverReady = isServerReady(result);
     const initializing = result.vm === "VM running" && !serverReady &&
       result.docker === "active" && result.container === "running";
-    state.textContent = serverReady ? t.serverOnline :
+    if (result.maintenance && typeof result.maintenance.enabled === "boolean") {
+      lastMaintenanceState = {
+        enabled: result.maintenance.enabled,
+        message: typeof result.maintenance.message === "string"
+          ? result.maintenance.message.trim().slice(0, 240)
+          : ""
+      };
+    }
+    const maintenance = lastMaintenanceState.enabled === true;
+    const maintenanceMessage = lastMaintenanceState.message;
+    let maintenanceBanner = document.querySelector("#availability-banner");
+    if (!maintenanceBanner) {
+      maintenanceBanner = document.createElement("div");
+      maintenanceBanner.id = "availability-banner";
+      maintenanceBanner.setAttribute("role", "status");
+      maintenanceBanner.setAttribute("aria-live", "polite");
+      maintenanceBanner.style.cssText = "display:none;margin:0 0 1rem;padding:1rem 1.1rem;border:1px solid #8b7540;border-radius:12px;background:#292516;color:#f3dfa4;line-height:1.5";
+      const serverCard = document.querySelector(".server-card");
+      if (serverCard) serverCard.insertBefore(maintenanceBanner, serverCard.firstChild);
+    }
+    maintenanceBanner.style.display = maintenance ? "block" : "none";
+    maintenanceBanner.textContent = maintenance ? (maintenanceMessage || t.maintenanceCopy) : "";
+    state.textContent = maintenance ? t.maintenance : serverReady ? t.serverOnline :
       (initializing ? t.serverInitializing : (vmStates[result.vm] || t.vmUnknown));
     if (state.textContent !== previousState && previousState !== "—") {
       const announcement = document.querySelector("#server-announcement");
@@ -463,7 +489,7 @@ function renderStatus(result) {
     if (dot) {
       const pending = result.vm === "VM starting" || result.vm === "VM stopping" ||
         (result.vm === "VM running" && !serverReady);
-      dot.classList.toggle("status-dot-muted", !serverReady && !pending);
+      dot.classList.toggle("status-dot-muted", maintenance || (!serverReady && !pending));
       dot.classList.toggle("status-dot-pending", pending);
     }
   }
@@ -529,18 +555,6 @@ function renderStatus(result) {
     });
   }
 
-  // Share only the allowlisted public status with the maintenance banner.
-  // Never expose IPs, player names or authenticated response data here.
-  window.dispatchEvent(new CustomEvent("mc:server-status", {
-    detail: {
-      vm: result.vm,
-      docker: result.docker,
-      container: result.container,
-      port_open: result.port_open,
-      rcon_ready: result.rcon_ready,
-      geyser_ready: result.geyser_ready
-    }
-  }));
 }
 
 async function requestPublicStatus(showProgress = false) {
@@ -973,6 +987,18 @@ function startLiveEvents() {
       const payload = JSON.parse(event.data);
       const timestamp = document.querySelector("#status-details .status-detail:nth-child(3) strong");
       if (timestamp) timestamp.textContent = formatStatusTimestamp(payload.checked_at);
+      if (payload.maintenance && typeof payload.maintenance.enabled === "boolean") {
+        const next = {
+          enabled: payload.maintenance.enabled,
+          message: typeof payload.maintenance.message === "string"
+            ? payload.maintenance.message.trim().slice(0, 240)
+            : ""
+        };
+        if (next.enabled !== lastMaintenanceState.enabled || next.message !== lastMaintenanceState.message) {
+          if (lastStatusResult) renderStatus({ ...lastStatusResult, maintenance: next });
+          else lastMaintenanceState = next;
+        }
+      }
     } catch {}
   });
   source.addEventListener("status", event => {

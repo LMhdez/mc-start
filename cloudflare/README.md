@@ -18,15 +18,15 @@ Este diretório contém o Worker `mc-start-control`, configuração Wrangler e r
 
 ## Estado público e manutenção
 
-`GET /api/public/status` é o endpoint público de estado inicial. O Worker de produção `mc-start-control` está na versão **56**, com 100% do tráfego desde 2026-11-04 às 12:57 UTC. A correção RBAC Reader do incidente 503 e o follow-up de redaction estão incluídos no código publicado. Ver [incidente](WORKER-503-INCIDENT.md) e [runbook](DEPLOYMENT-RUNBOOK.md).
+`GET /api/public/status` é o endpoint público de estado inicial. O Worker de produção `mc-start-control` está na versão **60**, com 100% do tráfego desde 2026-11-05 às 07:23 UTC. A correção RBAC Reader do incidente 503 e o follow-up de redaction estão incluídos no código publicado. Ver [incidente](WORKER-503-INCIDENT.md) e [runbook](DEPLOYMENT-RUNBOOK.md).
 
-O frontend combina a API pública com `maintenance.json`, publicado pelo GitHub Pages e controlado por `.github/workflows/toggle-maintenance.yml`. O modo manutenção é apenas informativo: não altera Azure, Worker ou Minecraft e não bloqueia ligações. Se a API falhar, o frontend apresenta estado indisponível, não um estado online antigo. A proposta da PR #81 para incluir manutenção no contrato de estado continua em draft e não está publicada.
+`GET /api/public/status` inclui agora `result.maintenance = { enabled, message }`, lido pelo Worker a partir de `maintenance.json` na branch `main`. A produção foi confirmada pelo smoke test [41986137439](https://github.com/LMhdez/mc-start/actions/runs/41986137439). A PR #81 remove o polling separado do browser e o script `maintenance-status.js`; o frontend novo só será publicado depois do merge e do deployment GitHub Pages. A manutenção permanece informativa: não altera Azure, Worker ou Minecraft e não bloqueia ligações.
 
 ## SSE — estado público em tempo real
 
-- O Worker v56 inclui `GET /api/public/events`; o agente privado correspondente foi atualizado na VM pelo workflow `41795652240`, que confirmou serviço ativo e `/status` saudável.
+- O Worker v60 inclui `GET /api/public/events` e acrescenta o estado de manutenção aos eventos `status` e `heartbeat` do SSE; o agente privado correspondente foi atualizado na VM pelo workflow `41795652240`, que confirmou serviço ativo e `/status` saudável.
 - O frontend, Worker e agente usam o mesmo contrato SSE versionado em `main`. A ligação é read-only e não inicia, para ou reinicia VM/Minecraft.
-- Os testes unitários do Worker/agente passaram. O CI inclui um smoke test de produção que verifica HTTP 200, `text/event-stream` e handshake/evento SSE sem imprimir payloads. O teste passou no Validate project [41839109694](https://github.com/LMhdez/mc-start/actions/runs/41839109694).
+- Os testes unitários do Worker/agente passaram. O CI inclui um smoke test de produção que verifica HTTP 200, `text/event-stream` e handshake/evento SSE sem imprimir payloads. O teste passou no Validate project [41986137439](https://github.com/LMhdez/mc-start/actions/runs/41986137439), que também confirmou o contrato de manutenção em produção.
 - Cada ligação SSE é um pedido Worker; eventos não são pedidos adicionais. Reconexões contam como novos pedidos.
 
 ## Endpoints e contratos

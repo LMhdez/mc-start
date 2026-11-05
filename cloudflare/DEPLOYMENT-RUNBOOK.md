@@ -1,16 +1,15 @@
-# Current operational note — reviewed 2026-11-04
+# Current operational note — reviewed 2026-11-05
 
-## Worker/frontend synchronization — deployed 2026-11-04
+## Worker/frontend synchronization — deployed 2026-11-05
 
-- The frontend and Worker source are synchronized from `main` commit `05c3f18da1f416e79381ce84035723ba6bea4c19`.
-- Worker `mc-start-control` version **56** was uploaded and deployed at 12:57 UTC with **100% traffic**.
-- The deployment retains the existing `STATUS_KV`, `TECHNICAL_BUCKET`, `MC_AGENT`, and SQLite `R2_BUDGET` bindings. All 9 existing secret bindings remain present; secret values were not read or changed.
-- `usage_model` remains `standard`. No plan, billing, payment, R2 bucket, Azure VM, or infrastructure setting was changed by this deployment.
-- GitHub validation run `41806676851` passed, including the R2/Durable Object tests and `wrangler deploy --dry-run`. The Pages deployment for the same commit (`41806676512`) also succeeded.
-- The automated `public-events.test.js` coverage passed as part of the Cloudflare test suite.
-- Private agent deployment workflow [41795652240](https://github.com/LMhdez/mc-start/actions/runs/41795652240) succeeded at 07:56 UTC. Its source file SHA matches `main`; the workflow syntax-checked the new file, restarted `mc-private-agent.service`, verified it active, and required `/status` to return `ok=true`.
-- The production SSE smoke test passed in Validate project [41836572573](https://github.com/LMhdez/mc-start/actions/runs/41836572573): `/api/public/events` returned HTTP 200, `text/event-stream`, and an initial `status` event. The workflow does not log the event payload.
-- PR #81 remains excluded from this deployment.
+- Worker `mc-start-control` version **60** was uploaded and deployed at 07:23 UTC with **100% traffic**. The release includes the PR #81 maintenance status contract and Azure-first start safeguards.
+- The deployed version retains all 13 bindings: nine secret bindings (values not read or changed), `MC_AGENT`, SQLite `R2_BUDGET`, `STATUS_KV` and `TECHNICAL_BUCKET`. The `R2Budget` SQLite export remains declared; no Durable Object migration was applied.
+- `compatibility_date` remains `2026-10-30`; `usage_model` remains `standard`. Existing observability remains enabled with logs active and traces disabled. No plan, billing, payment, R2 bucket, Azure VM or infrastructure setting was changed.
+- Validate project [41986137439](https://github.com/LMhdez/mc-start/actions/runs/41986137439) passed: syntax, Durable Object/R2 tests, Wrangler dry-run, production status and maintenance-contract smoke test, production SSE handshake, Python agent tests and workflow/shell validation.
+- The same production smoke test confirmed `GET /api/public/status` returns `result.maintenance.enabled` as a boolean and `result.maintenance.message` as a string.
+- The production SSE endpoint returns HTTP 200 and `text/event-stream`; Worker v60 enriches status and heartbeat payloads with the maintenance contract. The CI smoke test parses only the field types and never logs event payloads.
+- The frontend changes remain in PR #81 and have not yet been published to GitHub Pages. The deployed Worker remains compatible with the existing frontend while the PR awaits merge.
+- No VM/Minecraft operation was performed; no secrets were read or changed.
 
 
 Production is Azure BelgiumCentral (`MC-VM-BE`, `MCServerBelgiumGroup`); the authoritative VM state lives in the private infrastructure repository. Do not use Austria/Madrid/France migration material as an active target. The operator deliberately uses Azure for Students credits for paid Azure compute when it is the most economical technically viable option, with personal out-of-pocket spend capped at **€0 / $0**. The documented VM SKU `Standard_B2als_v2` is paid compute, not Free Tier, and is an accepted cost/performance choice. Before any operation that changes billable usage, verify regional price, estimated consumption, remaining credit and expiry; never enable Pay-As-You-Go or accept personal billing without explicit authorization.
@@ -35,6 +34,16 @@ The NSG automation was revised to preserve Java TCP 25565, Bedrock UDP 19132 and
 - **PR #32:** também consta como deployed na sequência de versões, com 100% do tráfego na deployment observada em 2026-11-01 às 17:23 UTC. Não confundir essa publicação com a posterior PR #40.
 - Manter Cloudflare Workers no plano Free quando suficiente. A decisão de usar créditos Azure Student aplica-se a Azure e não cobre custos Cloudflare; upgrades/trials/funcionalidades pagas Cloudflare exigem avaliação de custo e autorização separadas.
 - **Rede Minecraft:** TCP 19132 tem utilização legítima por um mod, confirmada pelo utilizador. Não o remover nem voltar a propor uma regra Java TCP 25565 + Bedrock UDP 19132 como se fossem os únicos protocolos necessários. A issue #19 permanece not_planned: nenhuma alteração de firewall foi aplicada.
+## Contrato unificado de estado e manutenção — PR #81
+
+A PR #81 propõe incluir `result.maintenance = { enabled, message }` em `GET /api/public/status`. O Worker lê `maintenance.json` da branch `main`, valida `enabled` e limita a mensagem a 240 caracteres. Cada isolate conserva o último estado válido em cache por 30 segundos; se a origem estiver indisponível, mantém o último valor conhecido. O valor inicial é manutenção desativada.
+
+O frontend renderiza a faixa informativa a partir do mesmo resultado público e deixa de consultar `maintenance.json` separadamente. A manutenção não inicia, para ou reinicia VM/Minecraft e não bloqueia ligações.
+
+**Sequência obrigatória:** reconciliar e validar a PR; publicar o Worker separadamente mantendo compatibilidade com o frontend antigo; confirmar em produção que `result.maintenance` existe e tem os tipos esperados; só depois fazer merge da PR e confirmar Pages. Não publicar o frontend antes do Worker.
+
+O arranque Azure-first é restrito ao endpoint de ação autenticado: consulta o estado antes de agir, não envia novo pedido se a VM já estiver ligada/a iniciar ou a desligar, e não faz fallback GitHub quando o resultado da mutação Azure é ambíguo. O fallback GitHub permanece apenas para falhas de autenticação/consulta Azure anteriores à mutação.
+
 ## 1. Histórico de auditoria — 2026-11-01
 
 - PR #27: merged e fechado através de squash.

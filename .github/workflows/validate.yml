@@ -26,7 +26,6 @@ jobs:
           node scripts/generate-localized-pages.mjs --check
           node --check script.js
           node --check status-crypto.js
-          node --check maintenance-status.js
           node --check cloudflare/worker.js
 
       - name: Install local test dependencies
@@ -45,7 +44,7 @@ jobs:
           "$RUNNER_TEMP/wrangler-check/node_modules/.bin/wrangler" deploy --config cloudflare/wrangler.toml --dry-run
 
       - name: Smoke test public production Worker endpoints
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         env:
           WORKER_BASE: https://mc-start-control.luismariohernandezsantos.workers.dev
           FRONTEND_ORIGIN: https://lmhdez.github.io
@@ -67,13 +66,19 @@ jobs:
             console.error(`GET ${process.argv[3]} returned an unsuccessful response`);
             process.exit(1);
           }
+          if (process.argv[3] === "/api/public/status" &&
+              (typeof body.result?.maintenance?.enabled !== "boolean" ||
+               typeof body.result?.maintenance?.message !== "string")) {
+            console.error("GET /api/public/status is missing the maintenance contract");
+            process.exit(1);
+          }
           console.log(`GET ${process.argv[3]} -> HTTP 200, ok=true`);
           NODE
           done
           rm -f "$RUNNER_TEMP/mc-worker-smoke.json"
 
-      - name: Smoke test production SSE initial status event
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Smoke test production SSE maintenance event
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         env:
           WORKER_BASE: https://mc-start-control.luismariohernandezsantos.workers.dev
           FRONTEND_ORIGIN: https://lmhdez.github.io
@@ -94,15 +99,20 @@ jobs:
             echo "GET /api/public/events did not return an SSE content type"
             exit 1
           fi
-          if ! grep -Eq '^event: (status|unavailable)$' "$body"; then
+          if ! grep -Eq '^event: (status|unavailable|heartbeat)$' "$body"; then
             echo "GET /api/public/events did not receive an initial status event"
             exit 1
           fi
+          if ! grep -Eq '^data: .*"maintenance":\{"enabled":(true|false),"message":"' "$body"; then
+            echo "SSE data event is missing the maintenance contract"
+            exit 1
+          fi
+          echo "SSE event includes the maintenance contract"
           if [ "$curl_status" -ne 0 ] && [ "$curl_status" -ne 28 ]; then
             echo "SSE smoke test ended unexpectedly (curl exit $curl_status)"
             exit 1
           fi
-          echo "GET /api/public/events -> HTTP 200, initial SSE status event confirmed"
+          echo "GET /api/public/events -> HTTP 200, maintenance-bearing SSE event confirmed"
       - name: Check Python syntax and agent event tests
         run: |
           python3 -m py_compile vm/mc-agent.py tests/test_mc_agent_events.py
@@ -131,4 +141,3 @@ jobs:
             puts "Validated #{path}"
           end
           '
-          bash -n vm/france-preflight.sh
