@@ -447,6 +447,19 @@ async function getAzureVmPowerState(env, accessToken = null) {
   return states[power.code] || null;
 }
 
+function getAzurePrincipalObjectId(accessToken) {
+  try {
+    const encodedPayload = accessToken.split('.')[1];
+    if (typeof encodedPayload !== 'string' || !encodedPayload) return null;
+    const base64 = encodedPayload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+    const claims = JSON.parse(atob(padded));
+    const objectId = claims && claims.oid;
+    return typeof objectId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(objectId) ? objectId : null;
+  } catch {
+    return null;
+  }
+}
 async function performAzureVmAction(env, action, accessToken = null) {
   if (!["start", "deallocate"].includes(action)) {
     throw new Error("Azure VM action is not allowed");
@@ -1134,6 +1147,12 @@ export default {
           // is a safe alternative. Never use this fallback for network/5xx/409
           // outcomes, which may be ambiguous and could create duplicate starts.
           if (/^Azure VM action request failed \(HTTP 403, AuthorizationFailed\)$/.test(diagnostic)) {
+            // Never log the access token or other claims; expose only the validated
+            // service-principal object ID needed to verify the exact Azure RBAC principal.
+            console.warn(
+              "Azure principal Object ID for RBAC verification:",
+              getAzurePrincipalObjectId(accessToken) || "unavailable"
+            );
             console.warn("Azure recusou explicitamente o arranque por autorização; a usar GitHub Actions:", diagnostic);
             file = WORKFLOWS.start.file;
             inputs = WORKFLOWS.start.inputs;
