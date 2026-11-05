@@ -99,10 +99,60 @@ jobs:
             echo "GET /api/public/events did not return an SSE content type"
             exit 1
           fi
-          if ! grep -Eq '^event: (status|unavailable)$' "$body"; then
+          if ! grep -Eq '^event: (status|unavailable)
+            echo "SSE smoke test ended unexpectedly (curl exit $curl_status)"
+            exit 1
+          fi
+          echo "GET /api/public/events -> HTTP 200, initial SSE status event confirmed"
+      - name: Check Python syntax and agent event tests
+        run: |
+          python3 -m py_compile vm/mc-agent.py tests/test_mc_agent_events.py
+          python3 -m unittest discover -s tests -p 'test_*.py' -v
+
+      - name: Check workflow YAML and shell syntax
+        run: |
+          ruby -ryaml -e '
+          Dir.glob(".github/workflows/*.yml").each do |path|
+            workflow = YAML.load_file(path, aliases: true)
+            source = File.read(path)
+            if source.match?(/^  workflow_dispatch:/)
+              unless source.include?("github.actor == " + 39.chr + "LMhdez" + 39.chr)
+                abort "Manual workflow is not owner-restricted: #{path}"
+              end
+            end
+            (workflow["jobs"] || {}).each_value do |job|
+              (job["steps"] || []).each_with_index do |step, index|
+                next unless step["run"]
+                File.write("/tmp/mc-server-step.sh", step["run"])
+                unless system("bash", "-n", "/tmp/mc-server-step.sh")
+                  abort "Shell syntax error in #{path}, step #{index + 1}"
+                end
+              end
+            end
+            puts "Validated #{path}"
+          end
+          '
+          bash -n vm/france-preflight.sh "$body"; then
             echo "GET /api/public/events did not receive an initial status event"
             exit 1
           fi
+          node - "$body" <<'NODE'
+          const fs = require("node:fs");
+          const lines = fs.readFileSync(process.argv[2], "utf8").split(/\\r?\\n/);
+          const eventIndex = lines.findIndex(line => /^event: (status|unavailable)$/.test(line));
+          const dataLine = eventIndex >= 0 ? lines.slice(eventIndex + 1).find(line => line.startsWith("data: ")) : null;
+          if (!dataLine) {
+            console.error("SSE initial event has no data payload");
+            process.exit(1);
+          }
+          const payload = JSON.parse(dataLine.slice(6));
+          if (typeof payload.maintenance?.enabled !== "boolean" ||
+              typeof payload.maintenance?.message !== "string") {
+            console.error("SSE initial event is missing the maintenance contract");
+            process.exit(1);
+          }
+          console.log("SSE initial event includes the maintenance contract");
+          NODE
           if [ "$curl_status" -ne 0 ] && [ "$curl_status" -ne 28 ]; then
             echo "SSE smoke test ended unexpectedly (curl exit $curl_status)"
             exit 1
