@@ -25,6 +25,7 @@ jobs:
           node --check scripts/generate-localized-pages.mjs
           node scripts/generate-localized-pages.mjs --check
           node --check script.js
+          node tests/localization-audit.cjs
           node --check status-crypto.js
           node --check cloudflare/worker.js
 
