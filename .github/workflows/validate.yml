@@ -99,7 +99,7 @@ jobs:
             echo "GET /api/public/events did not return an SSE content type"
             exit 1
           fi
-          if ! grep -Eq '^event: (status|unavailable|heartbeat) "$body"; then
+          if ! grep -Eq '^event: (status|unavailable|heartbeat)$' "$body"; then
             echo "GET /api/public/events did not receive an initial status event"
             exit 1
           fi
