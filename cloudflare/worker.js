@@ -370,7 +370,7 @@ function azureHttpError(operation, response, code) {
 
 function safeAzureDiagnostic(error) {
   const message = error instanceof Error ? error.message : "";
-  if (/^Azure (?:token|VM status) request failed \(HTTP [1-5]\d{2}(?:, [A-Za-z][A-Za-z0-9_.-]{0,63})?\)$/.test(message)) {
+  if (/^Azure (?:token|VM status|VM action) request failed \(HTTP [1-5]\d{2}(?:, [A-Za-z][A-Za-z0-9_.-]{0,63})?\)$/.test(message)) {
     return message;
   }
   if (message === "Azure token missing") return message;
@@ -454,16 +454,23 @@ async function performAzureVmAction(env, action, accessToken = null) {
   const token = accessToken || await getAzureAccessToken(env);
   if (!token) throw new Error("Azure credentials are incomplete");
 
-  const response = await fetch(
-    "https://management.azure.com/" + azureVmResource(env) + "/" + action + "?api-version=2024-07-01",
-    {
-      method: "POST",
-      headers: { "Authorization": "Bearer " + token },
-      body: ""
-    }
-  );
+  let response;
+  try {
+    response = await fetch(
+      "https://management.azure.com/" + azureVmResource(env) + "/" + action + "?api-version=2024-07-01",
+      {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + token },
+        body: ""
+      }
+    );
+  } catch {
+    // Fetch exceptions may contain request details; log only a fixed safe diagnostic.
+    throw new Error("Azure VM action network request failed");
+  }
   if (!response.ok && response.status !== 202) {
-    throw new Error("Azure VM action failed with status " + response.status);
+    const code = await getSafeAzureErrorCode(response);
+    throw new Error(azureHttpError("Azure VM action request", response, code));
   }
   return response.status;
 }
@@ -1121,10 +1128,22 @@ export default {
           await performAzureVmAction(env, "start", accessToken);
           return json({ ok: true, message: "Pedido para ligar o servidor enviado diretamente ao Azure." }, 202, origin);
         } catch (error) {
-          // The POST may have reached Azure even if its response was lost.
-          // Never dispatch a second start on this ambiguous mutation outcome.
-          console.error("Resultado do pedido de arranque Azure inconclusivo; nao foi enviado um segundo pedido:", safeOperationalDiagnostic(error));
-          return json({ ok: false, message: "Não foi possível confirmar o pedido de arranque. Verifica o estado da VM antes de tentar novamente." }, 503, origin);
+          const diagnostic = safeOperationalDiagnostic(error);
+          // A 403 AuthorizationFailed response is an explicit rejection: Azure
+          // did not authorize this mutation, so the authenticated GitHub workflow
+          // is a safe alternative. Never use this fallback for network/5xx/409
+          // outcomes, which may be ambiguous and could create duplicate starts.
+          if (/^Azure VM action request failed \\(HTTP 403, AuthorizationFailed\\)$/.test(diagnostic)) {
+            console.warn("Azure recusou explicitamente o arranque por autorização; a usar GitHub Actions:", diagnostic);
+            file = WORKFLOWS.start.file;
+            inputs = WORKFLOWS.start.inputs;
+            message = WORKFLOWS.start.message;
+          } else {
+            // The POST may have reached Azure even if its response was lost.
+            // Never dispatch a second start on this ambiguous mutation outcome.
+            console.error("Resultado do pedido de arranque Azure inconclusivo; nao foi enviado um segundo pedido:", diagnostic);
+            return json({ ok: false, message: "Não foi possível confirmar o pedido de arranque. Verifica o estado da VM antes de tentar novamente." }, 503, origin);
+          }
         }
       }
       if (accessToken && !vmState) {
