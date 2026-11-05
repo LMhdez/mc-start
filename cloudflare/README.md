@@ -18,13 +18,13 @@ Este diretório contém o Worker `mc-start-control`, configuração Wrangler e r
 
 ## Estado público e manutenção
 
-`GET /api/public/status` é o endpoint público de estado inicial. O Worker de produção `mc-start-control` está na versão **59**, com 100% do tráfego desde 2026-11-05 às 07:15 UTC. A correção RBAC Reader do incidente 503 e o follow-up de redaction estão incluídos no código publicado. Ver [incidente](WORKER-503-INCIDENT.md) e [runbook](DEPLOYMENT-RUNBOOK.md).
+`GET /api/public/status` é o endpoint público de estado inicial. O Worker de produção `mc-start-control` está na versão **60**, com 100% do tráfego desde 2026-11-05 às 07:23 UTC. A correção RBAC Reader do incidente 503 e o follow-up de redaction estão incluídos no código publicado. Ver [incidente](WORKER-503-INCIDENT.md) e [runbook](DEPLOYMENT-RUNBOOK.md).
 
 `GET /api/public/status` inclui agora `result.maintenance = { enabled, message }`, lido pelo Worker a partir de `maintenance.json` na branch `main`. A produção foi confirmada pelo smoke test [41986137439](https://github.com/LMhdez/mc-start/actions/runs/41986137439). A PR #81 remove o polling separado do browser e o script `maintenance-status.js`; o frontend novo só será publicado depois do merge e do deployment GitHub Pages. A manutenção permanece informativa: não altera Azure, Worker ou Minecraft e não bloqueia ligações.
 
 ## SSE — estado público em tempo real
 
-- O Worker v59 inclui `GET /api/public/events`; o agente privado correspondente foi atualizado na VM pelo workflow `41795652240`, que confirmou serviço ativo e `/status` saudável.
+- O Worker v60 inclui `GET /api/public/events` e acrescenta o estado de manutenção aos eventos `status` e `heartbeat` do SSE; o agente privado correspondente foi atualizado na VM pelo workflow `41795652240`, que confirmou serviço ativo e `/status` saudável.
 - O frontend, Worker e agente usam o mesmo contrato SSE versionado em `main`. A ligação é read-only e não inicia, para ou reinicia VM/Minecraft.
 - Os testes unitários do Worker/agente passaram. O CI inclui um smoke test de produção que verifica HTTP 200, `text/event-stream` e handshake/evento SSE sem imprimir payloads. O teste passou no Validate project [41986137439](https://github.com/LMhdez/mc-start/actions/runs/41986137439), que também confirmou o contrato de manutenção em produção.
 - Cada ligação SSE é um pedido Worker; eventos não são pedidos adicionais. Reconexões contam como novos pedidos.
