@@ -233,19 +233,30 @@ async function main() {
       }
     }
 
+    await page.waitForFunction(() =>
+      document.querySelector("#server-address")?.textContent?.trim() ===
+        "Indisponível enquanto o servidor estiver desligado.",
+      { timeout: 5000 }
+    );
+
     const languages = [
-      ["pt", "Minecraft Server | O teu servidor", "pt"],
-      ["es", "Minecraft Server | Tu servidor", "es"],
-      ["en", "Minecraft Server | Your server", "en"]
+      ["pt", "Minecraft Server | O teu servidor", "pt", "Indisponível enquanto o servidor estiver desligado."],
+      ["es", "Minecraft Server | Tu servidor", "es", "No disponible cuando el servidor está apagado."],
+      ["en", "Minecraft Server | Your server", "en", "Unavailable while the server is offline."]
     ];
-    for (const [value, expectedTitle, expectedLang] of languages) {
+    for (const [value, expectedTitle, expectedLang, expectedUnavailable] of languages) {
       await page.locator("#language-select").selectOption(value);
       const actual = await page.evaluate(() => ({
         title: document.title,
-        lang: document.documentElement.lang
+        lang: document.documentElement.lang,
+        address: document.querySelector("#server-address")?.textContent?.trim()
       }));
       if (actual.title !== expectedTitle || !actual.lang.toLowerCase().startsWith(expectedLang)) {
         failures.push("Language " + value + " mismatch: " + JSON.stringify(actual));
+      }
+      if (actual.address !== expectedUnavailable || /\bVM\b/i.test(actual.address || "")) {
+        failures.push("Offline address translation is not simple or consistent for " +
+          value + ": " + JSON.stringify(actual.address));
       }
     }
     await page.reload({ waitUntil: "domcontentloaded" });
