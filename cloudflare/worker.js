@@ -50,6 +50,52 @@ async function getPublicMaintenanceConfig() {
   }
 }
 
+async function enrichPublicSseFrame(frame) {
+  const lines = frame.split(/\r?\n/);
+  const dataLines = lines.filter(line => line.startsWith("data:"));
+  if (!dataLines.length) return frame;
+
+  const raw = dataLines.map(line => line.slice(5).replace(/^ /, "")).join("\n");
+  let payload;
+  try {
+    payload = JSON.parse(raw);
+  } catch {
+    return frame;
+  }
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return frame;
+
+  payload.maintenance = await getPublicMaintenanceConfig();
+  let replaced = false;
+  return lines.map(line => {
+    if (!line.startsWith("data:")) return line;
+    if (replaced) return null;
+    replaced = true;
+    return "data: " + JSON.stringify(payload);
+  }).filter(line => line !== null).join("\n");
+}
+
+function withPublicMaintenanceEvents(stream) {
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let pending = "";
+  return stream.pipeThrough(new TransformStream({
+    async transform(chunk, controller) {
+      pending += decoder.decode(chunk, { stream: true });
+      const frames = pending.split(/\r?\n\r?\n/);
+      pending = frames.pop() ?? "";
+      for (const frame of frames) {
+        if (!frame) continue;
+        const enriched = await enrichPublicSseFrame(frame);
+        controller.enqueue(encoder.encode(enriched + "\n\n"));
+      }
+    },
+    async flush(controller) {
+      pending += decoder.decode();
+      if (pending) controller.enqueue(encoder.encode(await enrichPublicSseFrame(pending)));
+    }
+  }));
+}
+
 function checkLocalRateLimit(request, scope, limit, now) {
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
   const key = scope + ":" + ip;
@@ -738,7 +784,8 @@ export default {
             geyser_transport: "unknown",
             geyser_udp_ready: false,
             geyser_udp_state: "unknown",
-            checked_at: new Date().toISOString()
+            checked_at: new Date().toISOString(),
+            maintenance: await getPublicMaintenanceConfig()
           };
           const body = "event: status\ndata: " + JSON.stringify(stoppedSnapshot) + "\n\n";
           return new Response(body, {
@@ -763,7 +810,7 @@ export default {
           if (upstream.body) await upstream.body.cancel();
           return json({ ok: false, code: "event_stream_unavailable" }, 503, origin, { "Retry-After": "60" });
         }
-        return new Response(upstream.body, {
+        return new Response(withPublicMaintenanceEvents(upstream.body), {
           status: 200,
           headers: {
             "Content-Type": "text/event-stream; charset=utf-8",
