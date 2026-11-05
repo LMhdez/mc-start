@@ -20,7 +20,7 @@ Este diretório contém o Worker `mc-start-control`, configuração Wrangler e r
 
 `GET /api/public/status` é o endpoint público de estado inicial. O Worker de produção `mc-start-control` está na versão **56**, com 100% do tráfego desde 2026-11-04 às 12:57 UTC. A correção RBAC Reader do incidente 503 e o follow-up de redaction estão incluídos no código publicado. Ver [incidente](WORKER-503-INCIDENT.md) e [runbook](DEPLOYMENT-RUNBOOK.md).
 
-O frontend combina a API pública com `maintenance.json`, publicado pelo GitHub Pages e controlado por `.github/workflows/toggle-maintenance.yml`. O modo manutenção é apenas informativo: não altera Azure, Worker ou Minecraft e não bloqueia ligações. Se a API falhar, o frontend apresenta estado indisponível, não um estado online antigo. A proposta da PR #81 para incluir manutenção no contrato de estado continua em draft e não está publicada.
+`GET /api/public/status` deverá incluir `result.maintenance = { enabled, message }`, lido pelo Worker a partir de `maintenance.json` na branch `main`. A proposta remove o polling separado do browser e o script `maintenance-status.js`. A manutenção permanece informativa: não altera Azure, Worker ou Minecraft e não bloqueia ligações. A publicação do Worker é separada do merge/Pages; confirmar primeiro o contrato em produção antes de integrar o frontend.
 
 ## SSE — estado público em tempo real
 
