@@ -1,16 +1,15 @@
-# Current operational note — reviewed 2026-11-04
+# Current operational note — reviewed 2026-11-05
 
-## Worker/frontend synchronization — deployed 2026-11-04
+## Worker/frontend synchronization — deployed 2026-11-05
 
-- The frontend and Worker source are synchronized from `main` commit `05c3f18da1f416e79381ce84035723ba6bea4c19`.
-- Worker `mc-start-control` version **56** was uploaded and deployed at 12:57 UTC with **100% traffic**.
-- The deployment retains the existing `STATUS_KV`, `TECHNICAL_BUCKET`, `MC_AGENT`, and SQLite `R2_BUDGET` bindings. All 9 existing secret bindings remain present; secret values were not read or changed.
-- `usage_model` remains `standard`. No plan, billing, payment, R2 bucket, Azure VM, or infrastructure setting was changed by this deployment.
-- GitHub validation run `41806676851` passed, including the R2/Durable Object tests and `wrangler deploy --dry-run`. The Pages deployment for the same commit (`41806676512`) also succeeded.
-- The automated `public-events.test.js` coverage passed as part of the Cloudflare test suite.
-- Private agent deployment workflow [41795652240](https://github.com/LMhdez/mc-start/actions/runs/41795652240) succeeded at 07:56 UTC. Its source file SHA matches `main`; the workflow syntax-checked the new file, restarted `mc-private-agent.service`, verified it active, and required `/status` to return `ok=true`.
-- The production SSE smoke test passed in Validate project [41836572573](https://github.com/LMhdez/mc-start/actions/runs/41836572573): `/api/public/events` returned HTTP 200, `text/event-stream`, and an initial `status` event. The workflow does not log the event payload.
-- PR #81 remains excluded from this deployment.
+- Worker `mc-start-control` version **59** was uploaded and deployed at 07:15 UTC with **100% traffic**. The release includes the PR #81 maintenance status contract and Azure-first start safeguards.
+- The deployed version retains all 13 bindings: nine secret bindings (values not read or changed), `MC_AGENT`, SQLite `R2_BUDGET`, `STATUS_KV` and `TECHNICAL_BUCKET`. The `R2Budget` SQLite export remains declared; no Durable Object migration was applied.
+- `compatibility_date` remains `2026-10-30`; `usage_model` remains `standard`. Existing observability remains enabled with logs active and traces disabled. No plan, billing, payment, R2 bucket, Azure VM or infrastructure setting was changed.
+- Validate project [41986137439](https://github.com/LMhdez/mc-start/actions/runs/41986137439) passed: syntax, Durable Object/R2 tests, Wrangler dry-run, production status and maintenance-contract smoke test, production SSE handshake, Python agent tests and workflow/shell validation.
+- The same production smoke test confirmed `GET /api/public/status` returns `result.maintenance.enabled` as a boolean and `result.maintenance.message` as a string.
+- The production SSE endpoint still returns HTTP 200, `text/event-stream`, and an initial status event; no event payload is logged.
+- The frontend changes remain in PR #81 and have not yet been published to GitHub Pages. The deployed Worker remains compatible with the existing frontend while the PR awaits merge.
+- No VM/Minecraft operation was performed; no secrets were read or changed.
 
 
 Production is Azure BelgiumCentral (`MC-VM-BE`, `MCServerBelgiumGroup`); the authoritative VM state lives in the private infrastructure repository. Do not use Austria/Madrid/France migration material as an active target. The operator deliberately uses Azure for Students credits for paid Azure compute when it is the most economical technically viable option, with personal out-of-pocket spend capped at **€0 / $0**. The documented VM SKU `Standard_B2als_v2` is paid compute, not Free Tier, and is an accepted cost/performance choice. Before any operation that changes billable usage, verify regional price, estimated consumption, remaining credit and expiry; never enable Pay-As-You-Go or accept personal billing without explicit authorization.
