@@ -236,7 +236,7 @@ The status pipeline is intentionally passive.
 | `style.css` | Shared responsive visual system |
 | `script.js` | UI, language handling, API calls and live status |
 | `status-crypto.js` | Browser-side private status cryptography |
-| `maintenance-status.js`, `maintenance.json` | Informational maintenance notice |
+| `maintenance.json` | Informational maintenance configuration, included in public Worker status |
 | `social-preview*.svg` | Editable localized social preview artwork |
 | `cloudflare/worker.js` | Cloudflare API and control plane |
 | `cloudflare/DEPLOYMENT-RUNBOOK.md` | Worker deployment gates and rollback |
@@ -332,7 +332,7 @@ The following is a dated documentation snapshot, **not live telemetry**. Last re
 - The Worker production release recorded in the audit is version 56.
 - The frontend, Worker and private agent have the public SSE status flow.
 - The private agent was deployed separately from the Worker.
-- The PR proposing a unified maintenance field in the status contract remains separate from the deployed implementation; the website maintenance notice continues to use `maintenance.json`.
+- PR #81 proposes to include `maintenance` in `GET /api/public/status` and remove the separate browser polling script. The Worker deployment is a separate release gate; the current production snapshot must not be read as confirmation that this contract is already live.
 - Java and Bedrock ports are documented in the infrastructure runbook. External client connectivity should be tested separately; a listening port alone is not proof of end-to-end access.
 
 See [production readiness evidence](PRODUCTION-READINESS-2026-11-04.md) and the infrastructure repository's [current state](https://github.com/LMhdez/mc-server-infrastructure/blob/main/docs/current-state.md). Always re-check live state before an operational action.
