@@ -103,9 +103,9 @@ jobs:
             echo "GET /api/public/events did not receive an initial status event"
             exit 1
           fi
-          node - "$body" <<'NODE'
+          node -e '
           const fs = require("node:fs");
-          const lines = fs.readFileSync(process.argv[2], "utf8").split(/\r?\n/);
+          const lines = fs.readFileSync(process.argv[1], "utf8").split(/\r?\n/);
           const eventIndex = lines.findIndex(line => /^event: (status|unavailable|heartbeat)$/.test(line));
           const dataLine = eventIndex >= 0 ? lines.slice(eventIndex + 1).find(line => line.startsWith("data: ")) : null;
           if (!dataLine) {
@@ -119,7 +119,7 @@ jobs:
             process.exit(1);
           }
           console.log("SSE initial event includes the maintenance contract");
-          NODE
+          ' "$body"
           if [ "$curl_status" -ne 0 ] && [ "$curl_status" -ne 28 ]; then
             echo "SSE smoke test ended unexpectedly (curl exit $curl_status)"
             exit 1
