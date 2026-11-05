@@ -9,6 +9,7 @@ const statusButton = document.querySelector("#status-button");
 const privateStatusButton = document.querySelector("#private-status-button");
 
 let lastTechnicalData = null;
+let lastMaintenanceState = { enabled: false, message: "" };
 
 const translations = {
   pt: {
@@ -456,10 +457,16 @@ function renderStatus(result) {
     const serverReady = isServerReady(result);
     const initializing = result.vm === "VM running" && !serverReady &&
       result.docker === "active" && result.container === "running";
-    const maintenance = result.maintenance?.enabled === true;
-    const maintenanceMessage = typeof result.maintenance?.message === "string"
-      ? result.maintenance.message.trim().slice(0, 240)
-      : "";
+    if (result.maintenance && typeof result.maintenance.enabled === "boolean") {
+      lastMaintenanceState = {
+        enabled: result.maintenance.enabled,
+        message: typeof result.maintenance.message === "string"
+          ? result.maintenance.message.trim().slice(0, 240)
+          : ""
+      };
+    }
+    const maintenance = lastMaintenanceState.enabled === true;
+    const maintenanceMessage = lastMaintenanceState.message;
     let maintenanceBanner = document.querySelector("#availability-banner");
     if (!maintenanceBanner) {
       maintenanceBanner = document.createElement("div");
@@ -980,6 +987,18 @@ function startLiveEvents() {
       const payload = JSON.parse(event.data);
       const timestamp = document.querySelector("#status-details .status-detail:nth-child(3) strong");
       if (timestamp) timestamp.textContent = formatStatusTimestamp(payload.checked_at);
+      if (payload.maintenance && typeof payload.maintenance.enabled === "boolean") {
+        const next = {
+          enabled: payload.maintenance.enabled,
+          message: typeof payload.maintenance.message === "string"
+            ? payload.maintenance.message.trim().slice(0, 240)
+            : ""
+        };
+        if (next.enabled !== lastMaintenanceState.enabled || next.message !== lastMaintenanceState.message) {
+          if (lastStatusResult) renderStatus({ ...lastStatusResult, maintenance: next });
+          else lastMaintenanceState = next;
+        }
+      }
     } catch {}
   });
   source.addEventListener("status", event => {
