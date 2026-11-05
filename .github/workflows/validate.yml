@@ -99,7 +99,28 @@ jobs:
             echo "GET /api/public/events did not return an SSE content type"
             exit 1
           fi
-          if ! grep -Eq '^event: (status|unavailable)
+          if ! grep -Eq '^event: (status|unavailable)$' "$body"; then
+            echo "GET /api/public/events did not receive an initial status event"
+            exit 1
+          fi
+          node - "$body" <<'NODE'
+          const fs = require("node:fs");
+          const lines = fs.readFileSync(process.argv[2], "utf8").split(/\r?\n/);
+          const eventIndex = lines.findIndex(line => /^event: (status|unavailable)$/.test(line));
+          const dataLine = eventIndex >= 0 ? lines.slice(eventIndex + 1).find(line => line.startsWith("data: ")) : null;
+          if (!dataLine) {
+            console.error("SSE initial event has no data payload");
+            process.exit(1);
+          }
+          const payload = JSON.parse(dataLine.slice(6));
+          if (typeof payload.maintenance?.enabled !== "boolean" ||
+              typeof payload.maintenance?.message !== "string") {
+            console.error("SSE initial event is missing the maintenance contract");
+            process.exit(1);
+          }
+          console.log("SSE initial event includes the maintenance contract");
+          NODE
+          if [ "$curl_status" -ne 0 ] && [ "$curl_status" -ne 28 ]; then
             echo "SSE smoke test ended unexpectedly (curl exit $curl_status)"
             exit 1
           fi
