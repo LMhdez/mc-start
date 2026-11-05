@@ -35,6 +35,9 @@ function mockAzure(powerState = "PowerState/running") {
     if (url.startsWith("https://management.azure.com/")) {
       return Response.json({ statuses: [{ code: powerState }] });
     }
+    if (url === "https://raw.githubusercontent.com/LMhdez/mc-start/main/maintenance.json") {
+      return Response.json({ enabled: true, message: "Manutenção programada." });
+    }
     throw new Error("Unexpected external request");
   }));
 }
@@ -65,6 +68,7 @@ describe("public player SSE endpoint", () => {
     const dataLine = body.split("\n").find(line => line.startsWith("data: "));
     const payload = JSON.parse(dataLine.slice(6));
     expect(payload.checked_at).toEqual(expect.any(String));
+    expect(payload.maintenance).toEqual({ enabled: true, message: "Manutenção programada." });
     expect(body.endsWith("\n\n")).toBe(true);
   });
 
@@ -90,12 +94,16 @@ describe("public player SSE endpoint", () => {
     const reader = response.body.getReader();
     const first = await reader.read();
     expect(first.done).toBe(false);
-    expect(new TextDecoder().decode(first.value)).toBe(firstChunk);
+    const firstText = new TextDecoder().decode(first.value);
+    expect(firstText).toContain('"players":2');
+    expect(firstText).toContain('"maintenance":{"enabled":true,"message":"Manutenção programada."}');
 
     upstreamController.enqueue(new TextEncoder().encode(secondChunk));
     const second = await reader.read();
     expect(second.done).toBe(false);
-    expect(new TextDecoder().decode(second.value)).toBe(secondChunk);
+    const secondText = new TextDecoder().decode(second.value);
+    expect(secondText).toContain("event: heartbeat");
+    expect(secondText).toContain('"maintenance":{"enabled":true,"message":"Manutenção programada."}');
 
     upstreamController.close();
     expect((await reader.read()).done).toBe(true);
