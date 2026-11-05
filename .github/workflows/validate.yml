@@ -44,7 +44,7 @@ jobs:
           "$RUNNER_TEMP/wrangler-check/node_modules/.bin/wrangler" deploy --config cloudflare/wrangler.toml --dry-run
 
       - name: Smoke test public production Worker endpoints
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         env:
           WORKER_BASE: https://mc-start-control.luismariohernandezsantos.workers.dev
           FRONTEND_ORIGIN: https://lmhdez.github.io
@@ -78,7 +78,7 @@ jobs:
           rm -f "$RUNNER_TEMP/mc-worker-smoke.json"
 
       - name: Smoke test production SSE initial status event
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         env:
           WORKER_BASE: https://mc-start-control.luismariohernandezsantos.workers.dev
           FRONTEND_ORIGIN: https://lmhdez.github.io
