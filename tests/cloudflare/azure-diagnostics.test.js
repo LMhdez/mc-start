@@ -304,6 +304,52 @@ describe("explicit Azure-first VM start", () => {
 
 
 
+  it("logs the safe Azure action HTTP status and code, then uses GitHub only for explicit authorization denial", async () => {
+    const network = vi.fn(async (input, init = {}) => {
+      const url = String(input);
+      if (url.startsWith("https://login.microsoftonline.com/")) {
+        return Response.json({ access_token: "test-azure-token" });
+      }
+      if (url.includes("/instanceView?")) {
+        return Response.json({ statuses: [{ code: "PowerState/deallocated" }] });
+      }
+      if (url.endsWith("/start?api-version=2024-07-01") && init.method === "POST") {
+        return Response.json({
+          error: {
+            code: "AuthorizationFailed",
+            message: "NEVER LOG THIS ARM ERROR DESCRIPTION"
+          }
+        }, { status: 403 });
+      }
+      if (url === "https://api.github.com/repos/LMhdez/mc-start/actions/workflows/start-vm.yml/dispatches") {
+        expect(init.method).toBe("POST");
+        expect(JSON.parse(init.body)).toMatchObject({
+          ref: "main",
+          inputs: { notificar: "Painel web", confirmar_arranque: "true" }
+        });
+        return new Response(null, { status: 204 });
+      }
+      throw new Error("Unexpected network request");
+    });
+    vi.stubGlobal("fetch", network);
+    const log = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const response = await worker.fetch(actionRequest("start", ACTION_PASSWORD, "192.0.2.96"), actionBindings());
+
+    expect(response.status).toBe(202);
+    expect(await response.json()).toMatchObject({ ok: true });
+    expect(log).toHaveBeenCalledWith(
+      "Azure recusou explicitamente o arranque por autorização; a usar GitHub Actions:",
+      "Azure VM action request failed (HTTP 403, AuthorizationFailed)"
+    );
+    expect(JSON.stringify(log.mock.calls)).not.toContain("NEVER LOG THIS ARM ERROR DESCRIPTION");
+    expect(JSON.stringify(log.mock.calls)).not.toContain("test-azure-token");
+    expect(JSON.stringify(log.mock.calls)).not.toContain("test-only-secret");
+    expect(network.mock.calls.filter(([url, init]) =>
+      String(url).endsWith("/start?api-version=2024-07-01") && init?.method === "POST"
+    )).toHaveLength(1);
+  });
+
   it("does not dispatch GitHub when the Azure start mutation has an ambiguous outcome", async () => {
     const network = vi.fn(async (input, init = {}) => {
       const url = String(input);
