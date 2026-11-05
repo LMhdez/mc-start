@@ -35,6 +35,16 @@ The NSG automation was revised to preserve Java TCP 25565, Bedrock UDP 19132 and
 - **PR #32:** também consta como deployed na sequência de versões, com 100% do tráfego na deployment observada em 2026-11-01 às 17:23 UTC. Não confundir essa publicação com a posterior PR #40.
 - Manter Cloudflare Workers no plano Free quando suficiente. A decisão de usar créditos Azure Student aplica-se a Azure e não cobre custos Cloudflare; upgrades/trials/funcionalidades pagas Cloudflare exigem avaliação de custo e autorização separadas.
 - **Rede Minecraft:** TCP 19132 tem utilização legítima por um mod, confirmada pelo utilizador. Não o remover nem voltar a propor uma regra Java TCP 25565 + Bedrock UDP 19132 como se fossem os únicos protocolos necessários. A issue #19 permanece not_planned: nenhuma alteração de firewall foi aplicada.
+## Contrato unificado de estado e manutenção — PR #81
+
+A PR #81 propõe incluir `result.maintenance = { enabled, message }` em `GET /api/public/status`. O Worker lê `maintenance.json` da branch `main`, valida `enabled` e limita a mensagem a 240 caracteres. Cada isolate conserva o último estado válido em cache por 30 segundos; se a origem estiver indisponível, mantém o último valor conhecido. O valor inicial é manutenção desativada.
+
+O frontend renderiza a faixa informativa a partir do mesmo resultado público e deixa de consultar `maintenance.json` separadamente. A manutenção não inicia, para ou reinicia VM/Minecraft e não bloqueia ligações.
+
+**Sequência obrigatória:** reconciliar e validar a PR; publicar o Worker separadamente mantendo compatibilidade com o frontend antigo; confirmar em produção que `result.maintenance` existe e tem os tipos esperados; só depois fazer merge da PR e confirmar Pages. Não publicar o frontend antes do Worker.
+
+O arranque Azure-first é restrito ao endpoint de ação autenticado: consulta o estado antes de agir, não envia novo pedido se a VM já estiver ligada/a iniciar ou a desligar, e não faz fallback GitHub quando o resultado da mutação Azure é ambíguo. O fallback GitHub permanece apenas para falhas de autenticação/consulta Azure anteriores à mutação.
+
 ## 1. Histórico de auditoria — 2026-11-01
 
 - PR #27: merged e fechado através de squash.
