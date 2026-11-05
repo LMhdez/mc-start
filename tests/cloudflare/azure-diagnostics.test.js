@@ -304,11 +304,12 @@ describe("explicit Azure-first VM start", () => {
 
 
 
-  it("logs the safe Azure action HTTP status and code, then uses GitHub only for explicit authorization denial", async () => {
+  it("logs the safe Azure action status and identifies the RBAC principal before GitHub fallback", async () => {
     const network = vi.fn(async (input, init = {}) => {
       const url = String(input);
       if (url.startsWith("https://login.microsoftonline.com/")) {
-        return Response.json({ access_token: "test-azure-token" });
+        const payload = btoa(JSON.stringify({ oid: "123e4567-e89b-42d3-a456-426614174000" })).replace(/=/g, "");
+        return Response.json({ access_token: "header." + payload + ".signature" });
       }
       if (url.includes("/instanceView?")) {
         return Response.json({ statuses: [{ code: "PowerState/deallocated" }] });
@@ -338,6 +339,10 @@ describe("explicit Azure-first VM start", () => {
 
     expect(response.status).toBe(202);
     expect(await response.json()).toMatchObject({ ok: true });
+    expect(log).toHaveBeenCalledWith(
+      "Azure principal Object ID for RBAC verification:",
+      "123e4567-e89b-42d3-a456-426614174000"
+    );
     expect(log).toHaveBeenCalledWith(
       "Azure recusou explicitamente o arranque por autorização; a usar GitHub Actions:",
       "Azure VM action request failed (HTTP 403, AuthorizationFailed)"
