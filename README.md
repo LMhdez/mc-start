@@ -155,13 +155,13 @@ sequenceDiagram
     B->>W: GET /api/public/events
     W->>W: Validate origin and Azure state
     W->>A: Open private event stream
-    A->>L: Start/reuse shared watcher
+    A->>L: Start or reuse shared watcher
     loop While clients are connected
         L->>L: Read local Docker / service / game state
         A-->>W: Public status change or heartbeat
         W-->>B: SSE event
     end
-    Note over B,A: Stream is read-only; it never starts, stops or restarts services.
+    Note over B: The stream is read-only and never changes service state.
 ```
 
 **3. Protected administration**
